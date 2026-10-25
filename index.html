@@ -1161,7 +1161,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v324' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v325' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1196,7 +1196,7 @@ setTimeout(function(){
   // 📥 Con señal, se dejan guardadas en el teléfono las pantallas de administración más usadas (como mucho cada 20 min).
   let precargaAt = 0;
   function precargarSinRed(){
-    if(!window.AG_WEB || !state.user || state.prueba || !state.user.admin || navigator.onLine === false || Date.now() - precargaAt < 1200000) return;
+    if(!window.AG_WEB || !state.user || state.prueba || !state.user.admin || navigator.onLine === false || document.hidden || Date.now() - precargaAt < 300000) return;
     precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7);
     [['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getTarifas', a], ['getPresupuestos', a]].forEach((x, i)=>setTimeout(()=>{ gs(...x).catch(()=>{}); }, i * 1500));
   }
@@ -1258,7 +1258,9 @@ setTimeout(function(){
       if(confirm('¿Quitar este aviso?')) colaPoner(COLA_MAL, []); };
   }
   if(window.AG_WEB){
-    window.addEventListener('online', ()=>colaEnviar());
+    window.addEventListener('online', ()=>{ colaEnviar().then(()=>{ precargaAt = 0; precargarSinRed(); }); });
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ colaEnviar(); precargarSinRed(); } });
+    setInterval(()=>precargarSinRed(), 300000);
     window.addEventListener('offline', ()=>{ try{ toast('📴 Sin señal: lo que registres en Inventario, Compras y Finanzas se guarda en el teléfono.'); }catch(e){} });
     setInterval(colaEnviar, 60000);
     setTimeout(()=>{ colaAviso(); colaEnviar(); }, 4000);
@@ -1274,7 +1276,50 @@ setTimeout(function(){
   function pedirRefresco(){ clearTimeout(tRefresco); tRefresco = setTimeout(()=>{ try{ refrescarDatos(true); }catch(e){} }, 1800); }
   // 🧪 En modo prueba solo se permiten lecturas: nada se guarda ni se envía.
   const LECTURA_PRUEBA = /^(get|listar|buscar|siguiente|modelo|entrarModoPrueba)/;
+  // ⚡ ETAPA B (solo web): las pantallas de administración abren AL INSTANTE con lo guardado en el teléfono; por detrás se pide lo
+  // nuevo al servidor y, si cambió, la pantalla se actualiza sola (lectFresco). Con la app de Google todo sigue como siempre.
+  const CACHE_PRIMERO = /^(getInventario|getCompras|getGastos|getTarifas|getPresupuestos|getCostosCocina|getDondeComprar)$/;
   function gsEspera(ms, fn, ...args){
+    if(window.AG_WEB && !state.prueba && CACHE_PRIMERO.test(fn)){
+      return lectLeer(fn, args).then(g=>{
+        if(!g || g.v === undefined) return gsEsperaRed(ms, fn, ...args);
+        if(navigator.onLine !== false) gsEsperaRed(ms, fn, ...args).then(v=>{ if(JSON.stringify(v) !== JSON.stringify(g.v)) lectFresco(fn, args, v); }).catch(()=>{});
+        else avisoLect(g.t);
+        return JSON.parse(JSON.stringify(g.v));
+      });
+    }
+    return gsEsperaRed(ms, fn, ...args);
+  }
+  // Llegó algo nuevo del servidor para una pantalla abierta: se pone en su lugar y se redibuja (nunca encima de un formulario a medio llenar,
+  // ni del inventario mientras haya movimientos sin enviar, para no «deshacer» lo que se hizo sin señal).
+  function lectFresco(fn, args, v){
+    try{
+      const ae = document.activeElement; if(vistaEsFormulario() || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
+      if(fn === 'getInventario'){ if(colaLeer(COLA_K).some(c=>/Inventario/.test(c.fn))) return; const I = estadoInv(); if(!I.cargado || !v) return; I.items = v.items || []; I.movs = v.movs || []; if(v.listas) I.listas = v.listas; }
+      else if(fn === 'getCompras'){ if(!state.cp || !state.cp.datos) return; state.cp.datos = v; }
+      else if(fn === 'getGastos'){ const G = state.gs; if(!G || !G.datos || G.mes !== args[0]) return; G.datos = v; }
+      else if(fn === 'getTarifas'){ if(!Array.isArray(v)) return; state.tarifas = v; state.tarifasAt = Date.now(); }
+      else if(fn === 'getPresupuestos'){ if(!state.presupuestos) return; state.presupuestos = v; }
+      else if(fn === 'getCostosCocina'){ if(!state.costos) return; state.costos = v; }
+      else if(fn === 'getDondeComprar'){ if(state.cp) state.cp.dc = v; return; }
+      else return;
+      render();
+    }catch(e){}
+  }
+  // 📴 Inventario sin señal: el movimiento se ve al instante (existencia y lista de movimientos) y queda en la cola para enviarse.
+  function invLocal(args){
+    try{
+      const [id, tipo, cant, motivo] = args, I = estadoInv(), it = (I.items || []).find(x=>x.id === id); if(!it) return null;
+      const c = Number(String(cant).replace(',', '.')) || 0, r3 = x=>Math.round(x * 1000) / 1000;
+      const stock = r3(tipo === 'entrada' ? it.stock + c : tipo === 'conteo' ? c : Math.max(0, it.stock - c));
+      const mov = { id:'local-' + Date.now(), fecha:new Date().toISOString(), inventarioId:id, nombre:it.nombre, tipo, cantidad:r3(tipo === 'entrada' ? c : tipo === 'conteo' ? stock - it.stock : -c), saldo:stock,
+        motivo:((motivo || '') + ' · 📴 pendiente de enviar').trim(), creadoPor:(state.user && state.user.nombre) || '' };
+      const movs = [mov].concat(I.movs || []), items = (I.items || []).map(x=>x.id === id ? Object.assign({}, x, { stock }) : x);
+      lectGuardar('getInventario', [auth()], { items, movs, admin:I.admin, listas:I.listas });
+      return { item:Object.assign({}, it, { stock }), movs };
+    }catch(e){ return null; }
+  }
+  function gsEsperaRed(ms, fn, ...args){
     if(state.prueba && !LECTURA_PRUEBA.test(fn)){ try{ toast('🧪 Modo prueba: esto no se guarda ni se envía.'); }catch(e){} return Promise.reject(new Error('🧪 Modo prueba: esta acción no se guarda ni se envía (solo es para explorar).')); }
     // 📋 Con la copia del teléfono en pantalla, guardar espera a que lleguen los datos nuevos (máx. 60 s): así no se decide con información vieja.
     if(state.desdeCopia && window._agFresco && !SOLO_LEE.test(fn) && navigator.onLine !== false){
@@ -1310,6 +1355,7 @@ setTimeout(function(){
       else agApi(fn, args).then(res=>{ lectGuardar(fn, args, res); okH(res); }, err=>{   // 🌐 fuera de Google: el mismo servidor por internet
         if(err && err.sinRed && LECT_FN.test(fn)){ lectLeer(fn, args).then(g=>{ if(g && g.v !== undefined){ listo = true; clearInterval(timeoutId); avisoLect(g.t); resolve(g.v); } else failH(err); }); return; }
         if(err && err.sinRed && COLA_FN.test(fn)){ listo = true; clearInterval(timeoutId); colaAgregar(fn, args);
+          if(fn === 'moverInventario'){ const rl = invLocal(args); if(rl){ try{ toast('📴 Sin señal: se ve ya en el inventario y se enviará solo al volver la conexión.'); }catch(eT){} resolve(rl); return; } }
           reject(new Error('📴 Sin señal: quedó guardado en el teléfono y se enviará solo al volver la conexión (lo verás en la lista cuando se envíe). No lo repitas.')); return; }
         failH(err); });
     });
@@ -8559,7 +8605,11 @@ setTimeout(function(){
       '📴 En la app instalada (versión web) ya puedes <strong>entrar sin señal</strong>: con la sesión guardada o con tu PIN, si ya entraste una vez con señal en ese teléfono.',
       '📥 Sin señal ves lo último guardado: inicio, clientes, agenda y, para administración, <strong>Inventario, Compras, Gastos del mes, Tarifas y Presupuestos</strong> (se guardan solos cada vez que hay señal).',
       '🗂️ También se guardan sin señal los cambios de menú, paquetes, tarifas, presupuestos, recetas, clientes y fichas, y se envían solos al volver la conexión.',
-      '👤 Cada persona tiene en su teléfono solo lo suyo, protegido por su PIN.' ] }
+      '👤 Cada persona tiene en su teléfono solo lo suyo, protegido por su PIN.' ] },
+    { v:325, fecha:'25 oct', titulo:'App web: todo al instante y sincronizado', puntos:[
+      '⚡ En la app instalada, Inventario, Compras, Gastos, Tarifas, Presupuestos y Costos <strong>abren al instante</strong> con lo guardado en el teléfono; lo nuevo llega por detrás y la pantalla se actualiza sola.',
+      '📴 Sin señal, lo que entras o sacas del inventario <strong>se ve enseguida</strong> y se envía solo al volver la conexión.',
+      '🔄 Con la app abierta se sincroniza cada 5 minutos, al volver la señal y al volver a la app: lo que cambian otros llega solo.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
