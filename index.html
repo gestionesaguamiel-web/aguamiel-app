@@ -1161,7 +1161,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v325' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v326' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1423,7 +1423,7 @@ setTimeout(function(){
       // La sesión ya no vale (PIN cambiado, usuario desactivado o bloqueado):
       // se vuelve a la pantalla de entrada en vez de mostrar un error.
       if(state.user && esErrorDeSesion(e)){
-        borrarSesion(); state.user = null; state.err = 'Tu sesión ya no es válida. Entra de nuevo.';
+        olvidarSinRed(state.user.id); borrarSesion(); state.user = null; state.err = 'Tu sesión ya no es válida. Entra de nuevo.';
         return loadAll(retriesLeft);
       }
       if(retriesLeft > 0){
@@ -1852,10 +1852,12 @@ setTimeout(function(){
       }catch(e){
         // 📴 Sin señal: se entra si este teléfono ya vio ese PIN con señal y guarda la copia de esa persona.
         if(window.AG_WEB && ((e && e.sinRed) || navigator.onLine === false)){
-          const h = await pinHuella(who.id, pin), c = (h && lsGet('ag_pinok_' + who.id) === h) ? await copiaLeer(String(who.id)) : null;
+          const guardado = lsGet('ag_pinok_' + who.id), h = await pinHuella(who.id, pin), okPin = !!(h && guardado === h);
+          const c = okPin ? await Promise.race([ idbHacer('readonly', st=>st.get('datos_' + String(who.id))), new Promise(r=>setTimeout(()=>r(null), 8000)) ]).catch(()=>null) : null;
           state.loginBusy = false; state.pinBuf = '';
           if(c && c.user){ const user = Object.assign({}, c.user, { pin }); guardarSesion(user); state.user = user; state.tab = 'home'; state.err = ''; state.loginUserId = null; copiaArranque = true; await loadAll(); return; }
-          state.err = lsGet('ag_pinok_' + who.id) ? 'PIN incorrecto' : '📴 Sin señal. Para entrar sin conexión, primero entra una vez con señal en este teléfono.'; render(); return;
+          state.err = !guardado ? '📴 Sin señal. Para entrar sin conexión, primero entra una vez con señal en este teléfono (con tu PIN).'
+            : !okPin ? 'PIN incorrecto' : '📴 Sin señal: este teléfono no tiene tus datos guardados todavía. Entra una vez con señal y espera unos segundos.'; render(); return;
         }
         state.loginBusy = false; state.pinBuf = '';
         const m = String(e && e.message ? e.message : e);
@@ -8609,7 +8611,11 @@ setTimeout(function(){
     { v:325, fecha:'25 oct', titulo:'App web: todo al instante y sincronizado', puntos:[
       '⚡ En la app instalada, Inventario, Compras, Gastos, Tarifas, Presupuestos y Costos <strong>abren al instante</strong> con lo guardado en el teléfono; lo nuevo llega por detrás y la pantalla se actualiza sola.',
       '📴 Sin señal, lo que entras o sacas del inventario <strong>se ve enseguida</strong> y se envía solo al volver la conexión.',
-      '🔄 Con la app abierta se sincroniza cada 5 minutos, al volver la señal y al volver a la app: lo que cambian otros llega solo.' ] }
+      '🔄 Con la app abierta se sincroniza cada 5 minutos, al volver la señal y al volver a la app: lo que cambian otros llega solo.' ] },
+    { v:326, fecha:'25 oct', titulo:'Entrar sin señal después de Salir', puntos:[
+      '🔑 Corregido: en la app instalada, después de tocar «Salir» (o si vence la sesión) ya se puede volver a entrar <strong>sin señal</strong> con tu PIN. Antes los datos del teléfono se borraban al salir y decía «PIN incorrecto» aunque el PIN estuviera bien.',
+      '🛡️ Los datos guardados en el teléfono siguen protegidos: solo se abren con el PIN de esa persona, y si se le cambia el PIN o se desactiva, el teléfono los borra.',
+      '💬 Mensajes claros al entrar sin señal: PIN incorrecto, falta entrar una vez con señal o faltan los datos.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15795,7 +15801,9 @@ setTimeout(function(){
   }
   function claveVista(){ const n = navActual(); if(n.rosita) delete n.rosita.filtro; if(n.ag) delete n.ag.filtro; delete n.reservaActual; delete n.reservaPersona; return JSON.stringify(n); }
   function guardarSesion(who){ if(state.prueba) return; lsSet(CLAVE_SESION, { id:String(who.id), pin:String(who.pin), t:Date.now(), nav:null }); }
-  function borrarSesion(){ lsDel(CLAVE_SESION); copiaBorrar(); state.desdeCopia = 0; avisoCopia(0); }
+  function borrarSesion(){ lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); state.desdeCopia = 0; avisoCopia(0); }
+  // 📴 Si el servidor dice que la sesión ya no vale (PIN cambiado, persona desactivada), este teléfono olvida sus datos y su PIN guardado.
+  function olvidarSinRed(id){ if(!window.AG_WEB || !id) return; lsDel('ag_pinok_' + id); idbHacer('readwrite', st=>st.delete('datos_' + id)).catch(()=>{}); }
   function borrarBorrador(){ lsDel(CLAVE_BORRADOR); }
   // Reanuda la sesión guardada en este equipo, pero solo si el servidor
   // confirma que el PIN sigue siendo válido y la persona sigue activa.
@@ -15806,11 +15814,12 @@ setTimeout(function(){
     if(Date.now() - (ses.t||0) > horasSes()*3600000){ borrarSesion(); return false; }
     let res = null;
     try{ res = await gs('loginStaff', ses.id, ses.pin); }
-    catch(e){ if(esErrorDeSesion(e)){ borrarSesion(); return false; }
+    catch(e){ if(esErrorDeSesion(e)){ olvidarSinRed(ses.id); borrarSesion(); return false; }
       if(window.AG_WEB && e && e.sinRed && state.desdeCopia && state.user) return true;   // 📴 sin señal: se sigue con la sesión guardada en este teléfono
       throw e; }
     if(!res || !res.activo){ borrarSesion(); return false; }
     const who = Object.assign({}, res, { pin: String(ses.pin) });
+    if(window.AG_WEB) pinHuella(ses.id, ses.pin).then(h=>{ if(h) lsSet('ag_pinok_' + ses.id, h); });
     state.user = who; state.view = 'app';
     // Se anota la reapertura como mucho una vez por hora en este equipo.
     const ua = lsGet('aguamiel_ultreg'); if(!ua || ua.id!==String(who.id) || Date.now() - ua.t > 3600000){ lsSet('aguamiel_ultreg', { id:String(who.id), t:Date.now() }); setTimeout(()=>registrarAccesoApp('reabrio', who), 1500); }
