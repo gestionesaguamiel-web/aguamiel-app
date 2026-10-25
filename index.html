@@ -1161,7 +1161,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v326' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v327' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1200,6 +1200,32 @@ setTimeout(function(){
     precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7);
     [['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getTarifas', a], ['getPresupuestos', a]].forEach((x, i)=>setTimeout(()=>{ gs(...x).catch(()=>{}); }, i * 1500));
   }
+  // ⚖️ A César (director principal) se le avisa al entrar si tiene choques de datos por decidir (como mucho cada 30 min).
+  let avisoChoquesAt = 0;
+  function esDirector(){ const n = String((state.user && state.user.nombre) || '').toLowerCase(); return /c[eé]sar/.test(n) && /zamora/.test(n); }
+  function avisoChoques(){
+    if(!state.user || state.prueba || !esDirector() || Date.now() - avisoChoquesAt < 1800000) return; avisoChoquesAt = Date.now();
+    gs('getChoquesSinRed', auth()).then(d=>{ const k = ((d && d.lista) || []).length; if(k) toast('⚖️ Tienes ' + k + ' choque' + (k === 1 ? '' : 's') + ' de datos por decidir: Admin → ⚙️ Sistema → ⚖️ Choques de datos.'); }).catch(()=>{});
+  }
+  async function renderChoques(cont){
+    cont.innerHTML = '<p class="ag-empty">Cargando…</p>';
+    let d; try{ d = await gsEsperaRed(30000, 'getChoquesSinRed', auth()); }catch(e){ cont.innerHTML = '<p class="ag-err">' + esc(e && e.message ? e.message : e) + '</p>'; return; }
+    if(!d || !d.director){ cont.innerHTML = '<div class="ag-card"><p style="margin:0">⚖️ Los choques de datos los decide solo <strong>César</strong>, director principal.</p></div>'; return; }
+    const L = d.lista || [];
+    cont.innerHTML = '<div class="ag-card"><h3 style="margin:0 0 4px">⚖️ Choques de datos</h3><p class="ag-muted" style="font-size:12.5px;margin:0">Cambios hechos sin señal en un teléfono mientras otra persona cambiaba lo mismo. No se pisó nada: tú decides qué versión queda.</p></div>' +
+      (L.length ? L.map(x=>'<div class="ag-card" style="margin-top:10px"><strong>' + esc(x.titulo) + '</strong><div class="ag-muted" style="font-size:12px">📱 ' + esc(x.quien) + ' · hecho sin señal el ' + esc(fechaHoraCorta(x.hechoAt || x.fecha)) + '</div>' +
+        '<div style="margin-top:6px;border:1px solid var(--line);border-radius:10px;overflow:hidden">' + (x.detalle || []).map(c=>'<div style="padding:6px 8px;border-bottom:1px solid var(--line);font-size:12.5px"><strong>' + esc(c.campo) + '</strong>' +
+          '<div>Antes: <span class="ag-muted">' + (esc(c.antes) || '—') + '</span></div><div>🖥️ Ahora en el servidor: <strong>' + (esc(c.servidor) || '—') + '</strong></div><div>📱 Del teléfono: <strong>' + (esc(c.telefono) || '—') + '</strong></div></div>').join('') + '</div>' +
+        '<div style="display:flex;gap:6px;margin-top:8px"><button class="ag-btn sm" data-ch-tel="' + esc(x.id) + '" style="flex:1">📱 Usar lo del teléfono</button><button class="ag-btn sm ghost" data-ch-serv="' + esc(x.id) + '" style="flex:1">🖥️ Dejar lo del servidor</button></div></div>').join('')
+      : '<p class="ag-empty" style="margin-top:10px">✅ No hay choques pendientes.</p>');
+    cont.querySelectorAll('[data-ch-tel],[data-ch-serv]').forEach(b=>b.onclick = async ()=>{
+      const tel = !!b.dataset.chTel, id = b.dataset.chTel || b.dataset.chServ;
+      if(!confirm(tel ? '¿Usar lo que se hizo en el teléfono? Reemplaza lo que hay ahora en el servidor.' : '¿Dejar lo que hay ahora en el servidor? El cambio del teléfono se descarta.')) return;
+      b.disabled = true;
+      try{ await gsEsperaRed(60000, 'resolverChoqueSinRed', id, tel, auth()); toast(tel ? '📱 Listo: quedó lo del teléfono.' : '🖥️ Listo: quedó lo del servidor.'); try{ refrescarDatos(true); }catch(e2){} renderChoques(cont); }
+      catch(e){ b.disabled = false; alert('No se pudo: ' + (e && e.message ? e.message : e)); }
+    });
+  }
   // 📴 MODO SIN CONEXIÓN (solo en la versión web/APK). Lo que se registra sin señal en Inventario, Compras y Finanzas
   // se guarda en el teléfono (cola) y se envía solo, en orden, al volver la conexión. Cada cambio lleva un «rid» único:
   // si llegara dos veces, el servidor no lo duplica. Borrar, pagos y verificaciones NO se guardan sin conexión (necesitan respuesta segura).
@@ -1222,18 +1248,55 @@ setTimeout(function(){
   const colaPoner = (k, l)=>{ try{ localStorage.setItem(k, JSON.stringify(l)); }catch(e){} colaAviso(); };
   function colaAgregar(fn, args){
     const l = colaLeer(COLA_K), rid = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
-    l.push({ rid, fn, args, at:new Date().toISOString(), quien:(state.user && state.user.nombre) || '' }); colaPoner(COLA_K, l);
+    l.push({ rid, fn, args, at:new Date().toISOString(), quien:(state.user && state.user.nombre) || '', antes:choqueAntes(fn, args) }); colaPoner(COLA_K, l);
     return rid;
+  }
+  // ⚖️ CHOQUES: para los cambios a algo que ya existe se guarda cómo estaba cada campo que se cambió. Al volver la señal se compara
+  // con lo que hay en el servidor: si otra persona cambió ESE mismo campo, no se envía; queda como choque y César decide.
+  const CHOQUE_DEF = { saveInventarioItem:{ f:'inv' }, saveCliente:{ f:'cli' }, saveFicha:{ f:'fic' }, updateFicha:{ f:'fic' }, saveMenuItem:{ f:'menu' }, savePaquete:{ f:'paq' },
+    savePresupuesto:{ f:'pres' }, setEstadoPresupuesto:{ f:'pres', obj:a=>({ id:a[0], estado:a[1] }) }, saveReceta:{ f:'rec' }, saveCompra:{ f:'comp' },
+    marcarCompra:{ f:'comp', obj:a=>({ id:a[0], estado:a[1] ? 'Comprado' : 'Pendiente' }) }, setCostoCompra:{ f:'comp', obj:a=>({ id:a[0], costo:a[1] }) }, saveTarifas:{ f:'tar', todo:true } };
+  const CHOQUE_LOCAL = { inv:()=>estadoInv().items, cli:()=>state.clientes, fic:()=>state.fichas, menu:()=>state.menu, paq:()=>(state.agenda || {}).paquetes, pres:()=>state.presupuestos,
+    rec:()=>(state.costos || {}).recetas, comp:()=>((state.cp && state.cp.datos) || {}).items, tar:()=>state.tarifas };
+  const CHOQUE_SERV = { inv:a=>agApi('getInventario', [a]).then(d=>d.items), cli:a=>agApi('getDataClinico', [a]).then(d=>d.clientes), fic:a=>agApi('getDataClinico', [a]).then(d=>d.fichas),
+    menu:a=>agApi('getDataOperativo', [a]).then(d=>d.menu), paq:a=>agApi('getAgenda', [a]).then(d=>d.paquetes), pres:a=>agApi('getPresupuestos', [a]),
+    rec:a=>agApi('getCostosCocina', [a]).then(d=>d.recetas), comp:a=>agApi('getCompras', [a]).then(d=>d.items), tar:a=>agApi('getTarifas', [a]) };
+  const CHOQUE_SALTA = /^(id|updatedAt|createdAt|editadoPor|creadoPor|_fila|pin)$/;
+  const valTxt = v=>(v === undefined || v === null) ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v).trim());
+  function choqueAntes(fn, args){
+    try{
+      const d = CHOQUE_DEF[fn]; if(!d) return null; const L = CHOQUE_LOCAL[d.f]() || [];
+      if(d.todo) return { todo:valTxt(L) };
+      const o = d.obj ? d.obj(args) : args[0]; if(!o || typeof o !== 'object' || !o.id) return null;   // algo nuevo (sin id): no puede chocar
+      const r = L.find(x=>x && String(x.id) === String(o.id)); if(!r) return null;
+      const campos = {}; Object.keys(o).forEach(k=>{ if(!CHOQUE_SALTA.test(k) && k in r) campos[k] = valTxt(r[k]); });
+      return { id:String(o.id), nombre:String(r.nombre || r.clienteNombre || r.cliente || r.titulo || o.nombre || ''), campos };
+    }catch(e){ return null; }
+  }
+  async function choqueRevisar(c, fuentes){
+    const d = CHOQUE_DEF[c.fn], a = auth(); if(!d || !c.antes || !a) return null;
+    if(!fuentes[d.f]) fuentes[d.f] = CHOQUE_SERV[d.f](a);
+    const L = (await fuentes[d.f]) || [];
+    if(d.todo) return (valTxt(L) !== c.antes.todo && valTxt(L) !== valTxt(c.args[0])) ? { titulo:'Tabla de tarifas', detalle:[{ campo:'Tarifas', antes:'como estaban', servidor:'cambiadas por otra persona', telefono:'tu versión completa' }] } : null;
+    const o = d.obj ? d.obj(c.args) : c.args[0], r = L.find(x=>x && String(x.id) === String(c.antes.id));
+    if(!r) return { titulo:(c.antes.nombre || c.fn) + ' (ya no existe en el servidor)', detalle:[{ campo:'Registro', antes:'existía', servidor:'borrado o archivado', telefono:'tus cambios' }] };
+    const det = []; Object.keys(c.antes.campos).forEach(k=>{ const sv = valTxt(r[k]), tl = valTxt(o[k]), an = c.antes.campos[k];
+      if(sv !== an && sv !== tl && tl !== an) det.push({ campo:k, antes:an.slice(0, 200), servidor:sv.slice(0, 200), telefono:tl.slice(0, 200) }); });
+    return det.length ? { titulo:c.antes.nombre || c.fn, detalle:det } : null;
   }
   let colaEnviando = false;
   async function colaEnviar(){
     if(colaEnviando || !window.AG_WEB || navigator.onLine === false) return;
     let l = colaLeer(COLA_K); if(!l.length) return;
-    colaEnviando = true; let ok = 0;
+    colaEnviando = true; let ok = 0, choques = 0; const fuentes = {};
     try{
       while(l.length){
         const c = l[0];
-        try{ await agApi(c.fn, c.args, c.rid); ok++; }
+        try{
+          const ch = c.antes ? await choqueRevisar(c, fuentes) : null;
+          if(ch){ await agApi('registrarChoqueSinRed', [{ fn:c.fn, args:c.args, titulo:ch.titulo, detalle:ch.detalle, hechoAt:c.at }, auth()], c.rid + '-ch'); choques++; }
+          else { await agApi(c.fn, c.args, c.rid); ok++; }
+        }
         catch(e){
           if(e && e.sinRed) break;   // sigue sin señal: se reintenta luego, en el mismo orden
           const mal = colaLeer(COLA_MAL); mal.push(Object.assign({}, c, { error:String(e && e.message || e).slice(0, 300) })); colaPoner(COLA_MAL, mal);
@@ -1242,6 +1305,7 @@ setTimeout(function(){
       }
     } finally { colaEnviando = false; }
     if(ok){ try{ toast('📶 Volvió la señal: se enviaron ' + ok + ' cambio' + (ok === 1 ? '' : 's') + ' guardados sin conexión.'); refrescarDatos(true); }catch(e){} }
+    if(choques){ try{ setTimeout(()=>toast('⚖️ ' + choques + ' cambio' + (choques === 1 ? '' : 's') + ' hecho' + (choques === 1 ? '' : 's') + ' sin señal chocó con cambios de otra persona. No se pisó nada: César decidirá cuál queda.'), ok ? 3500 : 0); }catch(e){} }
   }
   // Aviso fijo arriba: cuántos cambios esperan señal y cuáles no se pudieron enviar (con su motivo, para revisarlos).
   function colaAviso(){
@@ -1416,6 +1480,7 @@ setTimeout(function(){
       ultimaCarga = Date.now(); huellaDatos = huella(data);
       copiaGuardar(data);
       if(window.AG_WEB) setTimeout(precargarSinRed, 4000);
+      setTimeout(avisoChoques, 7000);
       // 📋 Si se estaba mostrando la copia del teléfono, ya llegó lo nuevo: se quita el aviso. Si la persona empezó a llenar algo, no se le redibuja encima.
       if(state.desdeCopia){ terminarCopia(); if(vistaEsFormulario()) return; }
       try{ gs('getEstampaDatos').then(e=>{ ultimaEstampa = String(e || ''); }).catch(()=>{}); }catch(eS){}
@@ -8615,7 +8680,11 @@ setTimeout(function(){
     { v:326, fecha:'25 oct', titulo:'Entrar sin señal después de Salir', puntos:[
       '🔑 Corregido: en la app instalada, después de tocar «Salir» (o si vence la sesión) ya se puede volver a entrar <strong>sin señal</strong> con tu PIN. Antes los datos del teléfono se borraban al salir y decía «PIN incorrecto» aunque el PIN estuviera bien.',
       '🛡️ Los datos guardados en el teléfono siguen protegidos: solo se abren con el PIN de esa persona, y si se le cambia el PIN o se desactiva, el teléfono los borra.',
-      '💬 Mensajes claros al entrar sin señal: PIN incorrecto, falta entrar una vez con señal o faltan los datos.' ] }
+      '💬 Mensajes claros al entrar sin señal: PIN incorrecto, falta entrar una vez con señal o faltan los datos.' ] },
+    { v:327, fecha:'25 oct', titulo:'Choques de datos: decide César', puntos:[
+      '⚖️ Si algo se cambió <strong>sin señal</strong> en un teléfono y, mientras tanto, otra persona cambió eso mismo, la app <strong>no pisa nada</strong>: lo deja como choque para que lo decida <strong>César</strong>.',
+      '📲 César recibe el aviso por Telegram y al entrar a la app; en Admin → ⚙️ Sistema → ⚖️ Choques de datos ve cómo estaba, qué hay ahora y qué se hizo en el teléfono, y elige «Usar lo del teléfono» o «Dejar lo del servidor».',
+      '✅ Lo que no choca se sube solo, como siempre. Lo nuevo (creado sin señal) nunca choca: se guarda.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -14706,8 +14775,8 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || 'staff';
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
     const hayPagos = (state.pagosPend||[]).length;
     body.innerHTML = `
@@ -14728,6 +14797,7 @@ setTimeout(function(){
     // 🍱 La comida del personal vive en el inventario de Rosita, pero tiene su propia pestaña para encontrarla directo.
     if(sub==='inv_rosita') renderInventario(cont, 'rosita', true);
     else if(sub==='inv_personal') renderInventario(cont, 'personal', true);
+    else if(sub==='choques') renderChoques(cont);
     else if(sub==='inv_spa') renderInventario(cont, 'spa', true);
     else if(sub==='inv_oper') renderInventario(cont, 'operaciones', true);
     else if(sub==='gastos') renderGastos(cont);
