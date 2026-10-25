@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v331' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v332' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -6159,6 +6159,7 @@ setTimeout(function(){
       return `<div style="margin-top:8px;padding:10px;border-radius:12px;background:#fff8e6;border:1px solid #f0d9a8">
         <strong style="font-size:13.5px">🔀 Toca en cada producto a qué inventario pertenece</strong>
         <p class="ag-muted" style="font-size:12px;margin:4px 0 8px"><strong>🤲 Personal</strong> = va al Stock del personal (lo que se les da: comida, cigarros, insumos; con su botón Entregar y su compra en Egresos). <strong>🍽️ Rosita</strong> = la cocina, los platos del menú y las recetas. La cantidad, dónde se guarda y su historial no cambian.</p>
+        <p style="font-size:12px;margin:0 0 8px;background:#eef7f8;border-radius:8px;padding:6px 8px">✂️ <strong>¿Solo una parte?</strong> (200 g de un kilo, 500 ml de un litro…): cierra esto, toca la cantidad del producto y elige <strong>«🔀 Pasar»</strong>.</p>
         ${L.map(i=>{ const o = I.ordPers[i.id], cambia = o.pers !== (i.area === 'personal');
           return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid #f0e2c0">
             <div style="flex:1 1 140px;min-width:0"><strong style="font-size:13.5px">${esc(i.nombre)}</strong>${cambia ? ' <span style="color:#b05a00;font-size:11.5px">· cambia</span>' : ''}<br><small class="ag-muted">${esc(i.categoria || '')}${i.ubicacion ? ' · 📍 ' + esc(i.ubicacion) : ''}</small></div>
@@ -6521,6 +6522,18 @@ setTimeout(function(){
           catch(e){ ev.target.disabled = false; alert('No se pudo registrar: ' + (e && e.message ? e.message : e)); }
         };
       };
+      // «200 g», «0,5 kg», «500 ml» o un número solo: lo pasa a la unidad del producto (kg ⇄ g, L ⇄ ml, o unidades con el
+      // tamaño en el nombre, como «Aceite Aurora 1 L»). Devuelve NaN si no se puede convertir.
+      const cantInvTexto = (txt, it)=>{
+        const U = u=>{ u = String(u || '').toLowerCase(); if(/^k/.test(u)) return ['g', 1000]; if(/^g/.test(u)) return ['g', 1]; if(u === 'ml') return ['ml', 1]; if(/^(l|lt|lts|litros?)$/.test(u)) return ['ml', 1000]; return null; };
+        const m = String(txt || '').trim().replace(',', '.').match(/^(\d+(?:\.\d+)?)\s*(kg|kgs|kilos?|g|gr|grs|gramos?|ml|l|lt|lts|litros?)?\.?$/i);
+        if(!m) return NaN; const v = Number(m[1]); if(!m[2]) return v;
+        const [b, f] = U(m[2]), ui = U(String(it.unidad || '').trim());
+        if(ui) return ui[0] === b ? v * f / ui[1] : NaN;
+        const t = String(it.nombre || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*(kg|kgs|g|gr|grs|ml|l|lt|lts|litros?)\b/i), ut = t && U(t[2]);
+        return ut && ut[0] === b ? v * f / (Number(t[1]) * ut[1]) : NaN;
+      };
+      const r3 = x=>Math.round(x * 1000) / 1000;
       // Tocar la cantidad: entrada, salida, merma o conteo real, con el número que sea.
       const abrirMov = (id, it)=>{
         const T = { entrada:['➕','Entrada','¿Cuánto entra?','Ej: compra del proveedor'], consumo:['➖','Salida','¿Cuánto sale?','Ej: se usó en mantenimiento'], merma:['🗑️','Merma','¿Cuánto se perdió o dañó?','Ej: vencido, roto'], conteo:['🔢','Conteo','¿Cuántos hay de verdad?','Conteo físico'] };
@@ -6531,7 +6544,8 @@ setTimeout(function(){
         const p = abrir(id, 'mov', `<div class="iv-pan"><div class="iv-seg" style="grid-template-columns:repeat(${Object.keys(T).length},minmax(0,1fr))">${Object.keys(T).map(k=>`<button type="button" data-tm="${k}" class="${k===tipo?'on':''}">${T[k][0]}<br>${T[k][1]}</button>`).join('')}</div>
           <div data-iv-dest style="display:none"><label class="f">¿A qué inventario va?</label><select data-iv-destsel>${destinos.map(a=>`<option value="${a}" ${a === (it.area === 'personal' ? 'rosita' : 'personal') ? 'selected' : ''}>${INV_AREAS[a].icono} ${esc(INV_AREAS[a].nombre)}</option>`).join('')}</select>
             <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Se descuenta de aquí y se suma al mismo producto allá (o se crea con el mismo nombre). Hay ${esc(fmtInv(it.stock))} ${esc(it.unidad)}.</div></div>
-          <label class="f" data-tm-lbl>${T[tipo][2]} (${esc(it.unidad)})</label><input data-iv-cant inputmode="decimal" placeholder="Ej: 5"/>
+          <label class="f" data-tm-lbl>${T[tipo][2]} (${esc(it.unidad)})</label><input data-iv-cant placeholder="Ej: 5"/>
+          ${!isNaN(cantInvTexto('1 g', it)) || !isNaN(cantInvTexto('1 ml', it)) ? `<div class="ag-muted" style="font-size:11.5px;margin-top:3px">También puedes escribir <strong>200 g</strong>, <strong>0,5 kg</strong> o <strong>500 ml</strong>: se convierte solo.</div><div data-iv-equiv style="font-size:12px;color:#1d6b35;margin-top:2px"></div>` : ''}
           <label class="f" data-iv-mot-lbl>Motivo <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-iv-motivo placeholder="${T[tipo][3]}"/>
           ${invEsPersonal(it) ? `<div data-iv-compra style="margin-top:8px"><div style="font-weight:700;font-size:13px;margin-bottom:4px">💵 Compra <span class="ag-muted" style="font-weight:400">(va a Egresos · Comida del personal)</span></div>${compraHTML('iv-m-' + id.replace(/[^A-Za-z0-9]/g, ''))}</div>` : ''}
           <button class="ag-btn sm" data-iv-ok style="width:100%;margin-top:8px">Guardar</button></div>`);
@@ -6542,8 +6556,11 @@ setTimeout(function(){
           const dd = p.querySelector('[data-iv-dest]'); if(dd) dd.style.display = tipo === 'pasar' ? '' : 'none';
           const ml = p.querySelector('[data-iv-mot-lbl]'), mi = p.querySelector('[data-iv-motivo]'); if(ml){ ml.style.display = tipo === 'pasar' ? 'none' : ''; mi.style.display = tipo === 'pasar' ? 'none' : ''; } });
         p.querySelector('[data-iv-cant]').focus();
+        const eq = p.querySelector('[data-iv-equiv]');
+        if(eq) p.querySelector('[data-iv-cant]').oninput = e=>{ const t = e.target.value.trim(), x = cantInvTexto(t, it); eq.textContent = /[a-z]/i.test(t) ? (isNaN(x) ? 'No puedo convertir esa unidad para este producto.' : '= ' + fmtInv(r3(x)) + ' ' + it.unidad) : ''; };
         p.querySelector('[data-iv-ok]').onclick = async (ev)=>{
-          const cant = p.querySelector('[data-iv-cant]').value.trim(), n = Number(cant.replace(',','.'));
+          const escrito = p.querySelector('[data-iv-cant]').value.trim(), n = r3(cantInvTexto(escrito, it)), cant = isNaN(n) ? '' : String(n);
+          if(escrito && isNaN(n)){ alert('No entendí la cantidad. Escribe un número (en ' + it.unidad + ') o algo como 200 g, 0,5 kg o 500 ml.'); return; }
           if(!(tipo === 'conteo' ? n >= 0 && cant !== '' : n > 0)){ alert(tipo === 'conteo' ? 'Escribe cuántos hay (0 o más).' : 'Escribe una cantidad mayor que 0.'); return; }
           if(tipo === 'pasar'){
             const dst = p.querySelector('[data-iv-destsel]').value;
@@ -6551,7 +6568,7 @@ setTimeout(function(){
             ev.target.disabled = true;
             try{ const r = await gsEspera(60000, 'transferirInventario', id, cant, dst, auth());
               Object.assign(it, r.origen); const ya = I.items.find(x=>x.id === r.destino.id); if(ya) Object.assign(ya, r.destino); else I.items.push(r.destino); I.movs = r.movs;
-              toast('🔀 ' + fmtInv(n) + ' ' + it.unidad + ' de ' + it.nombre + ' pasaron a ' + INV_AREAS[dst].nombre + '. Aquí quedan ' + fmtInv(it.stock) + '.'); rehacer(); }
+              toast('🔀 ' + fmtInv(n) + ' ' + it.unidad + ' de ' + it.nombre + ' pasaron a ' + INV_AREAS[dst].nombre + (r.valor > 0 ? ' (≈ ' + dinero(r.valor) + ', sin nuevo egreso)' : '') + '. Aquí quedan ' + fmtInv(it.stock) + '.'); rehacer(); }
             catch(e){ ev.target.disabled = false; alert('No se pudo pasar: ' + (e && e.message ? e.message : e)); }
             return;
           }
@@ -8879,7 +8896,11 @@ setTimeout(function(){
       '⏳ <strong>Enlaces de catálogo de hasta 6 meses:</strong> al crearlos eliges 1 día, 3 días, 7 días, 1 mes, 3 meses o 6 meses.',
       '🔔 Te avisa por Telegram (a quien envió el enlace y a César) <strong>3 días antes de que venza y el día que vence</strong>, y aparece en Inicio → ⚡ Atención hoy con el botón «♻️ Alargar» para renovarlo ahí mismo.',
       '💲 <strong>Precios justos:</strong> si cambias un precio, el cliente con un enlace ya enviado conserva el anterior durante 24 horas y después ve el nuevo. Si no cambias nada, todo queda igual.',
-      '♻️ Un enlace vencido se puede reactivar durante 15 días (antes eran 2); después se borra solo, sin tocar lo que el cliente ya envió.' ] }
+      '♻️ Un enlace vencido se puede reactivar durante 15 días (antes eran 2); después se borra solo, sin tocar lo que el cliente ya envió.' ] },
+    { v:332, fecha:'25 oct', titulo:'Pasar partes de un producto con su costo', puntos:[
+      '✂️ <strong>Pasar solo una parte:</strong> en el producto toca la cantidad → «🔀 Pasar» y escribe <strong>200 g</strong>, <strong>0,5 kg</strong> o <strong>500 ml</strong>. Se convierte solo, también en productos contados por unidades con el tamaño en el nombre (ej. «Aceite Aurora 1 L»: 500 ml = media unidad).',
+      '💲 Cada pase muestra su <strong>costo proporcional</strong> según 📒 Precios (ej. 200 g de un queso de $8 el kilo ≈ $1,60) y queda anotado en el historial de los dos inventarios. <strong>No crea otro egreso</strong>: el gasto ya se registró al comprar, también cuando devuelves algo a Rosita.',
+      '🔢 En Entrada, Salida, Merma y Conteo también puedes escribir la cantidad con su unidad (200 g, 1,5 L…).' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
