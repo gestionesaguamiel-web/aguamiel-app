@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v329' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v330' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1171,9 +1171,12 @@ setTimeout(function(){
       const k = tipo + '|' + msg, ahora = Date.now();
       if(FALLAS.ultimas[k] && ahora - FALLAS.ultimas[k] < 60000) return;
       FALLAS.ultimas[k] = ahora; FALLAS.enviadas++;
-      const vista = state.tab + (state.tab==='rosita' && state.rosita ? '/' + state.rosita.vista : '') + (state.tab==='agenda' && state.ag ? '/' + state.ag.vista : '');
-      google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).registrarFallaApp({ tipo:tipo, mensaje:msg, pila:String((err && err.stack) || extra || '').slice(0, 700), vista:vista,
-        pantalla:window.innerWidth + 'x' + window.innerHeight, dispositivo:String(navigator.userAgent || '').slice(0, 140), version:FALLAS.version }, auth());
+      // La sección exacta (p. ej. adminpanel/presupuestos) para saber dónde se traba; y «web» si es la app instalada.
+      const vista = state.tab + (state.tab==='rosita' && state.rosita ? '/' + state.rosita.vista : '') + (state.tab==='agenda' && state.ag ? '/' + state.ag.vista : '') + (state.tab==='adminpanel' && state.adminSub ? '/' + state.adminSub : '');
+      const dato = { tipo:tipo, mensaje:msg, pila:String((err && err.stack) || extra || '').slice(0, 700), vista:vista,
+        pantalla:window.innerWidth + 'x' + window.innerHeight, dispositivo:String(navigator.userAgent || '').slice(0, 140), version:FALLAS.version + (window.AG_WEB ? ' web' : '') };
+      if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).registrarFallaApp(dato, auth());
+      else if(window.AG_WEB && navigator.onLine !== false) agApi('registrarFallaApp', [dato, auth()]).catch(function(){});
     }catch(e){}
   }
   window.addEventListener('error', e=>reportarFalla('error', e.error || e.message, (e.filename || '') + ':' + (e.lineno || '')));
@@ -1200,6 +1203,28 @@ setTimeout(function(){
     if(!window.AG_WEB || !state.user || state.prueba || !state.user.admin || navigator.onLine === false || document.hidden || Date.now() - precargaAt < 300000) return;
     precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7);
     [['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getTarifas', a], ['getPresupuestos', a]].forEach((x, i)=>setTimeout(()=>{ gs(...x).catch(()=>{}); }, i * 1500));
+  }
+  // 📊 Tiempos reales de terapia (del temporizador): por servicio, por profesional y las últimas. Para ajustar duraciones y precios.
+  async function renderTiempos(cont){
+    const T = state.tiempos || (state.tiempos = { dias:30 });
+    const hasta = hoyISO(), d0 = new Date(); d0.setDate(d0.getDate() - (T.dias - 1)); const desde = d0.toISOString().slice(0, 10);
+    cont.innerHTML = '<p class="ag-empty">Cargando…</p>';
+    let d; try{ d = await gs('getTiemposTerapia', desde, hasta, auth()); }catch(e){ cont.innerHTML = '<p class="ag-err">' + esc(e && e.message ? e.message : e) + '</p>'; return; }
+    const F = (d && d.filas) || [], m1 = x=>(Math.round(x * 10) / 10).toString().replace('.', ',');
+    const grupo = clave=>{ const g = {}; F.forEach(x=>{ const k = (x[clave] || 'Sin dato').trim() || 'Sin dato'; const o = g[k] || (g[k] = { k, n:0, plan:0, real:0 }); o.n++; o.plan += x.planeadoMin; o.real += x.realMin; }); return Object.values(g).sort((a, b)=>b.n - a.n); };
+    const dif = o=>{ const p = o.plan ? (o.real - o.plan) / o.plan * 100 : 0; return '<span style="color:' + (p > 10 ? '#b3261e' : p < -10 ? '#8a5a00' : '#1d6b35') + ';font-weight:700">' + (p > 0 ? '+' : '') + Math.round(p) + ' %</span>'; };
+    const tabla = (titulo, L, nombre)=>'<div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">' + titulo + '</h3>' + (L.length ? L.map(o=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px"><span style="flex:1;min-width:0"><strong>' + esc(o.k) + '</strong><br/><span class="ag-muted" style="font-size:12px">' + o.n + ' terapia' + (o.n === 1 ? '' : 's') + ' · ' + nombre(o) + '</span></span><span style="text-align:right;white-space:nowrap">' + dif(o) + '<br/><span class="ag-muted" style="font-size:11.5px">vs planificado</span></span></div>').join('') : '<p class="ag-muted" style="font-size:13px">Sin datos todavía.</p>') + '</div>';
+    const totReal = F.reduce((a, x)=>a + x.realMin, 0), totPlan = F.reduce((a, x)=>a + x.planeadoMin, 0);
+    cont.innerHTML = '<div class="ag-card"><h3 style="margin:0 0 4px">⏱️ Tiempos de terapia</h3><p class="ag-muted" style="font-size:12.5px;margin:0">Lo que dura de verdad cada terapia, según el temporizador de las profesionales. En rojo lo que se alarga más de 10 %.</p>' +
+      '<div style="display:flex;gap:6px;margin-top:8px">' + [7, 30, 90].map(x=>'<button type="button" class="ag-btn sm ' + (T.dias === x ? '' : 'ghost') + '" data-tp-dias="' + x + '">' + x + ' días</button>').join('') + '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;text-align:center"><div style="background:var(--teal-l);border-radius:10px;padding:8px"><strong style="font-size:18px">' + F.length + '</strong><br/><span style="font-size:11.5px">terapias</span></div>' +
+      '<div style="background:var(--teal-l);border-radius:10px;padding:8px"><strong style="font-size:18px">' + m1(totReal / 60) + ' h</strong><br/><span style="font-size:11.5px">reales</span></div>' +
+      '<div style="background:var(--teal-l);border-radius:10px;padding:8px"><strong style="font-size:18px">' + dif({ plan:totPlan, real:totReal }) + '</strong><br/><span style="font-size:11.5px">vs planificado</span></div></div>' +
+      (F.length ? '' : '<p class="ag-muted" style="font-size:12.5px;margin:10px 0 0">Todavía no hay terapias cronometradas en este período. Aparecen cuando las profesionales usan «⏱️ Iniciar terapia» en sus citas de hoy.</p>') + '</div>' +
+      tabla('💆 Por servicio', grupo('servicio'), o=>'promedio ' + m1(o.real / o.n) + ' min (planificado ' + m1(o.plan / o.n) + ')') +
+      tabla('👩‍⚕️ Por profesional', grupo('profesional'), o=>m1(o.real / 60) + ' h reales') +
+      '<div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">🕒 Últimas terapias</h3>' + (F.slice(0, 30).map(x=>'<div style="font-size:12.5px;padding:5px 0;border-top:1px solid var(--line)">' + esc(isoToDMY(x.fecha)) + ' · <strong>' + esc(x.cliente || 'Sin nombre') + '</strong> · ' + esc(x.profesional) + (x.servicio ? '<br/><span class="ag-muted">' + esc(x.servicio) + '</span>' : '') + '<br/>⏱️ ' + m1(x.realMin) + ' min de ' + x.planeadoMin + (x.pausasMin ? ' · pausas ' + m1(x.pausasMin) + ' min' : '') + '</div>').join('') || '<p class="ag-muted" style="font-size:13px">Sin terapias todavía.</p>') + '</div>';
+    cont.querySelectorAll('[data-tp-dias]').forEach(b=>b.onclick = ()=>{ T.dias = +b.dataset.tpDias; renderTiempos(cont); });
   }
   // ⚖️ A César (director principal) se le avisa al entrar si tiene choques de datos por decidir (como mucho cada 30 min).
   let avisoChoquesAt = 0;
@@ -6499,20 +6524,37 @@ setTimeout(function(){
       // Tocar la cantidad: entrada, salida, merma o conteo real, con el número que sea.
       const abrirMov = (id, it)=>{
         const T = { entrada:['➕','Entrada','¿Cuánto entra?','Ej: compra del proveedor'], consumo:['➖','Salida','¿Cuánto sale?','Ej: se usó en mantenimiento'], merma:['🗑️','Merma','¿Cuánto se perdió o dañó?','Ej: vencido, roto'], conteo:['🔢','Conteo','¿Cuántos hay de verdad?','Conteo físico'] };
+        // 🔀 Pasar parte a otro inventario (Rosita ⇄ Stock del personal, spa, operaciones): solo administración.
+        if(admin) T.pasar = ['🔀','Pasar','¿Cuánto pasas a otro inventario?','Ej: medio kilo para el personal'];
+        const destinos = Object.keys(INV_AREAS).filter(a=>a !== (it.area || 'rosita'));
         let tipo = 'entrada';
-        const p = abrir(id, 'mov', `<div class="iv-pan"><div class="iv-seg">${Object.keys(T).map(k=>`<button type="button" data-tm="${k}" class="${k===tipo?'on':''}">${T[k][0]}<br>${T[k][1]}</button>`).join('')}</div>
+        const p = abrir(id, 'mov', `<div class="iv-pan"><div class="iv-seg" style="grid-template-columns:repeat(${Object.keys(T).length},minmax(0,1fr))">${Object.keys(T).map(k=>`<button type="button" data-tm="${k}" class="${k===tipo?'on':''}">${T[k][0]}<br>${T[k][1]}</button>`).join('')}</div>
+          <div data-iv-dest style="display:none"><label class="f">¿A qué inventario va?</label><select data-iv-destsel>${destinos.map(a=>`<option value="${a}" ${a === (it.area === 'personal' ? 'rosita' : 'personal') ? 'selected' : ''}>${INV_AREAS[a].icono} ${esc(INV_AREAS[a].nombre)}</option>`).join('')}</select>
+            <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Se descuenta de aquí y se suma al mismo producto allá (o se crea con el mismo nombre). Hay ${esc(fmtInv(it.stock))} ${esc(it.unidad)}.</div></div>
           <label class="f" data-tm-lbl>${T[tipo][2]} (${esc(it.unidad)})</label><input data-iv-cant inputmode="decimal" placeholder="Ej: 5"/>
-          <label class="f">Motivo <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-iv-motivo placeholder="${T[tipo][3]}"/>
+          <label class="f" data-iv-mot-lbl>Motivo <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-iv-motivo placeholder="${T[tipo][3]}"/>
           ${invEsPersonal(it) ? `<div data-iv-compra style="margin-top:8px"><div style="font-weight:700;font-size:13px;margin-bottom:4px">💵 Compra <span class="ag-muted" style="font-weight:400">(va a Egresos · Comida del personal)</span></div>${compraHTML('iv-m-' + id.replace(/[^A-Za-z0-9]/g, ''))}</div>` : ''}
           <button class="ag-btn sm" data-iv-ok style="width:100%;margin-top:8px">Guardar</button></div>`);
         if(!p) return;
         const preC = 'iv-m-' + id.replace(/[^A-Za-z0-9]/g, '');
         p.querySelectorAll('[data-tm]').forEach(b=>b.onclick = ()=>{ tipo = b.dataset.tm; p.querySelectorAll('[data-tm]').forEach(x=>x.classList.toggle('on', x===b)); const bc = p.querySelector('[data-iv-compra]'); if(bc) bc.style.display = tipo === 'entrada' ? '' : 'none';
-          p.querySelector('[data-tm-lbl]').textContent = T[tipo][2] + ' (' + it.unidad + ')'; p.querySelector('[data-iv-motivo]').placeholder = T[tipo][3]; p.querySelector('[data-iv-cant]').focus(); });
+          p.querySelector('[data-tm-lbl]').textContent = T[tipo][2] + ' (' + it.unidad + ')'; p.querySelector('[data-iv-motivo]').placeholder = T[tipo][3]; p.querySelector('[data-iv-cant]').focus();
+          const dd = p.querySelector('[data-iv-dest]'); if(dd) dd.style.display = tipo === 'pasar' ? '' : 'none';
+          const ml = p.querySelector('[data-iv-mot-lbl]'), mi = p.querySelector('[data-iv-motivo]'); if(ml){ ml.style.display = tipo === 'pasar' ? 'none' : ''; mi.style.display = tipo === 'pasar' ? 'none' : ''; } });
         p.querySelector('[data-iv-cant]').focus();
         p.querySelector('[data-iv-ok]').onclick = async (ev)=>{
           const cant = p.querySelector('[data-iv-cant]').value.trim(), n = Number(cant.replace(',','.'));
           if(!(tipo === 'conteo' ? n >= 0 && cant !== '' : n > 0)){ alert(tipo === 'conteo' ? 'Escribe cuántos hay (0 o más).' : 'Escribe una cantidad mayor que 0.'); return; }
+          if(tipo === 'pasar'){
+            const dst = p.querySelector('[data-iv-destsel]').value;
+            if(n > it.stock){ alert('Solo hay ' + fmtInv(it.stock) + ' ' + it.unidad + '.'); return; }
+            ev.target.disabled = true;
+            try{ const r = await gsEspera(60000, 'transferirInventario', id, cant, dst, auth());
+              Object.assign(it, r.origen); const ya = I.items.find(x=>x.id === r.destino.id); if(ya) Object.assign(ya, r.destino); else I.items.push(r.destino); I.movs = r.movs;
+              toast('🔀 ' + fmtInv(n) + ' ' + it.unidad + ' de ' + it.nombre + ' pasaron a ' + INV_AREAS[dst].nombre + '. Aquí quedan ' + fmtInv(it.stock) + '.'); rehacer(); }
+            catch(e){ ev.target.disabled = false; alert('No se pudo pasar: ' + (e && e.message ? e.message : e)); }
+            return;
+          }
           const compra = (tipo === 'entrada' && invEsPersonal(it)) ? leerCompra(preC) : null; if(compra === false) return;
           ev.target.disabled = true;
           try{ const r = await gsEspera(60000, 'moverInventario', id, tipo, cant, p.querySelector('[data-iv-motivo]').value.trim(), auth(), compra || undefined); Object.assign(it, r.item); I.movs = r.movs; toast('Guardado: ' + it.nombre + ' → ' + fmtInv(it.stock) + ' ' + it.unidad);
@@ -8828,7 +8870,11 @@ setTimeout(function(){
       '⏱️ <strong>Temporizador de terapias:</strong> en cada cita de hoy hay un botón «⏱️ Iniciar terapia» (trae el cliente, el servicio y la duración), y en Inicio el acceso «Temporizador de terapia» para usarlo cuando quieras.',
       '🔔 Avisa <strong>5 minutos antes</strong> y suena una <strong>alarma al terminar</strong> (sonido, vibración y notificación). Tiene pausa y «+5 min», y la pantalla queda encendida mientras corre.',
       '⬇️ Se puede minimizar: arriba queda una pastilla con el tiempo. Sigue contando aunque cambies de pantalla o cierres la app.',
-      '📊 Al terminar se guarda el tiempo real de la terapia (también sin señal) y te ofrece llenar la ficha.' ] }
+      '📊 Al terminar se guarda el tiempo real de la terapia (también sin señal) y te ofrece llenar la ficha.' ] },
+    { v:330, fecha:'25 oct', titulo:'Tiempos de terapia y pasar entre inventarios', puntos:[
+      '📊 <strong>Admin → Equipo → ⏱️ Tiempos de terapia:</strong> cuánto dura de verdad cada servicio frente a lo planificado (en rojo lo que se alarga más de 10 %), horas reales por profesional y las últimas terapias cronometradas, en 7, 30 o 90 días.',
+      '🔎 Los avisos de «pantalla trabada» ahora dicen en qué sección pasó, y la app instalada también registra sus errores, para encontrar y corregir lo que se pone lento.',
+      '🔀 <strong>Pasar entre inventarios:</strong> en cualquier producto, «Cantidad» → «🔀 Pasar» manda una parte a otro inventario (por ejemplo medio kilo de pasta de Rosita al Stock del personal). Se descuenta de uno y se suma al otro, sin crear otro egreso.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -14919,8 +14965,8 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || 'staff';
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
     const hayPagos = (state.pagosPend||[]).length;
     body.innerHTML = `
@@ -14942,6 +14988,7 @@ setTimeout(function(){
     if(sub==='inv_rosita') renderInventario(cont, 'rosita', true);
     else if(sub==='inv_personal') renderInventario(cont, 'personal', true);
     else if(sub==='choques') renderChoques(cont);
+    else if(sub==='tiempos') renderTiempos(cont);
     else if(sub==='inv_spa') renderInventario(cont, 'spa', true);
     else if(sub==='inv_oper') renderInventario(cont, 'operaciones', true);
     else if(sub==='gastos') renderGastos(cont);
