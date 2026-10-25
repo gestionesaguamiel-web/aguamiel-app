@@ -1161,7 +1161,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v323' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v324' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1193,10 +1193,30 @@ setTimeout(function(){
       .catch(()=>{ throw sinRed(); })
       .then(r=>r.json()).then(d=>{ if(!d || !d.ok) throw new Error((d && d.error) || 'El servidor no respondió bien.'); return d.r; });
   }
+  // 📥 Con señal, se dejan guardadas en el teléfono las pantallas de administración más usadas (como mucho cada 20 min).
+  let precargaAt = 0;
+  function precargarSinRed(){
+    if(!window.AG_WEB || !state.user || state.prueba || !state.user.admin || navigator.onLine === false || Date.now() - precargaAt < 1200000) return;
+    precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7);
+    [['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getTarifas', a], ['getPresupuestos', a]].forEach((x, i)=>setTimeout(()=>{ gs(...x).catch(()=>{}); }, i * 1500));
+  }
   // 📴 MODO SIN CONEXIÓN (solo en la versión web/APK). Lo que se registra sin señal en Inventario, Compras y Finanzas
   // se guarda en el teléfono (cola) y se envía solo, en orden, al volver la conexión. Cada cambio lleva un «rid» único:
   // si llegara dos veces, el servidor no lo duplica. Borrar, pagos y verificaciones NO se guardan sin conexión (necesitan respuesta segura).
-  const COLA_FN = /^(moverInventario|saveInventarioItem|saveCompra|marcarCompra|setCostoCompra|saveGastoFactura|saveOtroIngreso|savePrecioIngrediente|sumarFacturaInventario)$/;
+  const COLA_FN = /^(moverInventario|saveInventarioItem|saveCompra|marcarCompra|setCostoCompra|saveGastoFactura|saveOtroIngreso|savePrecioIngrediente|sumarFacturaInventario|saveMenuItem|savePaquete|savePaqCats|saveTarifas|saveTarifasGrupo|savePresupuesto|setEstadoPresupuesto|saveReceta|saveCliente|saveFicha|updateFicha)$/;
+  // 📥 Lecturas guardadas en el teléfono (solo web): cada consulta «get…» que llega bien se guarda; sin señal se muestra la última.
+  const LECT_FN = /^get/;
+  const lectClave = (fn, args)=>fn + '|' + JSON.stringify((args || []).map(a=>(a && typeof a === 'object' && 'pin' in a) ? '·' : a));
+  function lectIdb(modo, f){ return new Promise((ok, mal)=>{ try{ const rq = indexedDB.open('aguamiel_lect', 1); rq.onupgradeneeded = ()=>rq.result.createObjectStore('l');
+    rq.onerror = ()=>mal(rq.error); rq.onsuccess = ()=>{ const db = rq.result; try{ const tx = db.transaction('l', modo), q = f(tx.objectStore('l')); tx.oncomplete = ()=>{ db.close(); ok(q ? q.result : undefined); }; tx.onerror = tx.onabort = ()=>{ db.close(); mal(tx.error); }; }catch(e){ db.close(); mal(e); } }; }catch(e){ mal(e); } }); }
+  function lectGuardar(fn, args, v){ if(!window.AG_WEB || !LECT_FN.test(fn) || state.prueba) return; const u = state.user ? String(state.user.id) : '-'; lectIdb('readwrite', st=>st.put({ t:Date.now(), v }, u + '|' + lectClave(fn, args))).catch(()=>{}); }
+  function lectLeer(fn, args){ const u = state.user ? String(state.user.id) : '-'; return Promise.race([ lectIdb('readonly', st=>st.get(u + '|' + lectClave(fn, args))), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null); }
+  let avisoLectAt = 0;
+  function avisoLect(t){ if(Date.now() - avisoLectAt < 20000) return; avisoLectAt = Date.now(); try{ toast('📴 Sin señal: ves lo guardado en este teléfono' + (t ? ' (' + new Date(t).toLocaleString('es-VE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ')' : '') + '.'); }catch(e){} }
+  // Sin señal se aceptan la copia y la sesión de hasta 7 días (con señal, la sesión dura HORAS_SESION como siempre).
+  const sinRedAhora = ()=>!!window.AG_WEB && navigator.onLine === false;
+  const horasSes = ()=>sinRedAhora() ? 7 * 24 : HORAS_SESION;
+  const pinHuella = (id, pin)=>{ try{ return crypto.subtle.digest('SHA-256', new TextEncoder().encode('aguamiel|' + id + '|' + pin)).then(b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2, '0')).join('')); }catch(e){ return Promise.resolve(''); } };
   const COLA_K = 'ag_cola_v1', COLA_MAL = 'ag_cola_fallas_v1';
   const colaLeer = k=>{ try{ return JSON.parse(localStorage.getItem(k) || '[]') || []; }catch(e){ return []; } };
   const colaPoner = (k, l)=>{ try{ localStorage.setItem(k, JSON.stringify(l)); }catch(e){} colaAviso(); };
@@ -1283,13 +1303,14 @@ setTimeout(function(){
           listo = true; clearInterval(timeoutId);
           const txt = String(err && err.message ? err.message : err);
           if(/NetworkError|HTTP 0|Failed to fetch/i.test(txt)){
-            reject(new Error('Se perdió la conexión con Google. Recarga la página (F5) y vuelve a entrar. Antes de repetir, revisa si el registro ya quedó guardado para no duplicarlo.'));
+            const eR = new Error('Se perdió la conexión con Google. Recarga la página (F5) y vuelve a entrar. Antes de repetir, revisa si el registro ya quedó guardado para no duplicarlo.'); eR.sinRed = true; reject(eR);
           } else reject(err);
         };
       if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(okH).withFailureHandler(failH)[fn](...args);
-      else agApi(fn, args).then(okH, err=>{   // 🌐 fuera de Google: el mismo servidor por internet
+      else agApi(fn, args).then(res=>{ lectGuardar(fn, args, res); okH(res); }, err=>{   // 🌐 fuera de Google: el mismo servidor por internet
+        if(err && err.sinRed && LECT_FN.test(fn)){ lectLeer(fn, args).then(g=>{ if(g && g.v !== undefined){ listo = true; clearInterval(timeoutId); avisoLect(g.t); resolve(g.v); } else failH(err); }); return; }
         if(err && err.sinRed && COLA_FN.test(fn)){ listo = true; clearInterval(timeoutId); colaAgregar(fn, args);
-          reject(new Error('📴 Sin señal: quedó guardado en el teléfono y se enviará solo al volver la conexión. No lo repitas.')); return; }
+          reject(new Error('📴 Sin señal: quedó guardado en el teléfono y se enviará solo al volver la conexión (lo verás en la lista cuando se envíe). No lo repitas.')); return; }
         failH(err); });
     });
   }
@@ -1311,11 +1332,11 @@ setTimeout(function(){
       const verificar = !state.user;
       // 📋 Al abrir: si este teléfono guarda una copia de los datos de esta persona, se muestra ya (1–2 s) mientras llega lo nuevo de Google.
       if(copiaArranque && !state.prueba){
-        const s0 = lsGet(CLAVE_SESION), idC = state.user ? String(state.user.id) : (s0 && s0.id && s0.pin && Date.now() - (s0.t || 0) <= HORAS_SESION * 3600000 ? String(s0.id) : '');
+        const s0 = lsGet(CLAVE_SESION), idC = state.user ? String(state.user.id) : (s0 && s0.id && s0.pin && Date.now() - (s0.t || 0) <= horasSes() * 3600000 ? String(s0.id) : '');
         if(idC){
           copiaArranque = false;
           const c = await copiaLeer(idC);
-          if(c && c.id === idC && c.ver === FALLAS.version && c.data && c.user && Date.now() - (c.t || 0) < COPIA_DIAS * 86400000){
+          if(c && c.id === idC && (c.ver === FALLAS.version || sinRedAhora()) && c.data && c.user && Date.now() - (c.t || 0) < COPIA_DIAS * 86400000){
             if(!state.user){ state.user = Object.assign({}, c.user, { pin:String(s0.pin) }); aplicarNavSesion(s0); }
             aplicarDatos(c.data); state.view = 'app'; state.desdeCopia = c.t; state.copiaSinRed = false; avisoCopia(c.t);
             window._agFresco = new Promise(res=>{ window._agFrescoOk = res; });
@@ -1330,7 +1351,7 @@ setTimeout(function(){
         // Todo se pide A LA VEZ: la lista del personal, la verificación de la sesión guardada y, por adelantado, los datos
         // (si la sesión no valiera, esos datos simplemente se descartan).
         const ses0 = lsGet(CLAVE_SESION);
-        const vigente = !!(ses0 && ses0.id && ses0.pin && (Date.now() - (ses0.t || 0) <= HORAS_SESION * 3600000));
+        const vigente = !!(ses0 && ses0.id && ses0.pin && (Date.now() - (ses0.t || 0) <= horasSes() * 3600000));
         const pStaff = gs('getStaffLogin').then(v=>({ v }), e=>({ e }));
         const pDatos = vigente ? pedirDatos({ id:String(ses0.id), pin:String(ses0.pin) }).then(v=>({ v }), e=>({ e })) : null;
         const conCopia = !!state.desdeCopia, sesOk = await reanudarSesion(conCopia);
@@ -1348,6 +1369,7 @@ setTimeout(function(){
       state.view = 'app';
       ultimaCarga = Date.now(); huellaDatos = huella(data);
       copiaGuardar(data);
+      if(window.AG_WEB) setTimeout(precargarSinRed, 4000);
       // 📋 Si se estaba mostrando la copia del teléfono, ya llegó lo nuevo: se quita el aviso. Si la persona empezó a llenar algo, no se le redibuja encima.
       if(state.desdeCopia){ terminarCopia(); if(vistaEsFormulario()) return; }
       try{ gs('getEstampaDatos').then(e=>{ ultimaEstampa = String(e || ''); }).catch(()=>{}); }catch(eS){}
@@ -1776,11 +1798,19 @@ setTimeout(function(){
       try{
         const res = await gs('loginStaff', who.id, pin);
         const user = Object.assign({}, res, { pin: pin });
+        if(window.AG_WEB) pinHuella(who.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + who.id, h); });   // para poder entrar luego sin señal en este teléfono
         registrarAccesoApp('entro', user); guardarUltimoUsuario(user.id); guardarSesion(user);
         state.tarifas = null; state.cfgAlquiler = null;   // las tarifas de otra persona (p. ej. sin precios) no se arrastran
         state.user = user; state.tab = 'home'; state.err = ''; state.pinBuf = ''; state.loginUserId = null; state.loginBusy = false;
         await loadAll();
       }catch(e){
+        // 📴 Sin señal: se entra si este teléfono ya vio ese PIN con señal y guarda la copia de esa persona.
+        if(window.AG_WEB && ((e && e.sinRed) || navigator.onLine === false)){
+          const h = await pinHuella(who.id, pin), c = (h && lsGet('ag_pinok_' + who.id) === h) ? await copiaLeer(String(who.id)) : null;
+          state.loginBusy = false; state.pinBuf = '';
+          if(c && c.user){ const user = Object.assign({}, c.user, { pin }); guardarSesion(user); state.user = user; state.tab = 'home'; state.err = ''; state.loginUserId = null; copiaArranque = true; await loadAll(); return; }
+          state.err = lsGet('ag_pinok_' + who.id) ? 'PIN incorrecto' : '📴 Sin señal. Para entrar sin conexión, primero entra una vez con señal en este teléfono.'; render(); return;
+        }
         state.loginBusy = false; state.pinBuf = '';
         const m = String(e && e.message ? e.message : e);
         // Un bloqueo temporal no se vuelve a anotar como intento fallido.
@@ -8524,7 +8554,12 @@ setTimeout(function(){
       '📲 La versión web (gestionesaguamiel-web.github.io/aguamiel-app) se puede <strong>instalar</strong> en el teléfono con el ícono de Aguamiel: en el navegador, menú ⋮ → «Agregar a pantalla de inicio» o «Instalar app».',
       '📴 <strong>Sin señal</strong>, en la versión web: lo que registres en Inventario, Compras y Finanzas se guarda en el teléfono y se envía solo al volver la conexión. Abajo ves cuántos cambios esperan.',
       '🛡️ Aunque un cambio se envíe dos veces, no se duplica. Borrar, pagos y verificaciones sí necesitan señal.',
-      '👀 La app de siempre (la de Google) sigue igual.' ] }
+      '👀 La app de siempre (la de Google) sigue igual.' ] },
+    { v:324, fecha:'25 oct', titulo:'App web: entrar y consultar sin señal', puntos:[
+      '📴 En la app instalada (versión web) ya puedes <strong>entrar sin señal</strong>: con la sesión guardada o con tu PIN, si ya entraste una vez con señal en ese teléfono.',
+      '📥 Sin señal ves lo último guardado: inicio, clientes, agenda y, para administración, <strong>Inventario, Compras, Gastos del mes, Tarifas y Presupuestos</strong> (se guardan solos cada vez que hay señal).',
+      '🗂️ También se guardan sin señal los cambios de menú, paquetes, tarifas, presupuestos, recetas, clientes y fichas, y se envían solos al volver la conexión.',
+      '👤 Cada persona tiene en su teléfono solo lo suyo, protegido por su PIN.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15718,10 +15753,12 @@ setTimeout(function(){
   // Devuelve true si la sesión sigue valiendo.
   async function reanudarSesion(sinNav){
     const ses = lsGet(CLAVE_SESION); if(!ses) return false;
-    if(Date.now() - (ses.t||0) > HORAS_SESION*3600000){ borrarSesion(); return false; }
+    if(Date.now() - (ses.t||0) > horasSes()*3600000){ borrarSesion(); return false; }
     let res = null;
     try{ res = await gs('loginStaff', ses.id, ses.pin); }
-    catch(e){ if(esErrorDeSesion(e)){ borrarSesion(); return false; } throw e; }
+    catch(e){ if(esErrorDeSesion(e)){ borrarSesion(); return false; }
+      if(window.AG_WEB && e && e.sinRed && state.desdeCopia && state.user) return true;   // 📴 sin señal: se sigue con la sesión guardada en este teléfono
+      throw e; }
     if(!res || !res.activo){ borrarSesion(); return false; }
     const who = Object.assign({}, res, { pin: String(ses.pin) });
     state.user = who; state.view = 'app';
