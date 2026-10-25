@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v332' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v333' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -5907,8 +5907,11 @@ setTimeout(function(){
       cont.innerHTML = `<div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px">${L.map(x=>`<button type="button" data-rp-sem="${x.lunes}" class="cp-chip${x === s ? ' on' : ''}" style="flex:0 0 auto;border:1.5px solid ${x === s ? 'var(--teal)' : 'var(--line)'};background:${x === s ? 'var(--teal-l)' : '#fff'};border-radius:14px;padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit">${x.lunes === L[0].lunes ? 'Esta semana' : dm(x.lunes) + '–' + dm(x.domingo)}</button>`).join('')}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           <div style="background:#fff8e6;border-radius:12px;padding:10px"><span class="ag-muted" style="font-size:11.5px">📦 Entregado (aprox.)</span><strong style="display:block;font-size:18px;color:#8a5a00">${dinero(s.valorEnt)}</strong><span class="ag-muted" style="font-size:11px">${s.entregas.length} entrega${s.entregas.length === 1 ? '' : 's'}${s.sinValor ? ' · ' + s.sinValor + ' sin precio' : ''}</span></div>
-          <div style="background:#fdecec;border-radius:12px;padding:10px"><span class="ag-muted" style="font-size:11.5px">🧾 Gastado en Egresos</span><strong style="display:block;font-size:18px;color:#a32b2b">${dinero(s.gastado)}</strong><span class="ag-muted" style="font-size:11px">${s.nFacturas} factura${s.nFacturas === 1 ? '' : 's'} · comida e insumos</span></div></div>
-        <p class="ag-muted" style="font-size:11.5px;margin:6px 0 0">Semana del ${isoToDMY(s.lunes)} al ${isoToDMY(s.domingo)}. El valor entregado se calcula con el último precio registrado de cada producto.</p>
+          <div style="background:#fdecec;border-radius:12px;padding:10px"><span class="ag-muted" style="font-size:11.5px">🧾 Comprado para el personal</span><strong style="display:block;font-size:18px;color:#a32b2b">${dinero(s.gastado)}</strong><span class="ag-muted" style="font-size:11px">${s.nFacturas} factura${s.nFacturas === 1 ? '' : 's'} · comida e insumos</span></div></div>
+        <div style="margin-top:8px;background:#eef7f8;border-radius:12px;padding:10px"><span class="ag-muted" style="font-size:11.5px">🔀 Pasado desde Rosita u otros inventarios</span><strong style="display:block;font-size:16px;color:#35616b">${dinero(s.valorPase || 0)}</strong><span class="ag-muted" style="font-size:11px">${(s.pases || []).length} pase${(s.pases || []).length === 1 ? '' : 's'}${s.paseSinValor ? ' · ' + s.paseSinValor + ' sin precio en 📒 Precios' : ''} · lo devuelto se resta</span></div>
+        <div style="margin-top:8px;background:#1d6b35;color:#fff;border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px;font-weight:700">💰 Costo del personal en la semana</span><strong style="font-size:20px">${dinero(s.costo || 0)}</strong></div>
+        <p class="ag-muted" style="font-size:11.5px;margin:6px 0 0">Semana del ${isoToDMY(s.lunes)} al ${isoToDMY(s.domingo)}. Costo = lo comprado para el personal + lo que les pasaste desde otros inventarios (con el último precio de 📒 Precios). Las entregas muestran quién lo consumió y no se suman otra vez.</p>
+        ${(s.pases || []).length ? `<h4 style="margin:12px 0 4px">🔀 Lo pasado al Stock del personal</h4><div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">${s.pases.map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);font-size:12.5px"><span>${esc(isoToDMY(p.fecha.slice(0, 10)).slice(0, 5))} · ${p.devuelto ? '↩️ Devuelto a ' + esc(p.destino) + ': ' : ''}<strong>${esc(p.nombre)}</strong> ${esc(num(p.cantidad))} ${esc(p.unidad)}</span><strong style="white-space:nowrap">${p.valor > 0 ? (p.devuelto ? '−' : '') + dinero(p.valor) : '<span class="ag-muted">sin precio</span>'}</strong></div>`).join('')}</div>` : ''}
         <h4 style="margin:12px 0 4px">📦 Qué se les entregó</h4>
         ${s.productos.length ? `<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">${s.productos.map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);font-size:13px"><span><strong>${esc(p.nombre)}</strong> · ${esc(num(p.cantidad))} ${esc(p.unidad)}${p.veces > 1 ? ' <span class="ag-muted">(' + p.veces + ' veces)</span>' : ''}</span><span style="white-space:nowrap">${p.valor > 0 ? dinero(p.valor) : '<span class="ag-muted">sin precio</span>'}</span></div>`).join('')}</div>
           <details style="margin-top:6px"><summary class="ag-muted" style="cursor:pointer;font-size:12.5px">Ver cada entrega con fecha y hora (${s.entregas.length})</summary>${s.entregas.map(m=>`<div style="font-size:12.5px;padding:4px 0;border-top:1px dashed var(--line)">${esc(fechaHoraCorta(m.fecha))} · <strong>${esc(m.nombre)}</strong> ${esc(num(m.cantidad))} ${esc(m.unidad)}${m.para ? ' → ' + esc(m.para) : ''}${m.quien ? ' <span class="ag-muted">· ' + esc(m.quien.split(' ')[0]) + '</span>' : ''}</div>`).join('')}</details>`
@@ -6504,7 +6507,7 @@ setTimeout(function(){
         const prev = invEntregas(I.movs).filter(m=>m.inventarioId === id)[0];
         const p = abrir(id, 'entrega', `<div class="iv-pan"><div style="font-weight:700;font-size:13.5px">🤲 Entregar ${esc(it.nombre)} al personal</div>
           ${prev ? `<div class="ag-muted" style="font-size:12px;margin-top:3px">Última entrega: ${esc(fechaHoraCorta(prev.fecha))} · ${esc(fmtInv(-prev.cantidad))} ${esc(it.unidad)}${prev.para ? ' a ' + esc(prev.para) : ''} · hace ${esc(diasDesde(prev.fecha))}</div>` : '<div class="ag-muted" style="font-size:12px;margin-top:3px">Es la primera entrega registrada de este producto.</div>'}
-          <div class="ag-row"><div><label class="f">¿Cuánto entregas? (${esc(it.unidad)})</label><input data-en-cant inputmode="decimal" placeholder="Ej: 1" style="font-size:16px"/></div>
+          <div class="ag-row"><div><label class="f">¿Cuánto entregas? (${esc(it.unidad)})</label><input data-en-cant placeholder="${!isNaN(cantInvTexto('1 g', it)) ? 'Ej: 200 g' : !isNaN(cantInvTexto('1 ml', it)) ? 'Ej: 500 ml' : 'Ej: 1'}" style="font-size:16px"/></div>
             <div><label class="f">¿A quién? <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-en-para list="iv-en-gente" placeholder="Ej: Rafael, todo el equipo"/></div></div>
           <datalist id="iv-en-gente">${['Todo el equipo'].concat(((state.gs && state.gs.datos && state.gs.datos.nominaPersonal) || []).map(x=>x.nombre), (state.staff || []).filter(s=>s.activo).map(s=>s.nombre)).filter((v, i, a)=>v && a.indexOf(v) === i).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
           <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Quedan ${esc(fmtInv(it.stock))} ${esc(it.unidad)} en ${invEsPersonal(it) ? 'la bodega del personal' : 'el inventario'}. Se guarda con la fecha y hora de ahora.</div>
@@ -6512,7 +6515,9 @@ setTimeout(function(){
         if(!p) return;
         p.querySelector('[data-en-cant]').focus();
         p.querySelector('[data-en-ok]').onclick = async (ev)=>{
-          const cant = p.querySelector('[data-en-cant]').value.trim(), n = Number(cant.replace(',', '.'));
+          const escrito = p.querySelector('[data-en-cant]').value.trim(); let n = r3(cantInvTexto(escrito, it));
+          if(isNaN(n)){ alert('No entendí la cantidad. Escribe un número (en ' + it.unidad + ') o algo como 200 g o 500 ml.'); return; }
+          n = quisoDecir(escrito, n, it); const cant = String(n);
           if(!(n > 0)){ alert('Escribe cuánto entregas (mayor que 0).'); return; }
           if(n > it.stock && !confirm('Solo hay ' + fmtInv(it.stock) + ' ' + it.unidad + ' registrados. ¿Entregar ' + fmtInv(n) + ' de todas formas? (la existencia quedará en 0)')) return;
           const para = p.querySelector('[data-en-para]').value.trim();
@@ -6534,6 +6539,12 @@ setTimeout(function(){
         return ut && ut[0] === b ? v * f / (Number(t[1]) * ut[1]) : NaN;
       };
       const r3 = x=>Math.round(x * 1000) / 1000;
+      // «200» sin unidad en un producto en kg (o L) del que hay menos de eso: casi seguro eran gramos (o ml). Se pregunta antes de seguir.
+      const quisoDecir = (escrito, n, it)=>{
+        if(!(n > it.stock) || !/^\d+(?:[.,]\d+)?$/.test(escrito)) return n;
+        const g = r3(cantInvTexto(escrito + ' g', it)), ml = r3(cantInvTexto(escrito + ' ml', it)), alt = !isNaN(g) && g !== n ? [g, 'g'] : (!isNaN(ml) && ml !== n ? [ml, 'ml'] : null);
+        return alt && alt[0] <= it.stock && confirm('Hay ' + fmtInv(it.stock) + ' ' + it.unidad + '. ¿Quisiste decir ' + escrito + ' ' + alt[1] + ' (= ' + fmtInv(alt[0]) + ' ' + it.unidad + ')?') ? alt[0] : n;
+      };
       // Tocar la cantidad: entrada, salida, merma o conteo real, con el número que sea.
       const abrirMov = (id, it)=>{
         const T = { entrada:['➕','Entrada','¿Cuánto entra?','Ej: compra del proveedor'], consumo:['➖','Salida','¿Cuánto sale?','Ej: se usó en mantenimiento'], merma:['🗑️','Merma','¿Cuánto se perdió o dañó?','Ej: vencido, roto'], conteo:['🔢','Conteo','¿Cuántos hay de verdad?','Conteo físico'] };
@@ -6559,11 +6570,12 @@ setTimeout(function(){
         const eq = p.querySelector('[data-iv-equiv]');
         if(eq) p.querySelector('[data-iv-cant]').oninput = e=>{ const t = e.target.value.trim(), x = cantInvTexto(t, it); eq.textContent = /[a-z]/i.test(t) ? (isNaN(x) ? 'No puedo convertir esa unidad para este producto.' : '= ' + fmtInv(r3(x)) + ' ' + it.unidad) : ''; };
         p.querySelector('[data-iv-ok]').onclick = async (ev)=>{
-          const escrito = p.querySelector('[data-iv-cant]').value.trim(), n = r3(cantInvTexto(escrito, it)), cant = isNaN(n) ? '' : String(n);
+          const escrito = p.querySelector('[data-iv-cant]').value.trim(); let n = r3(cantInvTexto(escrito, it)), cant = isNaN(n) ? '' : String(n);
           if(escrito && isNaN(n)){ alert('No entendí la cantidad. Escribe un número (en ' + it.unidad + ') o algo como 200 g, 0,5 kg o 500 ml.'); return; }
           if(!(tipo === 'conteo' ? n >= 0 && cant !== '' : n > 0)){ alert(tipo === 'conteo' ? 'Escribe cuántos hay (0 o más).' : 'Escribe una cantidad mayor que 0.'); return; }
           if(tipo === 'pasar'){
             const dst = p.querySelector('[data-iv-destsel]').value;
+            const n2 = quisoDecir(escrito, n, it); if(n2 !== n){ n = n2; cant = String(n); }
             if(n > it.stock){ alert('Solo hay ' + fmtInv(it.stock) + ' ' + it.unidad + '.'); return; }
             ev.target.disabled = true;
             try{ const r = await gsEspera(60000, 'transferirInventario', id, cant, dst, auth());
@@ -8900,7 +8912,13 @@ setTimeout(function(){
     { v:332, fecha:'25 oct', titulo:'Pasar partes de un producto con su costo', puntos:[
       '✂️ <strong>Pasar solo una parte:</strong> en el producto toca la cantidad → «🔀 Pasar» y escribe <strong>200 g</strong>, <strong>0,5 kg</strong> o <strong>500 ml</strong>. Se convierte solo, también en productos contados por unidades con el tamaño en el nombre (ej. «Aceite Aurora 1 L»: 500 ml = media unidad).',
       '💲 Cada pase muestra su <strong>costo proporcional</strong> según 📒 Precios (ej. 200 g de un queso de $8 el kilo ≈ $1,60) y queda anotado en el historial de los dos inventarios. <strong>No crea otro egreso</strong>: el gasto ya se registró al comprar, también cuando devuelves algo a Rosita.',
-      '🔢 En Entrada, Salida, Merma y Conteo también puedes escribir la cantidad con su unidad (200 g, 1,5 L…).' ] }
+      '🔢 En Entrada, Salida, Merma y Conteo también puedes escribir la cantidad con su unidad (200 g, 1,5 L…).' ] },
+    { v:333, fecha:'25 oct', titulo:'Costo del personal con lo que les pasas', puntos:[
+      '💰 <strong>«🤲 Personal por semana» ahora muestra el COSTO DEL PERSONAL:</strong> lo comprado para el personal + lo que les pasas desde Rosita, el spa u operaciones con «🔀 Pasar» (aunque se haya comprado para otro inventario), menos lo que devuelven.',
+      '🔀 Cada pase aparece con su valor según 📒 Precios. Si el producto aún no tiene precio, sale «sin precio» y se suma solo cuando se lo pongas.',
+      '🧾 No crea egresos nuevos: es para el control interno de cuánto se gasta en el personal. Las entregas siguen mostrando quién consumió qué, sin sumarse dos veces.',
+      '✈️ El resumen del lunes por Telegram trae el costo total de la semana.',
+      '⚖️ Al entregar o pasar, si escribes «200» en un producto que se cuenta en kg (y hay menos que eso), la app pregunta <strong>«¿Quisiste decir 200 g?»</strong>. En la entrega también puedes escribir 200 g o 500 ml.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
