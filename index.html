@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <script>window.AG_API = "https://script.google.com/macros/s/AKfycbyvzuGSC4rECcef_3-kZkhHm3rZdtuBx52qr-ZfBZwtpoJP1WwJOdFbfKpyV3_gULNB/exec"; window.AG_WEB = true;</script>
+<script>(function(){var ev=null;function btn(){if(document.getElementById("ag-instalar"))return;var b=document.createElement("button");b.id="ag-instalar";b.textContent="📲 Instalar Aguamiel";b.style.cssText="position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:99995;border:0;border-radius:999px;padding:10px 16px;background:linear-gradient(135deg,#0d9bb5,#0a5a68);color:#fff;font:700 14px system-ui,sans-serif;box-shadow:0 6px 16px rgba(10,90,104,.35)";b.onclick=function(){if(!ev)return;ev.prompt();ev.userChoice.then(function(){ev=null;b.remove();});};document.body.appendChild(b);}window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();ev=e;if(document.body)btn();else window.addEventListener("load",btn);});window.addEventListener("appinstalled",function(){var b=document.getElementById("ag-instalar");if(b)b.remove();});})();</script>
 <link rel="manifest" href="manifest.webmanifest"/>
 <meta name="theme-color" content="#0d9bb5"/>
 <link rel="apple-touch-icon" href="icono-192.png"/>
@@ -1161,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v327' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v328' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1808,10 +1809,20 @@ setTimeout(function(){
       return;
     }
     if(state.view==='loading'){
-      app.innerHTML = `<div class="ag-body" style="text-align:center;padding-top:80px">
-        <img src="data:image/png;base64,${b64urlToB64(LOGO_ICON_B64URL)}" alt="" style="width:64px;height:64px;object-fit:contain;margin:0 auto;display:block;opacity:.85"/>
-        <p class="ag-muted" style="font-size:12px;margin-top:14px">Cargando…</p>
-      </div>`;
+      // ✨ Pantalla de carga: el logo de Aguamiel centrado en la pantalla, girando en 3D con su sombra (más lento si el teléfono pide menos movimiento).
+      app.innerHTML = `<style>
+          @keyframes agGiro3D{ from{ transform:perspective(700px) rotateY(0deg); } to{ transform:perspective(700px) rotateY(360deg); } }
+          @keyframes agSombra{ 0%,50%,100%{ transform:scaleX(1); opacity:.28; } 25%,75%{ transform:scaleX(.35); opacity:.12; } }
+          .ag-carga{ min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+          .ag-carga-logo{ width:96px; height:96px; object-fit:contain; animation:agGiro3D 2.4s cubic-bezier(.45,.05,.55,.95) infinite; transform-style:preserve-3d; filter:drop-shadow(0 6px 10px rgba(10,90,104,.25)); }
+          .ag-carga-sombra{ width:70px; height:10px; margin-top:12px; border-radius:50%; background:radial-gradient(ellipse at center, rgba(10,90,104,.45), rgba(10,90,104,0) 70%); animation:agSombra 2.4s cubic-bezier(.45,.05,.55,.95) infinite; }
+          @media (prefers-reduced-motion:reduce){ .ag-carga-logo, .ag-carga-sombra{ animation-duration:6s; } }
+        </style>
+        <div class="ag-carga">
+          <img class="ag-carga-logo" src="data:image/png;base64,${b64urlToB64(LOGO_ICON_B64URL)}" alt="Aguamiel"/>
+          <div class="ag-carga-sombra"></div>
+          <p class="ag-muted" style="font-size:13px;margin-top:14px;letter-spacing:.3px">Cargando…</p>
+        </div>`;
       return;
     }
     if(state.view==='login'){ renderLogin(); return; }
@@ -2274,36 +2285,37 @@ setTimeout(function(){
     inp.addEventListener('input', pintar);
     res.addEventListener('click', e=>{ const b = e.target.closest && e.target.closest('[data-bq]'); if(!b) return; const d = lista[+b.dataset.bq]; if(d) d.ir(); });
   }
-  // Solo aparece si hay cumpleaños en el mes (si no hay ninguno, no se muestra nada). La administración ve la tabla del mes;
-  // el resto del equipo ve únicamente a quien cumple hoy. Quien está en "sin aviso" solo figura en la tabla.
+  // 🎂 Cumpleaños del equipo en Inicio: aparece solo desde 5 días antes, con la cuenta de los días que faltan; el día del cumpleaños sale
+  // en grande «¡Feliz cumpleaños!» y al día siguiente desaparece. Si viene otro cumpleaños cerca, sigue con la cuenta de esa persona.
   const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const CUMPLE_DIAS = 5;
   function recalcCumpleEq(){
-    // Recalcula la lista del mes desde las fechas del Staff (solo la administración las tiene).
-    const hoy = new Date(), mes = hoy.getMonth() + 1, dia = hoy.getDate();
+    // Recalcula desde las fechas del Staff (solo la administración las tiene), igual que el servidor.
+    const h = new Date(), base = Date.UTC(h.getFullYear(), h.getMonth(), h.getDate());
     const viejas = {}; (state.cumpleEq||[]).forEach(x=>viejas[x.id] = x);
-    state.cumpleEq = (state.staff||[]).filter(s=>s.activo && s.fnac && +s.fnac.substr(0,2)===mes).map(s=>{
-      const d = +s.fnac.substr(3,2), sin = !!s.cumpleSinAviso;
-      return { id:s.id, nombre:s.nombre, dia:d, diff:d - dia, fecha:s.fnac, sinAviso:sin, frase: (d===dia && !sin && viejas[s.id]) ? (viejas[s.id].frase||'') : '' };
-    }).sort((a,b)=>a.dia-b.dia);
+    state.cumpleEq = (state.staff||[]).filter(s=>s.activo && s.fnac && !s.cumpleSinAviso).map(s=>{
+      const m = +s.fnac.substr(0,2) - 1, d = +s.fnac.substr(3,2); let t = Date.UTC(h.getFullYear(), m, d); if(t < base) t = Date.UTC(h.getFullYear() + 1, m, d);
+      const diff = Math.round((t - base) / 86400000);
+      return { id:s.id, nombre:s.nombre, dia:d, mes:m + 1, diff, fecha:s.fnac, sinAviso:false, frase: diff === 0 && viejas[s.id] ? (viejas[s.id].frase||'') : '' };
+    }).filter(x=>x.diff <= CUMPLE_DIAS).sort((a,b)=>a.diff-b.diff);
   }
   function cumpleEquipoHTML(){
     const admin = !!(state.user && state.user.admin);
-    const todos = state.cumpleEq || [];
-    const l = admin ? todos : todos.filter(x=>x.diff===0 && !x.sinAviso);
+    const l = (state.cumpleEq || []).filter(x=>!x.sinAviso && x.diff >= 0 && x.diff <= CUMPLE_DIAS);
     if(!l.length) return '';
-    const hoy = l.filter(x=>x.diff===0 && !x.sinAviso);
-    const sinFecha = admin ? (state.staff||[]).filter(s=>s.activo && !s.fnac) : [];
     const yo = String(state.user && state.user.id);
-    const mesTxt = MESES_ES[new Date().getMonth()];
-    const tarjetaHoy = x=>`<div style="margin-top:6px;background:#fff;border:1px solid #f0d9a8;border-radius:10px;padding:8px 10px">
-        ${yo===x.id ? `<strong style="font-size:15px">🎉 ¡Feliz cumpleaños, ${esc(x.nombre.split(' ')[0])}!</strong><br/><span style="font-size:12.5px">Aguamiel está muy feliz de contar contigo. Te deseamos lo mejor 💙</span>` : `<strong style="font-size:15px">🎉 Aguamiel celebra el cumpleaños de ${esc(x.nombre)}</strong><br/><span style="font-size:12.5px">Hoy está de cumpleaños. Le deseamos lo mejor 💙 Todo el equipo de Aguamiel.</span>`}
-        ${x.frase ? `<br/><em style="font-size:12.5px">“${esc(x.frase)}”</em>` : ''}
-        ${admin ? `<br/><button type="button" class="ag-btn sm" data-cumple-eq="${esc(x.id)}" style="margin-top:6px">📢 Enviar un mensaje adicional</button>` : ''}</div>`;
-    const fila = x=>`<div style="display:flex;gap:8px;font-size:13px;padding:3px 0;${x.diff<0?'opacity:.6':''}"><span style="width:64px;flex:0 0 auto"><strong>${x.dia} de ${mesTxt.slice(0,3)}.</strong></span><span style="flex:1">${esc(x.nombre)}${x.diff===0?' <strong>— ¡hoy!</strong>':(x.diff===1?' — mañana':(x.diff<0?' — ya pasó':''))}${x.sinAviso?' <span title="Sin aviso" style="font-size:11px">🔕</span>':''}</span></div>`;
-    return `<div class="ag-warn" style="background:#fff4e0;color:#7a4b00"><strong>🎂 Cumpleaños del equipo${admin?' en ' + mesTxt:' — ¡hoy!'}</strong>
-      ${hoy.map(tarjetaHoy).join('')}
-      ${admin ? `<div style="margin-top:8px">${l.map(fila).join('')}</div>` : ''}
-      ${sinFecha.length ? `<div style="margin-top:8px;font-size:12px;opacity:.9">Aún sin fecha de cumpleaños: ${esc(sinFecha.map(s=>s.nombre.split(' ')[0]).join(', '))}. Regístrala en ⚙️ Admin → 👥 Staff (botón 🎂).</div>` : ''}</div>`;
+    const hoy = l.filter(x=>x.diff === 0), prox = l.filter(x=>x.diff > 0);
+    const grande = x=>`<div style="text-align:center;padding:14px 10px;margin-top:6px;background:linear-gradient(135deg,#fff7e6,#ffe8f0);border:1px solid #f3c9a8;border-radius:16px">
+        <div style="font-size:52px;line-height:1">🎂</div>
+        <div style="font-size:22px;font-weight:800;color:#8a3b00;margin-top:6px">¡Feliz cumpleaños, ${esc(String(x.nombre).split(' ')[0])}!</div>
+        <div style="font-size:13px;margin-top:4px;color:#7a4b00">${yo === String(x.id) ? 'Aguamiel está muy feliz de contar contigo. Te deseamos lo mejor 💙' : 'Hoy está de cumpleaños ' + esc(x.nombre) + '. Todo el equipo de Aguamiel le desea lo mejor 💙'}</div>
+        ${x.frase ? `<div style="font-size:12.5px;margin-top:6px"><em>“${esc(x.frase)}”</em></div>` : ''}
+        ${admin ? `<button type="button" class="ag-btn sm" data-cumple-eq="${esc(x.id)}" style="margin-top:8px">📢 Enviar un mensaje adicional</button>` : ''}</div>`;
+    const cuenta = x=>`<div style="display:flex;align-items:center;gap:10px;margin-top:6px;background:#fff;border:1px solid #f0d9a8;border-radius:12px;padding:8px 10px">
+        <div style="text-align:center;min-width:52px"><div style="font-size:24px;font-weight:800;color:#b05a00;line-height:1">${x.diff}</div><div style="font-size:11px">día${x.diff === 1 ? '' : 's'}</div></div>
+        <div style="font-size:13.5px">🎂 ${x.diff === 1 ? '<strong>Mañana</strong> es' : 'Faltan <strong>' + x.diff + ' días</strong> para'} el cumpleaños de <strong>${esc(x.nombre)}</strong><br/><span style="font-size:12px;opacity:.85">${x.dia} de ${MESES_ES[(x.mes || (new Date().getMonth() + 1)) - 1]}</span></div></div>`;
+    return `<div class="ag-warn" style="background:#fff4e0;color:#7a4b00">${hoy.length ? '' : '<strong>🎂 Se acerca un cumpleaños del equipo</strong>'}
+      ${hoy.map(grande).join('')}${prox.map(cuenta).join('')}</div>`;
   }
   function enlazarCumpleEq(root){
     if(!root) return;
@@ -8684,7 +8696,10 @@ setTimeout(function(){
     { v:327, fecha:'25 oct', titulo:'Choques de datos: decide César', puntos:[
       '⚖️ Si algo se cambió <strong>sin señal</strong> en un teléfono y, mientras tanto, otra persona cambió eso mismo, la app <strong>no pisa nada</strong>: lo deja como choque para que lo decida <strong>César</strong>.',
       '📲 César recibe el aviso por Telegram y al entrar a la app; en Admin → ⚙️ Sistema → ⚖️ Choques de datos ve cómo estaba, qué hay ahora y qué se hizo en el teléfono, y elige «Usar lo del teléfono» o «Dejar lo del servidor».',
-      '✅ Lo que no choca se sube solo, como siempre. Lo nuevo (creado sin señal) nunca choca: se guarda.' ] }
+      '✅ Lo que no choca se sube solo, como siempre. Lo nuevo (creado sin señal) nunca choca: se guarda.' ] },
+    { v:328, fecha:'25 oct', titulo:'Cumpleaños del equipo y logo en 3D', puntos:[
+      '🎂 <strong>Equipo:</strong> el aviso aparece 5 días antes con la cuenta de los días que faltan; el día del cumpleaños sale en grande «¡Feliz cumpleaños!» con su torta, y al día siguiente desaparece. Si viene otro cumpleaños cerca (también del mes siguiente), sigue con la cuenta de esa persona.',
+      '✨ La pantalla de carga muestra el logo de Aguamiel centrado y girando en 3D.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
