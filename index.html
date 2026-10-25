@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v330' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v331' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -8874,7 +8874,12 @@ setTimeout(function(){
     { v:330, fecha:'25 oct', titulo:'Tiempos de terapia y pasar entre inventarios', puntos:[
       '📊 <strong>Admin → Equipo → ⏱️ Tiempos de terapia:</strong> cuánto dura de verdad cada servicio frente a lo planificado (en rojo lo que se alarga más de 10 %), horas reales por profesional y las últimas terapias cronometradas, en 7, 30 o 90 días.',
       '🔎 Los avisos de «pantalla trabada» ahora dicen en qué sección pasó, y la app instalada también registra sus errores, para encontrar y corregir lo que se pone lento.',
-      '🔀 <strong>Pasar entre inventarios:</strong> en cualquier producto, «Cantidad» → «🔀 Pasar» manda una parte a otro inventario (por ejemplo medio kilo de pasta de Rosita al Stock del personal). Se descuenta de uno y se suma al otro, sin crear otro egreso.' ] }
+      '🔀 <strong>Pasar entre inventarios:</strong> en cualquier producto, «Cantidad» → «🔀 Pasar» manda una parte a otro inventario (por ejemplo medio kilo de pasta de Rosita al Stock del personal). Se descuenta de uno y se suma al otro, sin crear otro egreso.' ] },
+    { v:331, fecha:'25 oct', titulo:'Enlaces de clientes de hasta 6 meses', puntos:[
+      '⏳ <strong>Enlaces de catálogo de hasta 6 meses:</strong> al crearlos eliges 1 día, 3 días, 7 días, 1 mes, 3 meses o 6 meses.',
+      '🔔 Te avisa por Telegram (a quien envió el enlace y a César) <strong>3 días antes de que venza y el día que vence</strong>, y aparece en Inicio → ⚡ Atención hoy con el botón «♻️ Alargar» para renovarlo ahí mismo.',
+      '💲 <strong>Precios justos:</strong> si cambias un precio, el cliente con un enlace ya enviado conserva el anterior durante 24 horas y después ve el nuevo. Si no cambias nada, todo queda igual.',
+      '♻️ Un enlace vencido se puede reactivar durante 15 días (antes eran 2); después se borra solo, sin tocar lo que el cliente ya envió.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -8946,6 +8951,9 @@ setTimeout(function(){
     if(A.clienteSinResp.length){ n += A.clienteSinResp.length; h += bloque('📵', 'Clientes sin responder la confirmación', lista(A.clienteSinResp, r=>linea(esc(r.cliente) + ' · ' + fd(r.fecha, r.hora))), 'agenda'); }
     if(A.fallidos.length){ n += A.fallidos.length; h += bloque('📭', 'Mensajes que no salieron (últimas 48 h)', lista(A.fallidos, g=>linea(`<strong>${esc(g.canal)} a ${esc(g.quien)}</strong>${g.n > 1 ? ' (' + g.n + ')' : ''}: ${esc(amigable(g.canal, g.error))}${g.texto ? `<div class="ag-muted" style="font-size:11.5px">«${esc(g.texto)}»</div>` : ''}`), 5) + '<button class="ag-btn sm ghost" data-at-visto style="margin-top:6px">✔️ Ya lo revisé</button>', '', 'var(--danger-l)'); }
     if(A.vencidas.n){ n++; h += bloque('💰', 'Cuentas vencidas: ' + A.vencidas.n + ' · ' + dinero(A.vencidas.total), '', 'cobrar'); }
+    const EV = A.enlacesVencen || [];
+    if(EV.length){ n += EV.length; h += bloque('⏳', 'Enlaces de clientes por vencer (' + EV.length + ')', EV.map(x=>`<div style="margin-top:6px;font-size:12.5px"><strong>${esc(x.cliente)}</strong> · ${esc(x.tipo)} · ${x.vencido ? '<span style="color:#b3261e;font-weight:700">venció el ' + fd(x.vence.slice(0, 10)) + '</span>' : 'vence el ' + fd(x.vence.slice(0, 10))}${x.creadoPor ? ' · lo envió ' + esc(x.creadoPor) : ''}${x.recibido ? ' · ✅ ya envió su selección' : ''}
+      <div style="display:flex;gap:6px;align-items:center;margin-top:4px"><select data-at-plazo="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select><button type="button" class="ag-btn sm" data-at-alargar="${esc(x.token)}" data-at-nom="${esc(x.cliente)}">♻️ Alargar</button></div></div>`).join('') + linea('<span class="ag-muted">Si no lo renuevas, el enlace vencido se borra solo a los 15 días (lo que el cliente envió no se borra).</span>'), '', 'var(--teal-l)'); }
     if(A.disp && A.disp.faltan.length){ n++; h += bloque('🕒', 'Disponibilidad de la semana del ' + esc(A.disp.rango), linea('Falta que indiquen: ' + esc(A.disp.faltan.join(', '))), 'disp'); }
     if(A.sugerencias){ n++; h += bloque('📮', 'Sugerencias nuevas del equipo: ' + A.sugerencias, '', 'buzon', '#eef3ff'); }
     // Respaldos: el diario debe ser de hoy (o de ayer antes de la 1:00); si falló o se atrasó, se marca en rojo.
@@ -8963,6 +8971,10 @@ setTimeout(function(){
       <div style="display:flex;gap:6px;margin-top:8px"><button class="ag-btn sm ghost" data-at-hist style="flex:1">📜 Historial del día</button><button class="ag-btn sm ghost" data-at-novtodas style="flex:1">🆕 Actualizaciones</button></div></div></div>`;
   }
   function isoMasDias(iso, d){ const p = String(iso).split('-').map(Number); const x = new Date(Date.UTC(p[0], p[1] - 1, p[2] + d)); return x.toISOString().slice(0, 10); }
+  // ⏳ Plazos de los enlaces de catálogo (el servidor acepta de 1 día a 6 meses). Un plazo guardado que no esté en la lista se agrega.
+  const PLAZOS_ENLACE = [[1,'1 día'],[3,'3 días'],[7,'7 días'],[30,'1 mes'],[91,'3 meses'],[183,'6 meses']];
+  function plazoNombre(d){ const p = PLAZOS_ENLACE.find(x=>x[0] === d); return p ? p[1] : (d === 1 ? '1 día' : d + ' días'); }
+  function plazosOpciones(sel){ const L = PLAZOS_ENLACE.map(x=>x[0]); if(sel && !L.includes(sel)) L.push(sel); return L.sort((a, b)=>a - b).map(d=>`<option value="${d}" ${d === sel ? 'selected' : ''}>${plazoNombre(d)}</option>`).join(''); }
   function cargarAtencionHoy(el, forzar){
     if(!el) return;
     const pintar = ()=>{ if(!el.isConnected) return; el.innerHTML = atencionHoyHTML(); conectarAtencionHoy(el); };
@@ -8974,6 +8986,12 @@ setTimeout(function(){
   }
   function conectarAtencionHoy(el){
     el.querySelectorAll('[data-at-recargar]').forEach(b=>b.onclick = ()=>cargarAtencionHoy(el, true));
+    el.querySelectorAll('[data-at-alargar]').forEach(b=>b.onclick = async ()=>{
+      const tk = b.dataset.atAlargar, sel = el.querySelector('[data-at-plazo="' + tk + '"]'), dias = sel ? +sel.value : 30;
+      b.disabled = true;
+      try{ await gs('extenderEnlace', tk, dias, auth()); toast('♻️ El enlace de ' + b.dataset.atNom + ' dura ' + plazoNombre(dias) + ' más.'); state.ceEnv = null; cargarAtencionHoy(el, true); }
+      catch(e){ b.disabled = false; alert('No se pudo alargar: ' + (e && e.message ? e.message : e)); }
+    });
     const bnv = el.querySelector('[data-at-nov]'); if(bnv) bnv.onclick = ()=>abrirNovedades((state.atencion && state.atencion.novLeida) || 0, ()=>cargarAtencionHoy(el, true));
     const bnt = el.querySelector('[data-at-novtodas]'); if(bnt) bnt.onclick = ()=>abrirNovedades(0, ()=>cargarAtencionHoy(el, true));
     const bhs = el.querySelector('[data-at-hist]'); if(bhs) bhs.onclick = ()=>{ state.hist = null; state.tab = 'adminpanel'; state.adminSub = 'historial'; render(); };
@@ -10995,7 +11013,7 @@ setTimeout(function(){
         <div class="ag-muted" id="ce-frase-info" style="font-size:11.5px">Trae una frase del repertorio y la pone como mensaje; puedes editarla.</div>
         ${base ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;background:#fdf3f7;border:1px solid #f1c6d8;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-regalo" style="width:auto;margin-top:3px"/> <span>🎁 <strong>Regalo ya pagado:</strong> la persona ve «tienes un regalo» con lo que incluye (sin precios ni datos de pago) y solo elige en la agenda cuándo disfrutarlo. Usa los servicios que ya están en el presupuesto ${esc(base.numero)}.</span></label>
           <label id="ce-reg-extras-w" style="display:none;gap:8px;align-items:flex-start;margin-top:6px;background:#f3f8ff;border:1px solid #d6e6fb;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-reg-extras" checked style="width:auto;margin-top:3px"/> <span>➕ <strong>Permitir que pida cosas adicionales</strong> (pagadas aparte): más servicios o comida para sí misma, para un acompañante o para regalarle a otra persona. Abajo eliges qué se le ofrece.</span></label>` : ''}
-        <label class="f">El enlace vence en</label><select id="ce-dias">${[1,2,3,4,5,6,7].map(d=>`<option value="${d}" ${E.dias===d?'selected':''}>${d===1?'1 día':d+' días'}</option>`).join('')}</select>
+        <label class="f">El enlace vence en</label><select id="ce-dias">${plazosOpciones(E.dias)}</select><div class="ag-muted" style="font-size:11.5px;margin-top:3px">Si cambias un precio, el cliente conserva el anterior durante 24 horas y después ve el nuevo. Te aviso 3 días antes de que venza y el día que vence.</div>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-solicitud" style="width:auto" ${E.solicitudChk?'checked':''}/> 📝 Es una solicitud de reserva (el cliente debe pedir día y hora)</label>
         <div class="ag-muted" style="font-size:11.5px;margin:0 0 2px 24px">El cliente elige sus servicios y obligatoriamente el día y la hora; te llega como solicitud para que la confirmes (no queda reservado hasta entonces).</div>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-sinpago" style="width:auto" ${E.sinPagoNo?'':'checked'}/> 💸 Permitir que envíe su selección sin pagar («Abonaré el día…»)</label>
@@ -11050,7 +11068,7 @@ setTimeout(function(){
           <div class="ag-muted" style="font-size:12px">${x.caducado ? '<span class="ag-badge" style="background:#eee;color:#777">⛔ Caducado</span> ' : ''}${esc(x.estado)} · ${x.caducado ? 'venció' : 'vence'} ${esc(isoToDMY(String(x.vence).slice(0, 10)))} · código …${esc(String(x.token).slice(-5))}</div>
           ${x.caducado ? '' : dispResumen(x)}
           ${x.caducado ? '' : `<div style="display:flex;flex-wrap:wrap;gap:6px">${x.cats.map(c=>(c.gratis ? `<span class="ag-badge" style="background:#e2f4e6;color:#1d6b35">✓ ${esc(c.nombre)}: sin costo</span>` : `<button type="button" class="ag-btn sm ghost" data-qc="${esc(x.token)}|${esc(c.k)}" data-qn="${esc(c.nombre)}" data-qp="${esc(x.clienteNombre)}">Quitar costo: ${esc(c.nombre)} (desde ${dinero(c.desde)})</button>`) + `<button type="button" class="ag-btn sm ghost" data-qk="${esc(x.token)}|${esc(c.k)}" data-qn="${esc(c.nombre)}" style="color:var(--danger)">🗑️ Quitar «${esc(c.nombre)}» del enlace</button>`).join('')}</div>`}
-          ${x.caducado ? `<div class="ag-muted" style="font-size:12px">Se quita de esta lista 2 días después de caducar.</div><button type="button" class="ag-btn sm" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}" style="align-self:flex-start">♻️ Reactivar y extender el plazo</button>` : `<div style="display:flex;flex-wrap:wrap;gap:6px"><a class="ag-btn sm ghost" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁️ Ver como cliente (sin avisar)</a><button type="button" class="ag-btn sm ghost" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">⏳ Extender el plazo</button><button type="button" class="ag-btn sm danger" data-cad="${esc(x.token)}" data-cadn="${esc(x.clienteNombre)}">⛔ Caducar enlace ahora</button></div>`}</div>`).join('') : '<p class="ag-muted" style="font-size:13px">No hay enlaces vigentes.</p>');
+          ${x.caducado ? `<div class="ag-muted" style="font-size:12px">Se quita de esta lista 15 días después de caducar.</div><div style="display:flex;gap:6px;align-items:center">${x.tipo === 'menu' ? '' : `<select data-extsel="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select>`}<button type="button" class="ag-btn sm" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">♻️ Reactivar</button></div>` : `<div style="display:flex;flex-wrap:wrap;gap:6px"><a class="ag-btn sm ghost" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁️ Ver como cliente (sin avisar)</a>${x.tipo === 'menu' ? '' : `<select data-extsel="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select>`}<button type="button" class="ag-btn sm ghost" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">⏳ Alargar</button><button type="button" class="ag-btn sm danger" data-cad="${esc(x.token)}" data-cadn="${esc(x.clienteNombre)}">⛔ Caducar enlace ahora</button></div>`}</div>`).join('') : '<p class="ag-muted" style="font-size:13px">No hay enlaces vigentes.</p>');
       envCont.querySelectorAll('[data-dsp]').forEach(b=>b.onclick = ()=>{
         const tk = b.dataset.dsp, ed = envCont.querySelector('[data-dsp-ed="' + tk + '"]'); if(!ed) return;
         if(ed.innerHTML){ ed.innerHTML = ''; return; }
@@ -11137,12 +11155,12 @@ setTimeout(function(){
         ed.querySelector('[data-reg-ok]').onclick = ev=>fin(true, msj.value.trim(), ev.target);
       });
       envCont.querySelectorAll('[data-ext]').forEach(b=>b.onclick = async ()=>{
-        const r0 = prompt('¿Cuántos días más debe durar el enlace de ' + b.dataset.extn + '? (1 a 7, contados desde hoy o desde su vencimiento si aún está vigente)', '3');
-        if(r0 === null) return;
-        const dias = Math.round(Number(String(r0).replace(',', '.')));
-        if(!(dias >= 1 && dias <= 7)){ alert('Escribe un número de días entre 1 y 7.'); return; }
+        // Catálogos: el plazo de la lista (de 1 día a 6 meses). Menú de Rosita: de 1 a 7 días.
+        const sel = envCont.querySelector('[data-extsel="' + b.dataset.ext + '"]');
+        let dias = sel ? +sel.value : 0;
+        if(!sel){ const r0 = prompt('¿Cuántos días más debe durar el enlace de ' + b.dataset.extn + '? (1 a 7)', '3'); if(r0 === null) return; dias = Math.round(Number(String(r0).replace(',', '.'))); if(!(dias >= 1 && dias <= 7)){ alert('Escribe un número de días entre 1 y 7.'); return; } }
         b.disabled = true;
-        try{ state.ceEnv = await gs('extenderEnlace', b.dataset.ext, dias, auth()); pintarEnv(); toast('Listo: el enlace dura ' + dias + (dias === 1 ? ' día más.' : ' días más.')); }
+        try{ state.ceEnv = await gs('extenderEnlace', b.dataset.ext, dias, auth()); pintarEnv(); toast('Listo: el enlace de ' + b.dataset.extn + ' dura ' + plazoNombre(dias) + ' más.'); }
         catch(e){ b.disabled = false; alert('No se pudo extender: ' + (e && e.message ? e.message : e)); }
       });
       envCont.querySelectorAll('[data-cad]').forEach(b=>b.onclick = async ()=>{
