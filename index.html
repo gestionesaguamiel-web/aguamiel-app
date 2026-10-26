@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v341' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v342' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1189,20 +1189,27 @@ setTimeout(function(){
   function gs(fn, ...args){ return gsEspera(30000, fn, ...args); }
   // 🌐 Servidor como servicio: cuando las pantallas se abren fuera de Google (alojamiento propio o APK), window.AG_API es la
   // dirección /exec y se llama a las mismas funciones por internet (doPost en JSON). Dentro de Google se sigue usando google.script.run.
-  function agApi(fn, args, rid){
+  function agApi(fn, args, rid, ms){
     if(!window.AG_API) return Promise.reject(new Error('Sin conexión con el servidor de Aguamiel.'));
     const sinRed = ()=>{ const e = new Error('Failed to fetch'); e.sinRed = true; return e; };
     if(navigator.onLine === false) return Promise.reject(sinRed());
-    return fetch(window.AG_API, { method:'POST', body:JSON.stringify({ fn, args:args || [], rid:rid || undefined }) })
+    // ⏱️ ms: tiempo máximo (los cambios que van a la cola sin señal no esperan para siempre con una señal muy débil).
+    const ctl = ms && window.AbortController ? new AbortController() : null, tCorte = ctl ? setTimeout(()=>ctl.abort(), ms) : null;
+    return fetch(window.AG_API, { method:'POST', body:JSON.stringify({ fn, args:args || [], rid:rid || undefined }), signal:ctl ? ctl.signal : undefined })
       .catch(()=>{ throw sinRed(); })
-      .then(r=>r.json()).then(d=>{ if(!d || !d.ok) throw new Error((d && d.error) || 'El servidor no respondió bien.'); return d.r; });
+      .then(r=>r.json()).then(d=>{ clearTimeout(tCorte); if(!d || !d.ok) throw new Error((d && d.error) || 'El servidor no respondió bien.'); return d.r; }, e=>{ clearTimeout(tCorte); throw e; });
   }
-  // 📥 Con señal, se dejan guardadas en el teléfono las pantallas de administración más usadas (como mucho cada 20 min).
+  // 📥 Con señal, cada teléfono deja guardadas TODAS las pantallas que esa persona puede ver (como mucho cada 15 min).
+  // El servidor decide qué entrega a cada quien (lo que no le corresponde da error y simplemente no se guarda).
   let precargaAt = 0;
   function precargarSinRed(){
-    if(!window.AG_WEB || !state.user || state.prueba || !state.user.admin || navigator.onLine === false || document.hidden || Date.now() - precargaAt < 300000) return;
-    precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7);
-    [['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getTarifas', a], ['getPresupuestos', a]].forEach((x, i)=>setTimeout(()=>{ gs(...x).catch(()=>{}); }, i * 1500));
+    if(!window.AG_WEB || !state.user || state.prueba || navigator.onLine === false || document.hidden || Date.now() - precargaAt < 900000) return;
+    precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7), L = [['getAgenda', a], ['getPropinas', a], ['getMisSolicitudesCobertura', a]];
+    if(elegibleDisp()) L.push(['getMiDisponibilidad', a, 0]);
+    if(state.user.admin) L.push(['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getFinanzas', mes, a], ['getTarifas', a], ['getPresupuestos', a],
+      ['getOperaciones', a], ['getOpAreas', a], ['getCostosCocina', a], ['getDondeComprar', a], ['getPagosPorVerificar', a], ['getCoberturaAdmin', a],
+      ['getCuentasPorCobrar', a], ['getDisponibilidadEquipo', semanasEquipo(), a]);
+    L.forEach((x, i)=>setTimeout(()=>{ if(state.user && navigator.onLine !== false) gs(...x).catch(()=>{}); }, i * 1500));
   }
   // 💝 Propinas: las paga el cliente DIRECTO al profesional; aquí solo se registran (sin efecto en las finanzas).
   // Cada profesional ve las suyas y sus datos para recibirlas; la administración ve todas y el resumen por persona.
@@ -1301,60 +1308,180 @@ setTimeout(function(){
       catch(e){ b.disabled = false; alert('No se pudo: ' + (e && e.message ? e.message : e)); }
     });
   }
-  // 📴 MODO SIN CONEXIÓN (solo en la versión web/APK). Lo que se registra sin señal en Inventario, Compras y Finanzas
-  // se guarda en el teléfono (cola) y se envía solo, en orden, al volver la conexión. Cada cambio lleva un «rid» único:
-  // si llegara dos veces, el servidor no lo duplica. Borrar, pagos y verificaciones NO se guardan sin conexión (necesitan respuesta segura).
-  const COLA_FN = /^(moverInventario|saveInventarioItem|saveCompra|marcarCompra|setCostoCompra|saveGastoFactura|saveOtroIngreso|savePrecioIngrediente|sumarFacturaInventario|saveMenuItem|savePaquete|savePaqCats|saveTarifas|saveTarifasGrupo|savePresupuesto|setEstadoPresupuesto|saveReceta|saveCliente|saveFicha|updateFicha|registrarTiempoTerapia)$/;
-  // 📥 Lecturas guardadas en el teléfono (solo web): cada consulta «get…» que llega bien se guarda; sin señal se muestra la última.
-  const LECT_FN = /^get(?!HoraServidor)/;   // la hora del servidor nunca se toma de lo guardado
+  // 📴 MODO SIN CONEXIÓN (solo en la versión web/APK). Lo que se registra sin señal se guarda en el teléfono (cola) y se envía solo,
+  // en orden, al volver la conexión. Cada cambio lleva un «rid» único: si llegara dos veces, el servidor no lo duplica.
+  // Borrar, pagos, verificaciones, fotos y avisos NO se hacen sin conexión (necesitan respuesta segura del servidor).
+  // v342: también Disponibilidad, Operaciones (tareas, revisiones, estado de equipos), órdenes de Rosita y reservas nuevas («por confirmar»).
+  const COLA_FN = /^(moverInventario|saveInventarioItem|saveCompra|marcarCompra|setCostoCompra|saveGastoFactura|saveOtroIngreso|savePrecioIngrediente|sumarFacturaInventario|saveMenuItem|savePaquete|savePaqCats|saveTarifas|saveTarifasGrupo|savePresupuesto|setEstadoPresupuesto|saveReceta|saveCliente|saveFicha|updateFicha|registrarTiempoTerapia|guardarDisponibilidad|saveOperacion|guardarChecklistOperacion|cambiarEstadoEquipo|savePedido|marcarCocina|saveReserva)$/;
+  // 📥 Lecturas guardadas en el teléfono (solo web): cada consulta que llega bien se guarda (cifrada); sin señal o con señal muy lenta se muestra la última.
+  // La hora del servidor nunca se toma de lo guardado; fotos, comprobantes y perfiles del equipo no se guardan en el teléfono (privacidad y espacio).
+  const LECT_FN = /^(get(?!HoraServidor|FotoGasto|ImagenFicha|Comprobante|PerfilStaff)|revisionMenuRosita$)/;
+  const LECT_ESPERA = 8000;   // con señal débil, a los 8 s se muestra lo guardado (y lo nuevo se pone solo cuando llegue)
   const lectClave = (fn, args)=>fn + '|' + JSON.stringify((args || []).map(a=>(a && typeof a === 'object' && 'pin' in a) ? '·' : a));
   function lectIdb(modo, f){ return new Promise((ok, mal)=>{ try{ const rq = indexedDB.open('aguamiel_lect', 1); rq.onupgradeneeded = ()=>rq.result.createObjectStore('l');
     rq.onerror = ()=>mal(rq.error); rq.onsuccess = ()=>{ const db = rq.result; try{ const tx = db.transaction('l', modo), q = f(tx.objectStore('l')); tx.oncomplete = ()=>{ db.close(); ok(q ? q.result : undefined); }; tx.onerror = tx.onabort = ()=>{ db.close(); mal(tx.error); }; }catch(e){ db.close(); mal(e); } }; }catch(e){ mal(e); } }); }
-  function lectGuardar(fn, args, v){ if(!window.AG_WEB || !LECT_FN.test(fn) || state.prueba) return; const u = state.user ? String(state.user.id) : '';
-    if(!u){ if(fn === 'getStaffLogin') lectIdb('readwrite', st=>st.put({ t:Date.now(), v }, '-|' + lectClave(fn, args))).catch(()=>{}); return; }   // la lista para entrar (solo nombres) va sin cifrar: se necesita antes del PIN
-    cifrar(u, v).then(enc=>{ if(enc) lectIdb('readwrite', st=>st.put({ t:Date.now(), enc }, u + '|' + lectClave(fn, args))).catch(()=>{}); }).catch(()=>{}); }
+  // Disponibilidad del equipo: cada pantalla pide otras semanas; se guarda además una copia «juntada» para poder armar cualquier semana ya vista.
+  const LECT_JUNTAR = { getDisponibilidadEquipo:{
+    juntar:(viejo, v)=>{ const eq = {}; ((viejo && viejo.equipo) || []).concat(v.equipo || []).forEach(e=>{ const o = eq[e.id] || (eq[e.id] = { id:e.id, nombre:e.nombre, cargo:e.cargo, semanas:{} }); o.nombre = e.nombre; o.cargo = e.cargo; Object.assign(o.semanas, e.semanas || {}); });
+      const sem = {}; ((viejo && viejo.semanas) || []).concat(v.semanas || []).forEach(s=>{ sem[s] = 1; }); return { semanas:Object.keys(sem), equipo:Object.values(eq), recientes:v.recientes || [] }; },
+    armar:(m, args)=>{ const pide = args[0] || []; return { semanas:pide, equipo:(m.equipo || []).map(e=>({ id:e.id, nombre:e.nombre, cargo:e.cargo, semanas:Object.fromEntries(Object.entries(e.semanas || {}).filter(([k])=>pide.includes(k))) })), recientes:m.recientes || [] }; } } };
+  function lectGuardar(fn, args, v, t){ if(!window.AG_WEB || !LECT_FN.test(fn) || state.prueba) return Promise.resolve(); const u = state.user ? String(state.user.id) : '';
+    if(!u){ if(fn === 'getStaffLogin') return lectIdb('readwrite', st=>st.put({ t:Date.now(), v }, '-|' + lectClave(fn, args))).catch(()=>{}); return Promise.resolve(); }   // la lista para entrar (solo nombres) va sin cifrar: se necesita antes del PIN
+    const J = LECT_JUNTAR[fn];
+    if(J && !t) lectLeerClave(u, fn + '|*').then(m=>cifrar(u, J.juntar(m && m.v, v))).then(enc=>{ if(enc) lectIdb('readwrite', st=>st.put({ t:Date.now(), enc }, u + '|' + fn + '|*')).catch(()=>{}); }).catch(()=>{});
+    return cifrar(u, v).then(enc=>{ if(enc) return lectIdb('readwrite', st=>st.put({ t:t || Date.now(), enc }, u + '|' + lectClave(fn, args))).catch(()=>{}); }).catch(()=>{}); }
+  function lectLeerClave(u, k){ return Promise.race([ lectIdb('readonly', st=>st.get(u + '|' + k)), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null)
+    .then(async g=>{ if(!g || !g.enc) return null; const v = await descifrar(u, g.enc); return v === null ? null : { t:g.t, v }; }); }
   function lectLeer(fn, args){ const u = state.user ? String(state.user.id) : '';
     if(!u) return Promise.race([ lectIdb('readonly', st=>st.get('-|' + lectClave(fn, args))), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null).then(g=>g && g.v !== undefined ? g : null);
-    return Promise.race([ lectIdb('readonly', st=>st.get(u + '|' + lectClave(fn, args))), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null)
-      .then(async g=>{ if(!g || !g.enc) return null; const v = await descifrar(u, g.enc); return v === null ? null : { t:g.t, v }; }); }
-  let avisoLectAt = 0;
-  function avisoLect(t){ if(Date.now() - avisoLectAt < 20000) return; avisoLectAt = Date.now(); try{ toast('📴 Sin señal: ves lo guardado en este teléfono' + (t ? ' (' + new Date(t).toLocaleString('es-VE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ')' : '') + '.'); }catch(e){} }
+    return lectLeerClave(u, lectClave(fn, args)).then(g=>{ if(g || !LECT_JUNTAR[fn]) return g; return lectLeerClave(u, fn + '|*').then(m=>m ? { t:m.t, v:LECT_JUNTAR[fn].armar(m.v, args) } : null); }); }
+  // Cambia lo guardado de una pantalla (para que lo hecho sin señal se siga viendo al reabrir la app). Conserva la hora de la copia.
+  function lectParchar(fn, args, f){ return lectLeer(fn, args).then(g=>{ if(!g || g.v === undefined) return; const v = f(JSON.parse(JSON.stringify(g.v))); if(v !== undefined) return lectGuardar(fn, args, v, g.t); }).catch(()=>{}); }
+  let avisoLectAt = 0, copiaVistaT = 0;
+  function avisoLect(t, lenta){ if(t) copiaVistaT = Math.max(copiaVistaT, t); sinRedEstado(); if(Date.now() - avisoLectAt < 20000) return; avisoLectAt = Date.now();
+    try{ toast((lenta ? '🐢 Señal muy lenta: ves lo guardado en este teléfono' : '📴 Sin señal: ves lo guardado en este teléfono') + (t ? ' (' + new Date(t).toLocaleString('es-VE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ')' : '') + '.'); }catch(e){} }
   // Sin señal se aceptan la copia y la sesión de hasta 7 días (con señal, la sesión dura HORAS_SESION como siempre).
   const sinRedAhora = ()=>!!window.AG_WEB && navigator.onLine === false;
   const horasSes = ()=>sinRedAhora() ? 7 * 24 : HORAS_SESION;
-  const pinHuella = (id, pin)=>{ try{ return crypto.subtle.digest('SHA-256', new TextEncoder().encode('aguamiel|' + id + '|' + pin)).then(b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2, '0')).join('')); }catch(e){ return Promise.resolve(''); } };
-  const COLA_K = 'ag_cola_v1', COLA_MAL = 'ag_cola_fallas_v1';
-  const colaLeer = k=>{ try{ return JSON.parse(localStorage.getItem(k) || '[]') || []; }catch(e){ return []; } };
-  const colaPoner = (k, l)=>{ try{ localStorage.setItem(k, JSON.stringify(l)); }catch(e){} colaAviso(); };
-  function colaAgregar(fn, args){
-    const l = colaLeer(COLA_K), rid = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
-    l.push({ rid, fn, args, at:new Date().toISOString(), quien:(state.user && state.user.nombre) || '', antes:choqueAntes(fn, args) }); colaPoner(COLA_K, l);
-    return rid;
+
+  // ---- 🗂️ La cola: una por persona, CIFRADA con su llave (ag_cola2_<id>). Nunca guarda el PIN ni la llave de sesión: cada cambio
+  // se envía con la identificación de quien esté conectado en ese momento (y solo si es la misma persona que lo hizo).
+  const COLA_K = 'l', COLA_MAL = 'mal', AUTH_MARCA = { __auth:1 };
+  let COLA = { uid:'', l:[], mal:[] }, colaGuardando = Promise.resolve();
+  const colaLeer = k=>(COLA[k] || []).slice();
+  const conMarca = args=>(args || []).map(a=>(a && typeof a === 'object' && 'pin' in a) ? AUTH_MARCA : a);
+  const conAuth = args=>(args || []).map(a=>(a && a.__auth) ? auth() : a);
+  function colaPoner(k, l){
+    COLA[k] = l; const uid = COLA.uid, datos = { l:COLA.l, mal:COLA.mal };
+    if(uid) colaGuardando = colaGuardando.then(()=>cifrar(uid, datos)).then(enc=>{ if(enc) lsSet('ag_cola2_' + uid, enc); else if(datos.l.length) console.warn('cola sin llave: queda solo en memoria'); }).catch(()=>{});
+    colaAviso(); sinRedEstado();
+  }
+  // Se abre la cola de la persona que entró. Pasa también lo que hubiera en la cola vieja sin cifrar (v322–v341) y la borra.
+  async function colaCargar(){
+    if(!window.AG_WEB || !state.user || state.prueba) return; const uid = String(state.user.id); if(COLA.uid === uid) return;
+    const yaEnMemoria = COLA.uid === '' ? COLA.l : [];
+    let d = null; const enc = lsGet('ag_cola2_' + uid); if(enc) d = await descifrar(uid, enc).catch(()=>null);
+    const l = (d && d.l) || [], mal = (d && d.mal) || [];
+    [['ag_cola_v1', l], ['ag_cola_fallas_v1', mal]].forEach(([k, dest])=>{ const v = lsGet(k); if(Array.isArray(v) && v.length){ v.forEach(c=>{ if(!dest.some(x=>x.rid === c.rid)) dest.push(Object.assign({}, c, { args:conMarca(c.args), uid })); }); } lsDel(k); });
+    yaEnMemoria.forEach(c=>{ if(!l.some(x=>x.rid === c.rid)) l.push(Object.assign({}, c, { uid })); });
+    COLA = { uid, l, mal }; colaPoner(COLA_K, l);
+  }
+  function colaSoltar(){ COLA = { uid:'', l:[], mal:[] }; colaAviso(); sinRedEstado(); }
+  // Al cambiar la llave (entrar de nuevo con el PIN), la cola guardada se vuelve a cifrar con la llave nueva para no perderla.
+  async function colaRecifrar(id, hexViejo, hexNuevo){
+    try{ const enc = lsGet('ag_cola2_' + id); if(!enc || !hayCripto()) return;
+      const kV = await crypto.subtle.importKey('raw', hexAB(hexViejo), 'AES-GCM', false, ['decrypt']), kN = await crypto.subtle.importKey('raw', hexAB(hexNuevo), 'AES-GCM', false, ['encrypt']);
+      const claro = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64AB(enc.iv) }, kV, b64AB(enc.c)), iv = crypto.getRandomValues(new Uint8Array(12));
+      lsSet('ag_cola2_' + id, { iv:abB64(iv), c:abB64(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, kN, claro)) });
+    }catch(e){}
+  }
+  const colaRid = ()=>Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  function colaAgregar(fn, args, rid, localId){
+    const l = colaLeer(COLA_K);
+    l.push({ rid:rid || colaRid(), fn, args:conMarca(args), at:new Date().toISOString(), quien:(state.user && state.user.nombre) || '', uid:COLA.uid, antes:choqueAntes(fn, args), localId:localId || undefined });
+    colaPoner(COLA_K, l);
+  }
+  // ✍️ Lo hecho sin señal se ve enseguida en la pantalla (y en lo guardado), marcado «📴 pendiente», hasta que el servidor lo confirme.
+  const idLocal = ()=>'local-' + colaRid();
+  const esIdLocal = id=>/^local-/.test(String(id || ''));
+  // La lista de Operaciones sale de la pantalla abierta o, si no se ha abierto, de lo guardado en el teléfono (nunca se arma con una lista vacía).
+  const opsLocal = async ()=>(state.op && state.op.datos) ? state.op.datos.slice() : (((await lectLeer('getOperaciones', [auth()])) || {}).v || []).slice();
+  function opsGuardarLocal(L){ if(state.op) state.op.datos = L; lectParchar('getOperaciones', [auth()], ()=>L); return L; }
+  const SINRED_LOCAL = {
+    moverInventario:args=>{ const r = invLocal(args); return r ? { res:r } : null; },
+    guardarDisponibilidad:args=>{ const [semana, dias, sin, nota] = args, reg = { estado:sin ? 'sin' : 'ok', dias:sin ? {} : (dias || {}), nota:String(nota || '').slice(0, 300), actualizado:new Date().toISOString(), pendiente:true };
+      lectParchar('getMiDisponibilidad', [auth(), (state.disp && state.disp.mas) || 0], v=>{ (v.semanas || []).forEach(s=>{ if(s.lunes === semana) s.registro = reg; }); return v; });
+      return { res:{ lunes:semana, registro:reg } }; },
+    saveOperacion:async args=>{ const o = args[0] || {}, L = await opsLocal(), i = o.id ? L.findIndex(x=>x.id === o.id) : -1, nuevo = i < 0 ? idLocal() : '';
+      const x = Object.assign({ materiales:[], checklist:[], creadoPor:(state.user && state.user.nombre) || '' }, i > -1 ? L[i] : {}, o, { id:nuevo || o.id, pendiente:true });
+      if(i > -1) L[i] = x; else L.push(x); return { res:opsGuardarLocal(L), localId:nuevo }; },
+    guardarChecklistOperacion:async args=>{ const [id, lista] = args, L = await opsLocal(), x = L.find(y=>y.id === id); if(!x) return null;
+      const hoy = hoyISO(), cl = (lista || []).map(p=>Object.assign({}, p, { at:p.ok ? (p.at || hoy) : '' })), H = (OP_SECC[x.seccion] && OP_SECC[x.seccion].hecho) || [];
+      const completado = cl.length > 0 && cl.every(p=>p.ok) && !H.includes(x.estado), reabierto = cl.some(p=>!p.ok) && H.includes(x.estado);
+      Object.assign(x, { checklist:cl, pendiente:true }); if(completado && H[0]) x.estado = H[0]; if(reabierto) x.estado = x.seccion === 'mantenimiento' ? 'Por revisar' : 'Pendiente';
+      return { res:{ datos:opsGuardarLocal(L), completado, reabierto } }; },
+    cambiarEstadoEquipo:args=>{ const [id, estado, nota] = args, I = estadoInv(), it = (I.items || []).find(x=>x.id === id); if(!it) return null;
+      const item = Object.assign({}, it, { estado, estadoNota:String(nota || ''), pendiente:true }); lectParchar('getInventario', [auth()], v=>{ v.items = (v.items || []).map(x=>x.id === id ? item : x); return v; });
+      return { res:{ item, movs:I.movs || [] } }; },
+    marcarCocina:args=>({ res:{ cocinaEstado:args[1] === 'listo' || args[1] === 'preparando' ? args[1] : '', cocinaAt:new Date().toISOString(), cocinaPor:(state.user && state.user.nombre) || '', pendiente:true } }),
+    savePedido:args=>{ const p = args[0] || {}, items = p.items || [], nuevo = p.id ? '' : idLocal();
+      const total = Math.round(items.reduce((t, it)=>t + (it.incluido ? 0 : (Number(it.precio) || 0) * (Number(it.cantidad) || 0)), 0) * 100) / 100;
+      return { res:Object.assign({}, p, { id:nuevo || p.id, items, total, estado:'Abierta', integrantes:p.integrantes || [], creadoPor:(state.user && state.user.nombre) || '', createdAt:new Date().toISOString(), pendiente:true }), localId:nuevo }; },
+    // 📅 Reserva NUEVA sin señal: queda «⏳ por confirmar». Al volver la señal, si el horario ya lo tomó otra persona, no se guarda sola: César decide.
+    saveReserva:args=>{ const r = args[0] || {}; if(r.id || r.presupuestoId || r.programa || !r.nuevoId) return null;   // editar, presupuestos y programas necesitan señal
+      const ahora = new Date().toISOString(), quien = (state.user && state.user.nombre) || '';
+      const x = Object.assign({ terapias:[], comidas:[], servicios:[], profesionales:[], personas:[], pagos:[], cargos:[], gestiones:[], confirmaciones:{} }, r, { id:r.nuevoId, estado:'Confirmada', porConfirmar:true, pendiente:true,
+        historial:[{ fecha:ahora, texto:'📴 Creada sin señal por ' + quien + ' · ⏳ por confirmar' }], creadoPor:quien, createdAt:ahora, avisosAuto:[] });
+      lectParchar('getAgenda', [auth()], v=>{ if(v && Array.isArray(v.reservas) && !v.reservas.some(y=>y.id === x.id)) v.reservas.push(x); return v; });
+      return { res:x }; }
+  };
+  // Lo que se hizo sin señal y todavía no se envió se vuelve a poner encima de los datos (al reabrir la app o al llegar datos nuevos).
+  function colaReaplicar(){
+    try{ colaLeer(COLA_K).forEach(c=>{
+      if(c.fn === 'savePedido' && c.local && Array.isArray(state.pedidos)){ const id = c.local.id, i = state.pedidos.findIndex(p=>p.id === id); if(i > -1) state.pedidos[i] = Object.assign({}, state.pedidos[i], c.local); else state.pedidos.push(c.local); }
+      else if(c.fn === 'marcarCocina' && c.local && Array.isArray(state.pedidos)){ const p = state.pedidos.find(y=>y.id === c.args[0]); if(p) Object.assign(p, c.local); }
+      else if(c.fn === 'saveReserva' && c.local && state.agenda && Array.isArray(state.agenda.reservas) && !state.agenda.reservas.some(r=>r.id === c.local.id)) state.agenda.reservas.push(c.local);
+    }); }catch(e){}
+  }
+  // Sin señal: se guarda en la cola y, si se puede, se devuelve lo que se verá en pantalla. Si es un cambio a algo creado sin señal
+  // (aún sin número del servidor), se junta con ese mismo registro pendiente en vez de crear otro.
+  async function colaGuardarSinRed(fn, args, rid){
+    const o = args[0], a0 = (o && typeof o === 'object') ? o : null;
+    const pend = colaLeer(COLA_K), idL = fn === 'guardarChecklistOperacion' ? args[0] : (a0 && a0.id);
+    if(esIdLocal(idL)){
+      const c = pend.find(x=>x.localId === idL); if(!c) throw new Error('📴 Ese registro todavía se está enviando. Espera a que se actualice la lista e inténtalo de nuevo.');
+      const loc = SINRED_LOCAL[fn] ? await SINRED_LOCAL[fn](args) : null;
+      if(fn === 'guardarChecklistOperacion') c.args[0] = Object.assign({}, c.args[0], { checklist:args[1], _clCambio:true });
+      else { c.args[0] = Object.assign({}, a0); delete c.args[0].id; }
+      if(loc) c.local = loc.res; colaPoner(COLA_K, pend);
+      try{ toast('📴 Sin señal: cambio guardado en el teléfono.'); }catch(e){}
+      return loc ? loc.res : null;
+    }
+    const loc = SINRED_LOCAL[fn] ? await SINRED_LOCAL[fn](args) : null;
+    if(fn === 'saveReserva' && !loc){ const e = new Error('📴 Sin señal: editar reservas, presupuestos y programas necesita internet. Las reservas NUEVAS sí se pueden anotar (quedan «por confirmar»).'); e.sinRed = true; throw e; }
+    colaAgregar(fn, args, rid, loc && loc.localId);
+    if(loc){ const l = colaLeer(COLA_K); l[l.length - 1].local = loc.res; colaPoner(COLA_K, l);
+      try{ toast(fn === 'saveReserva' ? '📴 Reserva anotada sin señal: queda ⏳ por confirmar hasta que vuelva la conexión.' : '📴 Sin señal: se ve ya y se enviará solo al volver la conexión.'); }catch(e){}
+      return loc.res; }
+    throw new Error('📴 Sin señal: quedó guardado en el teléfono y se enviará solo al volver la conexión (lo verás en la lista cuando se envíe). No lo repitas.');
   }
   // ⚖️ CHOQUES: para los cambios a algo que ya existe se guarda cómo estaba cada campo que se cambió. Al volver la señal se compara
   // con lo que hay en el servidor: si otra persona cambió ESE mismo campo, no se envía; queda como choque y César decide.
   const CHOQUE_DEF = { saveInventarioItem:{ f:'inv' }, saveCliente:{ f:'cli' }, saveFicha:{ f:'fic' }, updateFicha:{ f:'fic' }, saveMenuItem:{ f:'menu' }, savePaquete:{ f:'paq' },
     savePresupuesto:{ f:'pres' }, setEstadoPresupuesto:{ f:'pres', obj:a=>({ id:a[0], estado:a[1] }) }, saveReceta:{ f:'rec' }, saveCompra:{ f:'comp' },
-    marcarCompra:{ f:'comp', obj:a=>({ id:a[0], estado:a[1] ? 'Comprado' : 'Pendiente' }) }, setCostoCompra:{ f:'comp', obj:a=>({ id:a[0], costo:a[1] }) }, saveTarifas:{ f:'tar', todo:true } };
+    marcarCompra:{ f:'comp', obj:a=>({ id:a[0], estado:a[1] ? 'Comprado' : 'Pendiente' }) }, setCostoCompra:{ f:'comp', obj:a=>({ id:a[0], costo:a[1] }) }, saveTarifas:{ f:'tar', todo:true },
+    saveOperacion:{ f:'op' }, guardarChecklistOperacion:{ f:'op', obj:a=>({ id:a[0], checklist:a[1] }) }, savePedido:{ f:'ped' } };
   const CHOQUE_LOCAL = { inv:()=>estadoInv().items, cli:()=>state.clientes, fic:()=>state.fichas, menu:()=>state.menu, paq:()=>(state.agenda || {}).paquetes, pres:()=>state.presupuestos,
-    rec:()=>(state.costos || {}).recetas, comp:()=>((state.cp && state.cp.datos) || {}).items, tar:()=>state.tarifas };
+    rec:()=>(state.costos || {}).recetas, comp:()=>((state.cp && state.cp.datos) || {}).items, tar:()=>state.tarifas, op:()=>(state.op && state.op.datos), ped:()=>state.pedidos };
   const CHOQUE_SERV = { inv:a=>agApi('getInventario', [a]).then(d=>d.items), cli:a=>agApi('getDataClinico', [a]).then(d=>d.clientes), fic:a=>agApi('getDataClinico', [a]).then(d=>d.fichas),
     menu:a=>agApi('getDataOperativo', [a]).then(d=>d.menu), paq:a=>agApi('getAgenda', [a]).then(d=>d.paquetes), pres:a=>agApi('getPresupuestos', [a]),
-    rec:a=>agApi('getCostosCocina', [a]).then(d=>d.recetas), comp:a=>agApi('getCompras', [a]).then(d=>d.items), tar:a=>agApi('getTarifas', [a]) };
-  const CHOQUE_SALTA = /^(id|updatedAt|createdAt|editadoPor|creadoPor|_fila|pin)$/;
+    rec:a=>agApi('getCostosCocina', [a]).then(d=>d.recetas), comp:a=>agApi('getCompras', [a]).then(d=>d.items), tar:a=>agApi('getTarifas', [a]),
+    op:a=>agApi('getOperaciones', [a]), ped:a=>agApi('getDataOperativo', [a]).then(d=>d.pedidos), ag:a=>agApi('getAgenda', [a]).then(d=>d.reservas) };
+  const CHOQUE_SALTA = /^(id|updatedAt|createdAt|editadoPor|creadoPor|_fila|pin|pendiente|_clCambio)$/;
   const valTxt = v=>(v === undefined || v === null) ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v).trim());
   function choqueAntes(fn, args){
     try{
       const d = CHOQUE_DEF[fn]; if(!d) return null; const L = CHOQUE_LOCAL[d.f]() || [];
       if(d.todo) return { todo:valTxt(L) };
-      const o = d.obj ? d.obj(args) : args[0]; if(!o || typeof o !== 'object' || !o.id) return null;   // algo nuevo (sin id): no puede chocar
+      const o = d.obj ? d.obj(args) : args[0]; if(!o || typeof o !== 'object' || !o.id || esIdLocal(o.id)) return null;   // algo nuevo (sin id): no puede chocar
       const r = L.find(x=>x && String(x.id) === String(o.id)); if(!r) return null;
       const campos = {}; Object.keys(o).forEach(k=>{ if(!CHOQUE_SALTA.test(k) && k in r) campos[k] = valTxt(r[k]); });
       return { id:String(o.id), nombre:String(r.nombre || r.clienteNombre || r.cliente || r.titulo || o.nombre || ''), campos };
     }catch(e){ return null; }
   }
   async function choqueRevisar(c, fuentes){
-    const d = CHOQUE_DEF[c.fn], a = auth(); if(!d || !c.antes || !a) return null;
+    const a = auth(); if(!a) return null;
+    // 📅 Reserva nueva hecha sin señal: ¿alguien tomó ese horario (la misma profesional o el mismo cliente) mientras tanto?
+    if(c.fn === 'saveReserva'){
+      const r = c.args[0] || {}; if(!fuentes.ag) fuentes.ag = CHOQUE_SERV.ag(a); const L = (await fuentes.ag) || [];
+      if(L.some(o=>o.id === r.nuevoId)) return null;   // ya llegó antes (el servidor no la duplica)
+      const ini = h=>{ const [x, y] = String(h).split(':').map(Number); return x * 60 + (y || 0); }, profs = (r.profesionales || []).map(String), dur = Number(r.duracionMin) || 60;
+      const ch = L.filter(o=>o.estado === 'Confirmada' && o.fecha === r.fecha && ((String(o.clienteId) === String(r.clienteId) && o.hora === r.hora) ||
+        ((o.profesionales || []).some(p=>profs.includes(String(p))) && ini(o.hora) < ini(r.hora) + dur && ini(r.hora) < ini(o.hora) + (o.duracionMin || 60))));
+      return ch.length ? { titulo:'Reserva sin señal: ' + (r.clienteNombre || '') + ' · ' + r.fecha + ' ' + r.hora, detalle:[{ campo:'Horario', antes:'libre (visto en el teléfono)',
+        servidor:ch.map(o=>o.hora + ' ' + o.clienteNombre + ((o.profesionales || []).length ? ' (' + o.profesionales.map(nombreStaff).join(', ') + ')' : '')).join('; '), telefono:r.hora + ' ' + (r.clienteNombre || '') + (profs.length ? ' (' + profs.map(nombreStaff).join(', ') + ')' : '') }] } : null;
+    }
+    const d = CHOQUE_DEF[c.fn]; if(!d || !c.antes) return null;
     if(!fuentes[d.f]) fuentes[d.f] = CHOQUE_SERV[d.f](a);
     const L = (await fuentes[d.f]) || [];
     if(d.todo) return (valTxt(L) !== c.antes.todo && valTxt(L) !== valTxt(c.args[0])) ? { titulo:'Tabla de tarifas', detalle:[{ campo:'Tarifas', antes:'como estaban', servidor:'cambiadas por otra persona', telefono:'tu versión completa' }] } : null;
@@ -1366,30 +1493,36 @@ setTimeout(function(){
   }
   let colaEnviando = false;
   async function colaEnviar(){
-    if(colaEnviando || !window.AG_WEB || navigator.onLine === false) return;
+    if(colaEnviando || !window.AG_WEB || navigator.onLine === false || !state.user || state.prueba || COLA.uid !== String(state.user.id)) return;
     let l = colaLeer(COLA_K); if(!l.length) return;
-    colaEnviando = true; let ok = 0, choques = 0; const fuentes = {};
+    colaEnviando = true; sinRedEstado(); let ok = 0, choques = 0; const fuentes = {}, nuevosIds = {};
     try{
       while(l.length){
         const c = l[0];
+        if(c.uid && c.uid !== COLA.uid) break;   // nunca se envía a nombre de otra persona
         try{
-          const ch = c.antes ? await choqueRevisar(c, fuentes) : null;
+          const ch = (c.antes || c.fn === 'saveReserva') ? await choqueRevisar(c, fuentes) : null;
           if(ch){ await agApi('registrarChoqueSinRed', [{ fn:c.fn, args:c.args, titulo:ch.titulo, detalle:ch.detalle, hechoAt:c.at }, auth()], c.rid + '-ch'); choques++; }
-          else { await agApi(c.fn, c.args, c.rid); ok++; }
+          else { const res = await agApi(c.fn, conAuth(c.args), c.rid); ok++;
+            // Algo creado sin señal ya tiene su número del servidor: los cambios que siguen en la cola (p. ej. «listo en cocina») pasan a usarlo.
+            if(c.localId && res && typeof res === 'object' && !Array.isArray(res) && res.id) nuevosIds[c.localId] = String(res.id); }
         }
         catch(e){
           if(e && e.sinRed) break;   // sigue sin señal: se reintenta luego, en el mismo orden
+          if(esErrorDeSesion(e)) break;   // la sesión ya no vale: se queda guardado hasta que la persona vuelva a entrar
           const mal = colaLeer(COLA_MAL); mal.push(Object.assign({}, c, { error:String(e && e.message || e).slice(0, 300) })); colaPoner(COLA_MAL, mal);
         }
-        l = colaLeer(COLA_K).filter(x=>x.rid !== c.rid); colaPoner(COLA_K, l);
+        l = colaLeer(COLA_K).filter(x=>x.rid !== c.rid);
+        if(Object.keys(nuevosIds).length) l = l.map(x=>{ let t = JSON.stringify(x.args); Object.keys(nuevosIds).forEach(k=>{ t = t.split('"' + k + '"').join('"' + nuevosIds[k] + '"'); }); return Object.assign({}, x, { args:JSON.parse(t) }); });
+        colaPoner(COLA_K, l);
       }
-    } finally { colaEnviando = false; }
-    if(ok){ try{ toast('📶 Volvió la señal: se enviaron ' + ok + ' cambio' + (ok === 1 ? '' : 's') + ' guardados sin conexión.'); refrescarDatos(true); }catch(e){} }
+    } finally { colaEnviando = false; sinRedEstado(); }
+    if(ok){ try{ toast('📶 Volvió la señal: se enviaron ' + ok + ' cambio' + (ok === 1 ? '' : 's') + ' guardados sin conexión.'); precargaAt = 0; refrescarDatos(true); if(state.op) state.op.datos = null; }catch(e){} }
     if(choques){ try{ setTimeout(()=>toast('⚖️ ' + choques + ' cambio' + (choques === 1 ? '' : 's') + ' hecho' + (choques === 1 ? '' : 's') + ' sin señal chocó con cambios de otra persona. No se pisó nada: César decidirá cuál queda.'), ok ? 3500 : 0); }catch(e){} }
   }
-  // Aviso fijo arriba: cuántos cambios esperan señal y cuáles no se pudieron enviar (con su motivo, para revisarlos).
+  // Aviso fijo abajo: cuántos cambios esperan señal y cuáles no se pudieron enviar (con su motivo, para revisarlos).
   function colaAviso(){
-    if(!window.AG_WEB) return;
+    if(!window.AG_WEB || !document.body) return;
     const n = colaLeer(COLA_K).length, mal = colaLeer(COLA_MAL);
     let b = document.getElementById('ag-cola-aviso');
     if(!n && !mal.length){ if(b) b.remove(); return; }
@@ -1401,14 +1534,32 @@ setTimeout(function(){
       alert('Estos cambios hechos sin conexión no se guardaron (revísalos y vuelve a registrarlos si hace falta):\n\n' + l.map(x=>'• ' + new Date(x.at).toLocaleString('es-VE') + ' · ' + x.fn + ' → ' + x.error).join('\n'));
       if(confirm('¿Quitar este aviso?')) colaPoner(COLA_MAL, []); };
   }
+  // 🔌 Para la franja de estado (y cualquier pantalla): cuántos cambios esperan, de qué hora es lo guardado y si se está subiendo.
+  // Cada cambio dispara el evento «ag-sinred» en window.
+  let sinRedUltimo = '';
+  function sinRedEstado(){
+    const est = colaEnviando ? 'subiendo' : (navigator.onLine === false || state.copiaSinRed || (copiaVistaT && Date.now() - avisoLectAt < 60000)) ? 'sin' : 'ok';
+    const k = est + '|' + COLA.l.length + '|' + COLA.mal.length + '|' + copiaVistaT; if(k === sinRedUltimo) return; sinRedUltimo = k;
+    try{ window.dispatchEvent(new CustomEvent('ag-sinred', { detail:{ estado:est, pendientes:COLA.l.length, fallas:COLA.mal.length, ultimaCopia:copiaVistaT || null } })); }catch(e){}
+  }
+  window.agSinRed = { pendientes:()=>COLA.l.length, fallas:()=>COLA.mal.length, ultimaCopia:()=>copiaVistaT || state.desdeCopia || null,
+    estado:()=>colaEnviando ? 'subiendo' : (navigator.onLine === false || state.copiaSinRed) ? 'sin' : 'ok', subirAhora:()=>colaEnviar(), lista:()=>colaLeer(COLA_K).map(c=>({ fn:c.fn, at:c.at, quien:c.quien })) };
+  // 🔑 Volvió la señal y la persona había entrado sin señal con su PIN: se pide una llave de sesión nueva (el PIN no se guarda en el teléfono).
+  async function sesionTrasSinRed(){
+    const u = state.user; if(!u || state.prueba || esLlaveLocal(u.pin) || !/^\d{4,6}$/.test(String(u.pin || ''))) return;
+    try{ const res = await gsEsperaRed(30000, 'loginStaff', u.id, u.pin, nombreDispositivo()); if(!res || !res.tok) return;
+      await ckPoner(u.id, res.ck, u.pin); u.pin = 'T:' + res.tok; guardarSesion(u); }catch(e){ if(esErrorDeSesion(e)){ olvidarSinRed(u.id); borrarSesion(); state.user = null; state.view = 'login'; state.err = 'Tu sesión ya no es válida. Entra de nuevo.'; render(); } }
+  }
   if(window.AG_WEB){
-    window.addEventListener('online', ()=>{ colaEnviar().then(()=>{ precargaAt = 0; precargarSinRed(); }); });
+    // 🔒 v342: se borra la huella simple del PIN que guardaban las versiones anteriores (era fácil de adivinar si robaban el teléfono).
+    try{ Object.keys(localStorage).filter(k=>/^ag_pinok_/.test(k)).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+    window.addEventListener('online', ()=>{ sinRedEstado(); sesionTrasSinRed().then(()=>colaEnviar()).then(()=>{ precargaAt = 0; precargarSinRed(); }); });
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ colaEnviar(); precargarSinRed(); } });
     setInterval(()=>precargarSinRed(), 300000);
-    window.addEventListener('offline', ()=>{ try{ toast('📴 Sin señal: lo que registres en Inventario, Compras y Finanzas se guarda en el teléfono.'); }catch(e){} });
+    window.addEventListener('offline', ()=>{ sinRedEstado(); try{ toast('📴 Sin señal: puedes seguir trabajando con lo guardado en este teléfono. Lo que registres se envía solo al volver la conexión.'); }catch(e){} });
     setInterval(colaEnviar, 60000);
     setTimeout(()=>{ colaAviso(); colaEnviar(); }, 4000);
-    // 📲 Instalable: guarda la app en el teléfono para abrirla aunque no haya señal (las pantallas, no los datos).
+    // 📲 Instalable: guarda la app en el teléfono para abrirla aunque no haya señal (las pantallas; los datos van en lo guardado de cada persona).
     if('serviceWorker' in navigator) window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
   }
   // Igual que gs(), pero con un tiempo de espera a medida (para tareas
@@ -1446,6 +1597,9 @@ setTimeout(function(){
       else if(fn === 'getPresupuestos'){ if(!state.presupuestos) return; state.presupuestos = v; }
       else if(fn === 'getCostosCocina'){ if(!state.costos) return; state.costos = v; }
       else if(fn === 'getDondeComprar'){ if(state.cp) state.cp.dc = v; return; }
+      else if(fn === 'getAgenda'){ if(!state.agenda || !v || !Array.isArray(v.reservas)) return; state.agenda = v; colaReaplicar(); }
+      else if(fn === 'getOperaciones'){ if(!state.op || !state.op.datos || !Array.isArray(v) || colaLeer(COLA_K).some(c=>/Operacion/.test(c.fn))) return; state.op.datos = v; }
+      else if(fn === 'getMiDisponibilidad'){ const D = state.disp; if(!D || !D.datos || !v || colaLeer(COLA_K).some(c=>c.fn === 'guardarDisponibilidad')) return; D.datos = v; }
       else return;
       render();
     }catch(e){}
@@ -1492,16 +1646,23 @@ setTimeout(function(){
           listo = true; clearInterval(timeoutId);
           const txt = String(err && err.message ? err.message : err);
           if(/NetworkError|HTTP 0|Failed to fetch/i.test(txt)){
-            const eR = new Error('Se perdió la conexión con Google. Recarga la página (F5) y vuelve a entrar. Antes de repetir, revisa si el registro ya quedó guardado para no duplicarlo.'); eR.sinRed = true; reject(eR);
+            const eR = new Error(window.AG_WEB ? (err && err.message && /^📴/.test(err.message) ? err.message : '📴 Sin señal: esto necesita internet. Inténtalo cuando vuelva la conexión (lo que ya ves en pantalla sigue guardado en el teléfono).')
+              : 'Se perdió la conexión con Google. Recarga la página (F5) y vuelve a entrar. Antes de repetir, revisa si el registro ya quedó guardado para no duplicarlo.'); eR.sinRed = true; reject(eR);
           } else reject(err);
         };
       if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(okH).withFailureHandler(failH)[fn](...args);
-      else agApi(fn, args).then(res=>{ lectGuardar(fn, args, res); okH(res); }, err=>{   // 🌐 fuera de Google: el mismo servidor por internet
-        if(err && err.sinRed && LECT_FN.test(fn)){ lectLeer(fn, args).then(g=>{ if(g && g.v !== undefined){ listo = true; clearInterval(timeoutId); avisoLect(g.t); resolve(g.v); } else failH(err); }); return; }
-        if(err && err.sinRed && COLA_FN.test(fn)){ listo = true; clearInterval(timeoutId); colaAgregar(fn, args);
-          if(fn === 'moverInventario'){ const rl = invLocal(args); if(rl){ try{ toast('📴 Sin señal: se ve ya en el inventario y se enviará solo al volver la conexión.'); }catch(eT){} resolve(rl); return; } }
-          reject(new Error('📴 Sin señal: quedó guardado en el teléfono y se enviará solo al volver la conexión (lo verás en la lista cuando se envíe). No lo repitas.')); return; }
-        failH(err); });
+      else {   // 🌐 fuera de Google: el mismo servidor por internet
+        const esLect = LECT_FN.test(fn) && !state.prueba, esCola = COLA_FN.test(fn) && !state.prueba, rid = esCola ? colaRid() : undefined;
+        let servido = false;
+        // 🐢 Señal débil: si a los 8 s no ha llegado nada, se muestra lo guardado; lo nuevo se guarda (y la pantalla se pone al día) cuando llegue.
+        if(esLect) setTimeout(()=>{ if(listo) return; lectLeer(fn, args).then(g=>{ if(listo || !g || g.v === undefined) return; listo = true; servido = true; clearInterval(timeoutId); avisoLect(g.t, true); resolve(g.v); }); }, LECT_ESPERA);
+        // Los cambios que pueden ir a la cola llevan su «rid» desde ya: si se cortan a medias y se reenvían, el servidor no los duplica.
+        agApi(fn, args, rid, esCola ? 30000 : 0).then(res=>{ lectGuardar(fn, args, res); if(servido){ lectFresco(fn, args, res); return; } okH(res); }, err=>{
+          if(servido) return;
+          if(err && err.sinRed && esLect){ lectLeer(fn, args).then(g=>{ if(listo) return; if(g && g.v !== undefined){ listo = true; clearInterval(timeoutId); avisoLect(g.t); resolve(g.v); } else failH(err); }); return; }
+          if(err && err.sinRed && esCola){ listo = true; clearInterval(timeoutId); colaGuardarSinRed(fn, args, rid).then(resolve, reject); return; }
+          failH(err); });
+      }
     });
   }
 
@@ -1528,6 +1689,7 @@ setTimeout(function(){
           const c = await copiaLeer(idC);
           if(c && c.id === idC && (c.ver === FALLAS.version || sinRedAhora()) && c.data && c.user && Date.now() - (c.t || 0) < COPIA_DIAS * 86400000){
             if(!state.user){ state.user = Object.assign({}, c.user, { pin:String(s0.pin) }); aplicarNavSesion(s0); }
+            await colaCargar();
             aplicarDatos(c.data); state.view = 'app'; state.desdeCopia = c.t; state.copiaSinRed = false; avisoCopia(c.t);
             window._agFresco = new Promise(res=>{ window._agFrescoOk = res; });
             render();
@@ -1552,6 +1714,7 @@ setTimeout(function(){
         if(!state.user){ state.staff = rs.v || []; state.view = 'login'; render(); return; }
         adelantado = pDatos ? await pDatos : null;
       }
+      await colaCargar();
       // Los datos solo se entregan a quien tiene una sesión válida.
       const data = (adelantado && !adelantado.e && adelantado.v) ? adelantado.v : await pedirDatos(auth());
       if(!data){ throw new Error('respuesta vacía del servidor'); }
@@ -1559,7 +1722,7 @@ setTimeout(function(){
       state.view = 'app';
       ultimaCarga = Date.now(); huellaDatos = huella(data);
       copiaGuardar(data);
-      if(window.AG_WEB) setTimeout(precargarSinRed, 4000);
+      if(window.AG_WEB){ setTimeout(precargarSinRed, 4000); setTimeout(colaEnviar, 2500); }   // lo que quedó pendiente (p. ej. antes de salir) se envía al entrar
       setTimeout(avisoChoques, 7000);
       // 📋 Si se estaba mostrando la copia del teléfono, ya llegó lo nuevo: se quita el aviso. Si la persona empezó a llenar algo, no se le redibuja encima.
       if(state.desdeCopia){ terminarCopia(); if(vistaEsFormulario()) return; }
@@ -1945,10 +2108,13 @@ setTimeout(function(){
     };
     const bPr = app.querySelector('#ag-prueba'); if(bPr) bPr.onclick = entrarPrueba;
     const bPrS = app.querySelector('#ag-prueba-salir'); if(bPrS) bPrS.onclick = salirPrueba;
-    const bOut = app.querySelector('#ag-logout'); if(bOut) bOut.onclick=()=>{ registrarAccesoApp('salio', state.user);
+    const bOut = app.querySelector('#ag-logout'); if(bOut) bOut.onclick=()=>{
+      const nPend = window.AG_WEB ? colaLeer(COLA_K).length : 0;
+      if(nPend && !confirm('📴 Tienes ' + nPend + ' cambio' + (nPend === 1 ? '' : 's') + ' hecho' + (nPend === 1 ? '' : 's') + ' sin señal que aún no se envía' + (nPend === 1 ? '' : 'n') + '.\n\nQuedan guardados en este teléfono y se envían cuando vuelvas a entrar con TU PIN aquí. ¿Salir igual?')) return;
+      registrarAccesoApp('salio', state.user);
       const sesS = lsGet(CLAVE_SESION);
       if(sesS && huellaDe(state.user.id) && esLlaveLocal(sesS.pin)){ sesS.t = 0; sesS.nav = null; lsSet(CLAVE_SESION, sesS); ckQuitar(state.user.id); state.loginUserId = String(state.user.id); }
-      else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
+      else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); if(window.AG_WEB) colaSoltar(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
     app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); });
     const body = app.querySelector('#ag-body');
     if(state.tab==='home') renderHome(body);
@@ -2008,21 +2174,32 @@ setTimeout(function(){
         const res = await gs('loginStaff', who.id, pin, nombreDispositivo());
         const user = Object.assign({}, res, { pin: res && res.tok ? 'T:' + res.tok : pin }); delete user.tok; delete user.ck;
         await ckPoner(who.id, res && res.ck, pin);
-        if(window.AG_WEB) pinHuella(who.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + who.id, h); });   // para poder entrar luego sin señal en este teléfono
+        if(window.AG_WEB){ lsDel('ag_sr_fallos_' + who.id); precargaAt = 0; }   // entró bien con señal: se borra la cuenta de PIN fallidos sin señal y se guarda todo de nuevo
         registrarAccesoApp('entro', user); guardarUltimoUsuario(user.id); guardarSesion(user);
         state.tarifas = null; state.cfgAlquiler = null;   // las tarifas de otra persona (p. ej. sin precios) no se arrastran
         state.user = user; state.tab = 'home'; state.err = ''; state.pinBuf = ''; state.loginUserId = null; state.loginBusy = false;
         await loadAll();
         setTimeout(()=>ofrecerHuella(user), 2500);   // 👆 en la app instalada: «¿Entrar con tu huella la próxima vez?»
       }catch(e){
-        // 📴 Sin señal: se entra si este teléfono ya vio ese PIN con señal y guarda la copia de esa persona.
+        // 📴 Sin señal: se entra si el PIN abre la llave guardada en este teléfono (protegida con el PIN, PBKDF2) y hay copia de esa persona.
+        // 🔒 5 PIN incorrectos sin señal: se borran los datos guardados de esa persona y solo se puede entrar con señal (la cuenta va aparte).
         if(window.AG_WEB && ((e && e.sinRed) || navigator.onLine === false)){
-          const guardado = lsGet('ag_pinok_' + who.id), h = await pinHuella(who.id, pin), okPin = !!(h && guardado === h);
-          const c = okPin && await ckDesdePin(who.id, pin) ? await copiaLeer(String(who.id), 8000) : null;
+          const kF = 'ag_sr_fallos_' + who.id, fallos = Number(lsGet(kF)) || 0;
           state.loginBusy = false; state.pinBuf = '';
-          if(c && c.user){ const user = Object.assign({}, c.user, { pin }); guardarSesion(user); state.user = user; state.tab = 'home'; state.err = ''; state.loginUserId = null; copiaArranque = true; await loadAll(); return; }
-          state.err = !guardado ? '📴 Sin señal. Para entrar sin conexión, primero entra una vez con señal en este teléfono (con tu PIN).'
-            : !okPin ? 'PIN incorrecto' : '📴 Sin señal: este teléfono no tiene tus datos guardados todavía. Entra una vez con señal y espera unos segundos.'; render(); return;
+          if(fallos >= SR_MAX_FALLOS){ state.err = '🔒 Demasiados PIN incorrectos sin señal. Por seguridad, en este teléfono solo puedes entrar cuando vuelva la señal.'; render(); return; }
+          if(!lsGet('ag_ckp_' + who.id)){ state.err = '📴 Sin señal. Para entrar sin conexión, primero entra una vez con señal en este teléfono (con tu PIN).'; render(); return; }
+          if(!(await ckDesdePin(who.id, pin))){
+            lsSet(kF, fallos + 1); if(fallos + 1 >= SR_MAX_FALLOS) borrarDatosPersona(who.id);
+            state.err = fallos + 1 >= SR_MAX_FALLOS ? '🔒 Demasiados PIN incorrectos: se borraron los datos guardados en este teléfono. Entra cuando vuelva la señal.' : 'PIN incorrecto'; render(); return;
+          }
+          lsDel(kF);
+          const c = await copiaLeer(String(who.id), 8000);
+          if(c && c.user){
+            // El PIN queda solo en la memoria mientras la app está abierta (no se guarda); si había una llave de sesión de esta persona, se usa esa.
+            const ses = lsGet(CLAVE_SESION), user = Object.assign({}, c.user, { pin });
+            if(ses && String(ses.id) === String(who.id) && esLlaveLocal(ses.pin)){ user.pin = ses.pin; ses.t = Date.now(); lsSet(CLAVE_SESION, ses); }
+            state.user = user; state.tab = 'home'; state.err = ''; state.loginUserId = null; copiaArranque = true; await loadAll(); return; }
+          state.err = '📴 Sin señal: este teléfono no tiene tus datos guardados todavía. Entra una vez con señal y espera unos segundos.'; render(); return;
         }
         state.loginBusy = false; state.pinBuf = '';
         const m = String(e && e.message ? e.message : e);
@@ -7459,7 +7636,7 @@ setTimeout(function(){
     if(state._agendaPromesa) return state._agendaPromesa;
     state.agendaCargando = true;
     state._agendaPromesa = gs('getAgenda', auth())
-      .then(d=>{ state.agenda = d; })
+      .then(d=>{ state.agenda = d; colaReaplicar(); })
       .catch(e=>{ state.agenda = { reservas:[], paquetes:[], error: String(e&&e.message?e.message:e) }; })
       .then(()=>{ state.agendaCargando = false; state._agendaPromesa = null; });
     return state._agendaPromesa;
@@ -8611,6 +8788,7 @@ setTimeout(function(){
           return;
         }
         if(esEdicion) Object.assign(prev, saved); else state.agenda.reservas.push(saved);
+        if(saved.porConfirmar){ A.prefill = null; A.vista = 'lista'; A.editId = null; render(); return; }   // 📴 anotada sin señal: se avisa a las profesionales cuando el servidor la confirme
         // El servidor enlaza el presupuesto (queda Aceptado y sus abonos pasan a la reserva).
         if(pre && pre.presupuestoId) state.presupuestos = null;
         A.prefill = null;
@@ -9078,7 +9256,12 @@ setTimeout(function(){
       '💵 Inicio (administración): <strong>Hoy en números</strong> con lo cobrado hoy en $ y Bs, lo gastado, citas, órdenes de Rosita e inventario por reponer; cada cuadro abre su pantalla.',
       '🩺 Rosita → Menú → <strong>Revisión del menú</strong>: platos que no descuentan del inventario, productos borrados o sin precio y platos cuyo costo pasa del 35 % del precio.',
       '📈 A César Zamora le llega por Telegram, una vez al día, cuando un producto de comida subió más de 10 % frente a la compra anterior; el aviso de Inventario bajo ahora le llega solo a él.',
-      '🔗 Los enlaces del catálogo para clientes ahora son cortos (gestionesaguamiel-web.github.io/aguamiel-app/c/#…); los enlaces largos ya enviados siguen sirviendo.' ] }
+      '🔗 Los enlaces del catálogo para clientes ahora son cortos (gestionesaguamiel-web.github.io/aguamiel-app/c/#…); los enlaces largos ya enviados siguen sirviendo.' ] },
+    { v:342, fecha:'26 oct', titulo:'La app sigue funcionando sin señal ni luz', puntos:[
+      '📥 En la app instalada, cada teléfono guarda solo (cada 15 min con señal) <strong>todas las pantallas</strong> que esa persona puede ver: Agenda, Disponible, Operaciones, Inventarios, Compras, Finanzas y más.',
+      '🐢 Con señal muy débil ya no se queda en «Cargando…»: a los 8 s muestra lo guardado y se pone al día solo cuando llega lo nuevo. La app también abre más rápido sin señal.',
+      '📴 Sin señal ahora también se puede anotar <strong>Disponibilidad</strong>, <strong>Operaciones</strong> (tareas, revisiones y estado de equipos), <strong>órdenes de Rosita</strong> y <strong>reservas nuevas</strong> (quedan ⏳ por confirmar). Todo se sube solo al volver la señal, sin duplicar; si chocó con otra persona, decide César en Admin → ⚙️ Sistema → ⚖️ Choques de datos.',
+      '🔒 Lo guardado en el teléfono, incluidos los cambios por subir, va cifrado. El PIN es más difícil de adivinar y con 5 PIN incorrectos sin señal se borran los datos de ese teléfono.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15548,7 +15731,7 @@ setTimeout(function(){
         const adm = !!(state.user && state.user.admin);
         if(!pinOkLocal(pin, adm)){ nota('#mc2-pin-msg', pinReglaTxt(adm), false); return; }
         ev.target.disabled = true;
-        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); }); pinLargoListo(pin); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
+        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin);  pinLargoListo(pin); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
         catch(e){ nota('#mc2-pin-msg', 'No se pudo actualizar: ' + esc(e && e.message ? e.message : e), false); }
         ev.target.disabled = false;
       };
@@ -16276,23 +16459,53 @@ setTimeout(function(){
     const h = lsGet('ag_ck_' + id); if(!h || !/^[0-9a-f]{64}$/.test(h)) return null;
     try{ CK_MEM[id] = await crypto.subtle.importKey('raw', hexAB(h), 'AES-GCM', false, ['encrypt', 'decrypt']); return CK_MEM[id]; }catch(e){ return null; }
   }
-  async function claveDePin(id, pin, sal){
+  // 🔒 v342: 300 000 vueltas (antes 150 000). Cada llave guardada anota sus vueltas («i»): las viejas se siguen abriendo y se vuelven a
+  // proteger con las nuevas la próxima vez que la persona escribe su PIN.
+  const PIN_VUELTAS = 300000;
+  async function claveDePin(id, pin, sal, vueltas){
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(pin) + '|' + String(id)), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey({ name:'PBKDF2', salt:sal, iterations:150000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt', 'decrypt']);
+    return crypto.subtle.deriveKey({ name:'PBKDF2', salt:sal, iterations:vueltas || 150000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function ckProteger(id, hex, pin){
+    try{ const sal = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, await claveDePin(id, pin, sal, PIN_VUELTAS), new TextEncoder().encode(hex));
+      lsSet('ag_ckp_' + id, { s:abB64(sal), iv:abB64(iv), c:abB64(ct), i:PIN_VUELTAS }); }catch(e){}
+  }
+  async function ckAbrirConPin(id, pin){
+    const w = lsGet('ag_ckp_' + id); if(!w || !hayCripto()) return '';
+    try{ const hex = new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64AB(w.iv) }, await claveDePin(id, pin, b64AB(w.s), w.i), b64AB(w.c)));
+      return /^[0-9a-f]{64}$/.test(hex) ? hex : ''; }catch(e){ return ''; }
   }
   // Guarda la llave que mandó el servidor; si se conoce el PIN (al entrar con él), también la versión protegida con el PIN.
+  // Si la llave cambia (entrar de nuevo con el PIN), los cambios sin enviar se vuelven a cifrar con la nueva para no perderlos.
   async function ckPoner(id, hex, pin){
     id = String(id || ''); if(!id || !/^[0-9a-f]{64}$/.test(String(hex || ''))) return;
+    const pinOk = pin && /^\d{4,6}$/.test(String(pin)) && hayCripto();
+    let viejo = lsGet('ag_ck_' + id); if(!/^[0-9a-f]{64}$/.test(String(viejo || ''))) viejo = pinOk ? await ckAbrirConPin(id, pin) : '';
+    if(viejo && viejo !== hex){ await colaRecifrar(id, viejo, hex); guardadoRecifrar(id, viejo, hex); }
     lsSet('ag_ck_' + id, hex); delete CK_MEM[id];
-    if(pin && /^\d{4,6}$/.test(String(pin)) && hayCripto()){ try{ const sal = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
-      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, await claveDePin(id, pin, sal), new TextEncoder().encode(hex));
-      lsSet('ag_ckp_' + id, { s:abB64(sal), iv:abB64(iv), c:abB64(ct) }); }catch(e){} }
+    if(pinOk) await ckProteger(id, hex, pin);
+  }
+  // Lo guardado en el teléfono (copia y pantallas) también pasa a la llave nueva, por detrás: así no queda vacío si justo después se va la señal.
+  async function guardadoRecifrar(id, hexViejo, hexNuevo){
+    try{ if(!hayCripto()) return;
+      const kV = await crypto.subtle.importKey('raw', hexAB(hexViejo), 'AES-GCM', false, ['decrypt']), kN = await crypto.subtle.importKey('raw', hexAB(hexNuevo), 'AES-GCM', false, ['encrypt']);
+      const pasar = async v=>{ try{ const claro = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64AB(v.enc.iv) }, kV, b64AB(v.enc.c)), iv = crypto.getRandomValues(new Uint8Array(12));
+        return Object.assign({}, v, { enc:{ iv:abB64(iv), c:abB64(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, kN, claro)) } }); }catch(e){ return null; } };   // ya estaba con la llave nueva: se deja
+      const lista = (abrir, almacen, quiere)=>new Promise(ok=>{ try{ const rq = indexedDB.open(abrir, 1); rq.onupgradeneeded = ()=>rq.result.createObjectStore(almacen);
+        rq.onsuccess = ()=>{ const db = rq.result, out = []; try{ const cur = db.transaction(almacen, 'readonly').objectStore(almacen).openCursor();
+          cur.onsuccess = ()=>{ const c = cur.result; if(!c){ db.close(); ok(out); return; } if(quiere(String(c.key)) && c.value && c.value.enc) out.push([c.key, c.value]); c.continue(); }; cur.onerror = ()=>{ db.close(); ok(out); }; }catch(e){ db.close(); ok(out); } };
+        rq.onerror = ()=>ok([]); }catch(e){ ok([]); } });
+      for(const [k, v] of await lista('aguamiel', 'copia', k=>k === 'datos_' + id)){ const n = await pasar(v); if(n) await idbHacer('readwrite', st=>st.put(n, k)).catch(()=>{}); }
+      if(window.AG_WEB) for(const [k, v] of await lista('aguamiel_lect', 'l', k=>k.indexOf(id + '|') === 0)){ const n = await pasar(v); if(n) await lectIdb('readwrite', st=>st.put(n, k)).catch(()=>{}); }
+    }catch(e){}
   }
   // Sin señal: con el PIN correcto se recupera la llave para abrir la copia.
   async function ckDesdePin(id, pin){
-    const w = lsGet('ag_ckp_' + id); if(!w || !hayCripto()) return false;
-    try{ const hex = new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64AB(w.iv) }, await claveDePin(id, pin, b64AB(w.s)), b64AB(w.c)));
-      if(!/^[0-9a-f]{64}$/.test(hex)) return false; lsSet('ag_ck_' + id, hex); delete CK_MEM[id]; return true; }catch(e){ return false; }
+    const hex = await ckAbrirConPin(id, pin); if(!hex) return false;
+    lsSet('ag_ck_' + id, hex); delete CK_MEM[String(id)];
+    const w = lsGet('ag_ckp_' + id); if(!w || (w.i || 150000) < PIN_VUELTAS) await ckProteger(id, hex, pin);
+    return true;
   }
   function ckQuitar(id){ if(!id) return; lsDel('ag_ck_' + id); delete CK_MEM[String(id)]; }
   async function cifrar(id, obj){ const k = await ckGet(id); if(!k) return null; const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -16350,6 +16563,7 @@ setTimeout(function(){
     state.opcAgotadas = data.opcAgotadas || []; state.opcComunes = data.opcComunes || []; state.opcUnifAt = data.opcUnifAt || ''; state.pedidos = data.pedidos || []; state.paginasImagen = data.paginasImagen || []; state.accesos = data.accesos || [];
     state.tasas = data.tasas || state.tasas || null; if(data.telHoy) state.telHoy = data.telHoy; if(data.atiendeHoy) state.atiendeHoy = data.atiendeHoy; state.metodosPago = data.metodosPago || []; state.menuNoDisp = data.menuNoDisponible || [];
     state.cumplesEnv = data.cumplesEnviados || {}; state.cumpleEq = data.cumpleEquipo || [];
+    colaReaplicar();   // 📴 lo hecho sin señal y aún no enviado se sigue viendo
     setTimeout(pedirPinLargo, 400);
   }
   // Huella de los datos para saber si algo cambió. Antes solo miraba 1 de cada 7 caracteres y no notaba cambios pequeños
@@ -16393,7 +16607,7 @@ setTimeout(function(){
       ev.target.disabled = true; msg.textContent = '';
       try{
         const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user);
-        if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); });
+        if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); 
         pinLargoListo(pin); el.remove(); toast('✅ PIN de 6 dígitos guardado. Úsalo la próxima vez que entres.');
       }catch(e){ msg.textContent = 'No se pudo guardar: ' + (e && e.message ? e.message : e); ev.target.disabled = false; }
     };
@@ -16434,9 +16648,17 @@ setTimeout(function(){
   // Nombre corto del equipo para la lista de sesiones del servidor (no identifica a la persona).
   function nombreDispositivo(){ const ua = navigator.userAgent || ''; return (/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Otro') + (window.AG_WEB ? ' · app' : ' · Google'); }
   function guardarSesion(who){ if(state.prueba) return; lsSet(CLAVE_SESION, { id:String(who.id), pin:String(who.pin), t:Date.now(), nav:null }); }
-  function borrarSesion(){ const sB = lsGet(CLAVE_SESION); if(sB && sB.id) ckQuitar(sB.id); lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); state.desdeCopia = 0; avisoCopia(0); }
+  function borrarSesion(){ const sB = lsGet(CLAVE_SESION); if(sB && sB.id) ckQuitar(sB.id); lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); else colaSoltar(); state.desdeCopia = 0; avisoCopia(0); }
   // 📴 Si el servidor dice que la sesión ya no vale (PIN cambiado, persona desactivada), este teléfono olvida sus datos y su PIN guardado.
-  function olvidarSinRed(id){ if(!window.AG_WEB || !id) return; lsDel('ag_pinok_' + id); idbHacer('readwrite', st=>st.delete('datos_' + id)).catch(()=>{}); }
+  // 📴 Si el servidor dice que la sesión ya no vale (PIN cambiado, persona desactivada, «cerrar sesión en otros teléfonos»), este teléfono
+  // borra TODO lo de esa persona: copia, pantallas guardadas, llave protegida con el PIN y cambios sin enviar (ya no se podrían enviar).
+  const SR_MAX_FALLOS = 5;
+  function borrarDatosPersona(id){
+    id = String(id || ''); if(!id) return;
+    idbHacer('readwrite', st=>st.delete('datos_' + id)).catch(()=>{});
+    if(window.AG_WEB) lectIdb('readwrite', st=>{ const cur = st.openCursor(); cur.onsuccess = ()=>{ const c = cur.result; if(!c) return; if(String(c.key).indexOf(id + '|') === 0) c.delete(); c.continue(); }; }).catch(()=>{});
+  }
+  function olvidarSinRed(id){ if(!window.AG_WEB || !id) return; borrarDatosPersona(id); lsDel('ag_ckp_' + id); lsDel('ag_cola2_' + id); ckQuitar(id); if(String(COLA.uid) === String(id)) colaSoltar(); }
   function borrarBorrador(){ lsDel(CLAVE_BORRADOR); }
   // Reanuda la sesión guardada en este equipo, pero solo si el servidor
   // confirma que el PIN sigue siendo válido y la persona sigue activa.
@@ -16455,7 +16677,6 @@ setTimeout(function(){
     const who = Object.assign({}, res, { pin: res.tok ? 'T:' + res.tok : String(ses.pin) }); delete who.tok; delete who.ck;
     await ckPoner(ses.id, res.ck, esLlaveLocal(ses.pin) ? '' : ses.pin);
     if(who.pin !== String(ses.pin)){ ses.pin = who.pin; lsSet(CLAVE_SESION, ses); }
-    if(window.AG_WEB && !esLlaveLocal(ses.pin)) pinHuella(ses.id, ses.pin).then(h=>{ if(h) lsSet('ag_pinok_' + ses.id, h); });
     state.user = who; state.view = 'app';
     // Se anota la reapertura como mucho una vez por hora en este equipo.
     const ua = lsGet('aguamiel_ultreg'); if(!ua || ua.id!==String(who.id) || Date.now() - ua.t > 3600000){ lsSet('aguamiel_ultreg', { id:String(who.id), t:Date.now() }); setTimeout(()=>registrarAccesoApp('reabrio', who), 1500); }
@@ -16683,7 +16904,7 @@ setTimeout(function(){
     }catch(e){
       // Si el PIN cambió o la persona fue desactivada, se cierra la sesión;
       // cualquier otro error (sin conexión) se reintenta en la próxima vuelta.
-      if(state.user && esErrorDeSesion(e)){ borrarSesion(); state.user = null; state.err = 'Tu sesión ya no es válida. Entra de nuevo.'; refrescando = false; loadAll(); return; }
+      if(state.user && esErrorDeSesion(e)){ olvidarSinRed(state.user.id); borrarSesion(); state.user = null; state.err = 'Tu sesión ya no es válida. Entra de nuevo.'; refrescando = false; loadAll(); return; }
       // Antes un fallo de conexión lenta dejaba los datos viejos en pantalla sin avisar (p. ej. no se veían fichas recién llenadas).
       // Ahora se avisa (como mucho cada 5 min) y se reintenta a los 20 s.
       if(state.user){
