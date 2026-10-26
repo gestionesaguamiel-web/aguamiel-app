@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v335' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v336' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -8998,7 +8998,11 @@ setTimeout(function(){
       '💝 <strong>Propinas opcionales al final de la encuesta de satisfacción:</strong> después de enviarla, el cliente ve un mensaje de agradecimiento («fue un gran privilegio atenderte… tu satisfacción es nuestra mayor recompensa») y, si quiere, «💝 Dejar una propina». Ya viene elegida su terapeuta con sus datos de pago; le paga <strong>directo</strong> y lo reporta (monto en $ o Bs, cómo y un mensaje). Al profesional le llega el aviso por Telegram.',
       '💳 Cada profesional pone en <strong>Inicio → 💝 Mis propinas</strong> los datos que quiere que vea el cliente en la encuesta (pago móvil, Zelle…). Quien no los ponga no aparece.',
       '✍️ También se pueden anotar a mano las propinas recibidas en efectivo.',
-      '👀 Cada quien ve solo las suyas; la administración ve todas por profesional (Admin → Equipo → 💝 Propinas). <strong>Es solo informativo:</strong> no cuenta en ventas, egresos ni pagos al personal.' ] }
+      '👀 Cada quien ve solo las suyas; la administración ve todas por profesional (Admin → Equipo → 💝 Propinas). <strong>Es solo informativo:</strong> no cuenta en ventas, egresos ni pagos al personal.' ] },
+    { v:336, fecha:'26 oct', titulo:'Seguridad: tareas automáticas protegidas', puntos:[
+      '🔒 Las tareas automáticas (respaldos, envío de avisos, recordatorios, mantenimiento de la noche, tasas, resumen del lunes) ahora <strong>solo las ejecuta Google a su hora</strong>. Antes alguien con la dirección de la app podía dispararlas muchas veces.',
+      '🛡️ El registro de accesos tiene un límite para que no lo puedan llenar de anotaciones falsas.',
+      '✅ No cambia nada de lo que ves ni de cómo trabajas.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
