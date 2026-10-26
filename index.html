@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v334' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v335' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1203,6 +1203,50 @@ setTimeout(function(){
     if(!window.AG_WEB || !state.user || state.prueba || !state.user.admin || navigator.onLine === false || document.hidden || Date.now() - precargaAt < 300000) return;
     precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7);
     [['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getTarifas', a], ['getPresupuestos', a]].forEach((x, i)=>setTimeout(()=>{ gs(...x).catch(()=>{}); }, i * 1500));
+  }
+  // 💝 Propinas: las paga el cliente DIRECTO al profesional; aquí solo se registran (sin efecto en las finanzas).
+  // Cada profesional ve las suyas y sus datos para recibirlas; la administración ve todas y el resumen por persona.
+  async function renderPropinas(cont){
+    if(!cont) return;
+    const P = state.prop || (state.prop = { per:'mes' });
+    let d; try{ d = P.d = await gs('getPropinas', auth()); }catch(e){ cont.innerHTML = '<p class="ag-err">' + esc(e && e.message ? e.message : e) + '</p>'; return; }
+    const pintar = ()=>{
+      const hoy = hoyISO(), mes = hoy.slice(0, 7), dPas = new Date(+mes.slice(0, 4), +mes.slice(5, 7) - 2, 1), mesPas = dPas.getFullYear() + '-' + String(dPas.getMonth() + 1).padStart(2, '0');
+      const PER = { mes:['Este mes', x=>x.fecha.slice(0, 7) === mes], pasado:['Mes pasado', x=>x.fecha.slice(0, 7) === mesPas], total:['12 meses', ()=>true] };
+      const L = d.lista.filter(PER[P.per][1]), tot = Math.round(L.reduce((a, x)=>a + x.monto, 0) * 100) / 100;
+      const G = {}; L.forEach(x=>{ const o = G[x.profesionalId] || (G[x.profesionalId] = { nombre:x.profesional, monto:0, n:0 }); o.monto += x.monto; o.n++; });
+      const porPers = Object.values(G).sort((a, b)=>b.monto - a.monto), maxP = Math.max(0.01, ...porPers.map(o=>o.monto));
+      const mon = x=>x.moneda === 'VES' ? dinero(x.monto) + ' <span class="ag-muted" style="font-size:11px">(Bs ' + esc(fmtInv(x.montoOrig)) + ')</span>' : dinero(x.monto);
+      cont.innerHTML = `<div class="ag-card"><p class="ag-muted" style="font-size:12.5px;margin:0">Las propinas se pagan <strong>directo</strong> a cada profesional. Aquí solo se anotan: <strong>no cuentan</strong> en ventas, egresos ni pagos al personal.${d.admin ? '' : ' Solo tú y la administración ven las tuyas.'}</p>
+        <div style="display:flex;gap:6px;margin-top:8px">${Object.keys(PER).map(k=>`<button type="button" class="ag-btn sm ${P.per === k ? '' : 'ghost'}" data-pp-per="${k}">${PER[k][0]}</button>`).join('')}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px;text-align:center"><div style="background:#fdf3f7;border-radius:10px;padding:8px"><strong style="font-size:20px;color:#9a3060">${dinero(tot)}</strong><br/><span style="font-size:11.5px">en propinas</span></div>
+          <div style="background:#fdf3f7;border-radius:10px;padding:8px"><strong style="font-size:20px;color:#9a3060">${L.length}</strong><br/><span style="font-size:11.5px">propina${L.length === 1 ? '' : 's'}${L.length ? ' · prom. ' + dinero(tot / L.length) : ''}</span></div></div></div>
+        ${d.admin && porPers.length ? `<div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">👤 Por profesional</h3>${porPers.map(o=>`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><strong>${esc(o.nombre)}</strong><span><strong>${dinero(o.monto)}</strong> <span class="ag-muted" style="font-size:11.5px">· ${o.n}</span></span></div><div style="height:7px;border-radius:4px;background:#f6e3eb;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.round(o.monto / maxP * 100)}%;background:#c2557f"></div></div></div>`).join('')}</div>` : ''}
+        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">➕ Anotar una propina</h3>
+          ${d.admin ? `<label class="f">¿De quién?</label><select data-pp-quien>${d.equipo.map(x=>`<option value="${esc(x.id)}" ${x.id === d.yo ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('')}</select>` : ''}
+          <div class="ag-row"><div><label class="f">Monto</label><input data-pp-monto inputmode="decimal" placeholder="Ej: 5"/></div><div><label class="f">Moneda</label><select data-pp-mon><option value="USD">$ dólares</option><option value="VES">Bs bolívares</option></select></div></div>
+          <div class="ag-row"><div><label class="f">¿Cómo?</label><select data-pp-met>${['Efectivo','Pago móvil','Zelle','Binance','Otro'].map(m=>`<option>${m}</option>`).join('')}</select></div><div><label class="f">Fecha</label><input type="date" data-pp-fecha value="${hoy}"/></div></div>
+          <label class="f">Cliente <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-pp-cli placeholder="Ej: Ana Pérez"/>
+          <button type="button" class="ag-btn sm" data-pp-ok style="width:100%;margin-top:8px">💝 Guardar propina</button></div>
+        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">🕒 Propinas (${L.length})</h3>${L.length ? L.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="flex:1;min-width:0">${esc(isoToDMY(x.fecha))} · ${x.origen === 'cliente' ? '💌' : '✍️'} <strong>${esc(x.cliente || 'Sin nombre')}</strong>${d.admin ? ' → ' + esc(x.profesional.split(' ')[0]) : ''}${x.metodo ? ' · ' + esc(x.metodo) : ''}${x.conCapture ? ' 📎' : ''}${x.nota ? '<br/><span class="ag-muted">«' + esc(x.nota) + '»</span>' : ''}</span><span style="white-space:nowrap;text-align:right">${mon(x)}<br/><button type="button" data-pp-del="${esc(x.id)}" style="border:0;background:none;color:var(--sub);cursor:pointer;font-size:12px">🗑️</button></span></div>`).join('') : '<p class="ag-muted" style="font-size:13px">Sin propinas en este período.</p>'}
+          <div class="ag-muted" style="font-size:11px;margin-top:6px">💌 la reportó el cliente desde su enlace · ✍️ anotada en la app</div></div>
+        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 4px">💳 Mis datos para recibir propinas</h3><p class="ag-muted" style="font-size:12px;margin:0 0 6px">Esto lo ve el cliente al final de su encuesta de satisfacción, en «💝 Dejar una propina» (pago móvil, Zelle, Binance…). Si lo dejas vacío, no apareces ahí.</p>
+          <textarea data-pp-datos rows="3" placeholder="Ej: Pago móvil 0412-1234567 · V-12345678 · Banco de Venezuela">${esc(d.misDatos || '')}</textarea><button type="button" class="ag-btn sm ghost" data-pp-gdatos style="width:100%;margin-top:6px">Guardar mis datos</button></div>`;
+      cont.querySelectorAll('[data-pp-per]').forEach(b=>b.onclick = ()=>{ P.per = b.dataset.ppPer; pintar(); });
+      const q = sel=>cont.querySelector(sel);
+      q('[data-pp-ok]').onclick = async ev=>{
+        const m = q('[data-pp-monto]').value.trim(); if(!(Number(m.replace(/\./g, q('[data-pp-mon]').value === 'VES' ? '' : '.').replace(',', '.')) > 0)){ alert('Escribe el monto de la propina.'); return; }
+        ev.target.disabled = true;
+        try{ d = P.d = await gs('registrarPropina', { profesionalId: q('[data-pp-quien]') ? q('[data-pp-quien]').value : '', monto:m.replace(/\./g, q('[data-pp-mon]').value === 'VES' ? '' : '.').replace(',', '.'), moneda:q('[data-pp-mon]').value, metodo:q('[data-pp-met]').value, fecha:q('[data-pp-fecha]').value, cliente:q('[data-pp-cli]').value.trim() }, auth()); toast('💝 Propina anotada.'); pintar(); }
+        catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+      };
+      q('[data-pp-gdatos]').onclick = async ev=>{ ev.target.disabled = true;
+        try{ d = P.d = await gs('guardarDatosPropina', q('[data-pp-datos]').value, auth()); toast(d.misDatos ? '✓ Tus datos ya aparecen en «💝 Dejar una propina» de la encuesta.' : 'Listo: ya no apareces en «💝 Dejar una propina».'); pintar(); }
+        catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); } };
+      cont.querySelectorAll('[data-pp-del]').forEach(b=>b.onclick = async ()=>{ if(!confirm('¿Borrar esta propina? (por si se anotó mal)')) return; b.disabled = true;
+        try{ d = P.d = await gs('borrarPropina', b.dataset.ppDel, auth()); pintar(); }catch(e){ b.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); } });
+    };
+    pintar();
   }
   // 📊 Tiempos reales de terapia (del temporizador): por servicio, por profesional y las últimas. Para ajustar duraciones y precios.
   async function renderTiempos(cont){
@@ -2792,6 +2836,7 @@ setTimeout(function(){
           ${tile('ag-cuenta', '⚙️', 'Mi cuenta', 'Datos, avisos y PIN')}
           ${tile('ag-refresh', '↻', 'Actualizar', 'Traer lo más reciente')}
           <div style="grid-column:1 / -1">${tile('ag-timer', '⏱️', 'Temporizador de terapia', 'Cuenta regresiva con aviso 5 min antes y alarma al terminar')}</div>
+          <div style="grid-column:1 / -1">${tile('ag-propinas', '💝', esAdm ? 'Propinas del equipo' : 'Mis propinas', esAdm ? 'Quién recibe propinas y cuánto (solo informativo)' : 'Lo que te dejan tus clientes y tus datos para recibirlas')}</div>
           <div style="grid-column:1 / -1">${tile('ag-ayuda', '📖', 'Manual de uso', esAdm ? 'Cómo se usa la app (administración y fisioterapeutas)' : 'Cómo se usa la app, paso a paso')}</div>
         </div>
       </div></div>
@@ -2804,6 +2849,7 @@ setTimeout(function(){
     body.querySelector('#ag-go-clientes').onclick = ()=>{ state.tab='clientes'; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); };
     const bAy = body.querySelector('#ag-ayuda'); if(bAy){ bAy.style.width = '100%'; bAy.onclick = ()=>mostrarManual(); }
     const bTm = body.querySelector('#ag-timer'); if(bTm){ bTm.style.width = '100%'; bTm.onclick = ()=>timerElegir(null); }
+    const bPr = body.querySelector('#ag-propinas'); if(bPr){ bPr.style.width = '100%'; bPr.onclick = ()=>{ openFullscreen('💝 ' + (state.user && state.user.admin ? 'Propinas del equipo' : 'Mis propinas'), '<div id="ag-prop"><p class="ag-empty">Cargando…</p></div>'); renderPropinas(document.getElementById('ag-prop')); }; }
     enlazarDispBanner(body.querySelector('#home-disp'));
     enlazarConfPend(body.querySelector('#home-hoy'));
     cargarCoberturaHome(body.querySelector('#home-cob'));
@@ -8947,7 +8993,12 @@ setTimeout(function(){
     { v:334, fecha:'25 oct', titulo:'Personal: semanas, mes, total y por persona', puntos:[
       '📅 En <strong>«🤲 Personal por semana»</strong> ahora eliges <strong>Esta semana, Semana pasada, Hace 2 semanas</strong>, las anteriores, el <strong>mes completo</strong> o el <strong>total</strong>, con lo comprado, lo pasado desde otros inventarios y el costo de ese período.',
       '👤 Nueva sección <strong>«Por persona»</strong>: cuánto se le entregó a cada trabajador (ej. Rafael y José), para comparar quién genera más gasto. Al entregar, la casilla «¿A quién?» ya trae la última persona.',
-      '✏️ Las entregas anteriores quedaron a nombre de Rafael.' ] }
+      '✏️ Las entregas anteriores quedaron a nombre de Rafael.' ] },
+    { v:335, fecha:'26 oct', titulo:'Propinas para el equipo', puntos:[
+      '💝 <strong>Propinas opcionales al final de la encuesta de satisfacción:</strong> después de enviarla, el cliente ve un mensaje de agradecimiento («fue un gran privilegio atenderte… tu satisfacción es nuestra mayor recompensa») y, si quiere, «💝 Dejar una propina». Ya viene elegida su terapeuta con sus datos de pago; le paga <strong>directo</strong> y lo reporta (monto en $ o Bs, cómo y un mensaje). Al profesional le llega el aviso por Telegram.',
+      '💳 Cada profesional pone en <strong>Inicio → 💝 Mis propinas</strong> los datos que quiere que vea el cliente en la encuesta (pago móvil, Zelle…). Quien no los ponga no aparece.',
+      '✍️ También se pueden anotar a mano las propinas recibidas en efectivo.',
+      '👀 Cada quien ve solo las suyas; la administración ve todas por profesional (Admin → Equipo → 💝 Propinas). <strong>Es solo informativo:</strong> no cuenta en ventas, egresos ni pagos al personal.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15051,8 +15102,8 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || 'staff';
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
     const hayPagos = (state.pagosPend||[]).length;
     body.innerHTML = `
@@ -15075,6 +15126,7 @@ setTimeout(function(){
     else if(sub==='inv_personal') renderInventario(cont, 'personal', true);
     else if(sub==='choques') renderChoques(cont);
     else if(sub==='tiempos') renderTiempos(cont);
+    else if(sub==='propinas') renderPropinas(cont);
     else if(sub==='inv_spa') renderInventario(cont, 'spa', true);
     else if(sub==='inv_oper') renderInventario(cont, 'operaciones', true);
     else if(sub==='gastos') renderGastos(cont);
