@@ -1189,7 +1189,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v343' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v344' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1611,7 +1611,35 @@ setTimeout(function(){
     setInterval(colaEnviar, 60000);
     setTimeout(()=>{ colaAviso(); colaEnviar(); }, 4000);
     // 📲 Instalable: guarda la app en el teléfono para abrirla aunque no haya señal (las pantallas; los datos van en lo guardado de cada persona).
-    if('serviceWorker' in navigator) window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+    if('serviceWorker' in navigator) window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }).catch(()=>{}); });
+    // 🔄 v344: cada versión nueva se ve sola. Al abrir (y al volver a la app) se pregunta al servidor qué versión está publicada; si es más nueva
+    // que estas pantallas, se bajan las nuevas sin la copia vieja del navegador y la app se recarga una vez. Antes el teléfono podía seguir
+    // mostrando la versión anterior guardada (señal lenta o copia del navegador de hasta 10 min).
+    window.addEventListener('load', ()=>setTimeout(revisarVersionNueva, 5000));
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) revisarVersionNueva(); });
+    setInterval(revisarVersionNueva, 600000);   // y cada 10 min con la app abierta
+  }
+  let versionRevisadaAt = 0;
+  function revisarVersionNueva(){
+    if(!window.AG_WEB || !window.AG_API || navigator.onLine === false || Date.now() - versionRevisadaAt < 120000) return;
+    versionRevisadaAt = Date.now();
+    const mia = Number(String(FALLAS.version).replace(/\D/g, '')) || 0;
+    fetch(window.AG_API + '?api=ping&t=' + Date.now(), { cache:'no-store' }).then(r=>r.json()).then(d=>{
+      const nueva = Number(d && d.version) || 0; if(nueva <= mia) return;
+      const k = 'ag_actualizado_' + nueva; let ya = 0; try{ ya = Number(sessionStorage.getItem(k)) || 0; }catch(e){}
+      if(Date.now() - ya < 600000) return;   // como mucho un intento cada 10 min: si la web aún no tiene la versión nueva, no se queda recargando
+      return fetch('index.html?v=' + nueva + '&t=' + Date.now(), { cache:'no-store' }).then(r=>r.ok ? r.text() : '').then(txt=>{
+        if(txt.indexOf("version: 'v" + nueva + "'") < 0) return;   // la página nueva todavía no está publicada en la web: se intenta más tarde
+        if(state.view === 'app' ? vistaEsFormulario() : !!state.pinBuf){   // en la entrada se actualiza enseguida (salvo a medio escribir el PIN)
+          versionRevisadaAt = 0; try{ toast('🔄 Hay una versión nueva de la app: se pondrá sola cuando termines lo que estás llenando.'); }catch(e){} return; }
+        try{ sessionStorage.setItem(k, String(Date.now())); }catch(e){}
+        try{ toast('🔄 Versión nueva de la app: actualizando…'); }catch(e){}
+        const pag = ()=>new Response(txt, { headers:{ 'Content-Type':'text/html; charset=utf-8' } });
+        const guardar = window.caches ? caches.keys().then(ks=>Promise.all(ks.filter(x=>/^aguamiel-/.test(x)).map(x=>caches.open(x).then(c=>Promise.all([c.put('index.html', pag()), c.put('./', pag())]))))) : Promise.resolve();
+        const sw = navigator.serviceWorker && navigator.serviceWorker.getRegistration ? navigator.serviceWorker.getRegistration().then(r=>r && r.update()) : Promise.resolve();
+        return Promise.all([guardar.catch(()=>{}), sw.catch(()=>{})]).then(()=>setTimeout(()=>location.reload(), 900));
+      });
+    }).catch(()=>{});
   }
   // Igual que gs(), pero con un tiempo de espera a medida (para tareas
   // largas como importar muchas filas).
@@ -9389,7 +9417,9 @@ setTimeout(function(){
       '🕒 Agenda → <strong>Día</strong>: las citas en línea de tiempo, una columna por profesional, con los huecos libres a la vista y una línea roja en la hora actual.',
       '📊 Balance: los últimos 6 meses arriba y <strong>en qué se va el dinero</strong>, con las categorías que más gastaron.',
       '🚦 Inventario con <strong>semáforo</strong> (agotado, por reponer, bien), una barra de cuánto queda y un botón para <strong>pasar lo que falta a la lista de compras</strong>.',
-      '📴 <strong>Disponible</strong> ya funciona sin señal también para administración.' ] }
+      '📴 <strong>Disponible</strong> ya funciona sin señal también para administración.' ] },
+    { v:344, fecha:'26 oct', titulo:'Las versiones nuevas se ponen solas', puntos:[
+      '🔄 La app instalada ahora revisa sola si hay una versión nueva al abrirla o al volver a ella, y se actualiza en segundos, sin borrar nada ni pasos extra. Si estás llenando algo, espera a que termines.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
