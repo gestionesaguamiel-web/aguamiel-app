@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v338' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v339' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1310,8 +1310,13 @@ setTimeout(function(){
   const lectClave = (fn, args)=>fn + '|' + JSON.stringify((args || []).map(a=>(a && typeof a === 'object' && 'pin' in a) ? '·' : a));
   function lectIdb(modo, f){ return new Promise((ok, mal)=>{ try{ const rq = indexedDB.open('aguamiel_lect', 1); rq.onupgradeneeded = ()=>rq.result.createObjectStore('l');
     rq.onerror = ()=>mal(rq.error); rq.onsuccess = ()=>{ const db = rq.result; try{ const tx = db.transaction('l', modo), q = f(tx.objectStore('l')); tx.oncomplete = ()=>{ db.close(); ok(q ? q.result : undefined); }; tx.onerror = tx.onabort = ()=>{ db.close(); mal(tx.error); }; }catch(e){ db.close(); mal(e); } }; }catch(e){ mal(e); } }); }
-  function lectGuardar(fn, args, v){ if(!window.AG_WEB || !LECT_FN.test(fn) || state.prueba) return; const u = state.user ? String(state.user.id) : '-'; lectIdb('readwrite', st=>st.put({ t:Date.now(), v }, u + '|' + lectClave(fn, args))).catch(()=>{}); }
-  function lectLeer(fn, args){ const u = state.user ? String(state.user.id) : '-'; return Promise.race([ lectIdb('readonly', st=>st.get(u + '|' + lectClave(fn, args))), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null); }
+  function lectGuardar(fn, args, v){ if(!window.AG_WEB || !LECT_FN.test(fn) || state.prueba) return; const u = state.user ? String(state.user.id) : '';
+    if(!u){ if(fn === 'getStaffLogin') lectIdb('readwrite', st=>st.put({ t:Date.now(), v }, '-|' + lectClave(fn, args))).catch(()=>{}); return; }   // la lista para entrar (solo nombres) va sin cifrar: se necesita antes del PIN
+    cifrar(u, v).then(enc=>{ if(enc) lectIdb('readwrite', st=>st.put({ t:Date.now(), enc }, u + '|' + lectClave(fn, args))).catch(()=>{}); }).catch(()=>{}); }
+  function lectLeer(fn, args){ const u = state.user ? String(state.user.id) : '';
+    if(!u) return Promise.race([ lectIdb('readonly', st=>st.get('-|' + lectClave(fn, args))), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null).then(g=>g && g.v !== undefined ? g : null);
+    return Promise.race([ lectIdb('readonly', st=>st.get(u + '|' + lectClave(fn, args))), new Promise(r=>setTimeout(()=>r(null), 2000)) ]).catch(()=>null)
+      .then(async g=>{ if(!g || !g.enc) return null; const v = await descifrar(u, g.enc); return v === null ? null : { t:g.t, v }; }); }
   let avisoLectAt = 0;
   function avisoLect(t){ if(Date.now() - avisoLectAt < 20000) return; avisoLectAt = Date.now(); try{ toast('📴 Sin señal: ves lo guardado en este teléfono' + (t ? ' (' + new Date(t).toLocaleString('es-VE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ')' : '') + '.'); }catch(e){} }
   // Sin señal se aceptan la copia y la sesión de hasta 7 días (con señal, la sesión dura HORAS_SESION como siempre).
@@ -1942,7 +1947,7 @@ setTimeout(function(){
     const bPrS = app.querySelector('#ag-prueba-salir'); if(bPrS) bPrS.onclick = salirPrueba;
     const bOut = app.querySelector('#ag-logout'); if(bOut) bOut.onclick=()=>{ registrarAccesoApp('salio', state.user);
       const sesS = lsGet(CLAVE_SESION);
-      if(sesS && huellaDe(state.user.id) && esLlaveLocal(sesS.pin)){ sesS.t = 0; sesS.nav = null; lsSet(CLAVE_SESION, sesS); state.loginUserId = String(state.user.id); }
+      if(sesS && huellaDe(state.user.id) && esLlaveLocal(sesS.pin)){ sesS.t = 0; sesS.nav = null; lsSet(CLAVE_SESION, sesS); ckQuitar(state.user.id); state.loginUserId = String(state.user.id); }
       else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
     app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); });
     const body = app.querySelector('#ag-body');
@@ -2001,7 +2006,8 @@ setTimeout(function(){
       state.loginBusy = true; state.err = ''; render();
       try{
         const res = await gs('loginStaff', who.id, pin, nombreDispositivo());
-        const user = Object.assign({}, res, { pin: res && res.tok ? 'T:' + res.tok : pin }); delete user.tok;
+        const user = Object.assign({}, res, { pin: res && res.tok ? 'T:' + res.tok : pin }); delete user.tok; delete user.ck;
+        await ckPoner(who.id, res && res.ck, pin);
         if(window.AG_WEB) pinHuella(who.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + who.id, h); });   // para poder entrar luego sin señal en este teléfono
         registrarAccesoApp('entro', user); guardarUltimoUsuario(user.id); guardarSesion(user);
         state.tarifas = null; state.cfgAlquiler = null;   // las tarifas de otra persona (p. ej. sin precios) no se arrastran
@@ -2012,7 +2018,7 @@ setTimeout(function(){
         // 📴 Sin señal: se entra si este teléfono ya vio ese PIN con señal y guarda la copia de esa persona.
         if(window.AG_WEB && ((e && e.sinRed) || navigator.onLine === false)){
           const guardado = lsGet('ag_pinok_' + who.id), h = await pinHuella(who.id, pin), okPin = !!(h && guardado === h);
-          const c = okPin ? await Promise.race([ idbHacer('readonly', st=>st.get('datos_' + String(who.id))), new Promise(r=>setTimeout(()=>r(null), 8000)) ]).catch(()=>null) : null;
+          const c = okPin && await ckDesdePin(who.id, pin) ? await copiaLeer(String(who.id), 8000) : null;
           state.loginBusy = false; state.pinBuf = '';
           if(c && c.user){ const user = Object.assign({}, c.user, { pin }); guardarSesion(user); state.user = user; state.tab = 'home'; state.err = ''; state.loginUserId = null; copiaArranque = true; await loadAll(); return; }
           state.err = !guardado ? '📴 Sin señal. Para entrar sin conexión, primero entra una vez con señal en este teléfono (con tu PIN).'
@@ -9025,7 +9031,12 @@ setTimeout(function(){
     { v:338, fecha:'26 oct', titulo:'Propinas con pago móvil y copiar datos', puntos:[
       '💳 Cada profesional registra <strong>desde su sesión</strong> (Inicio → 💝 Mis propinas) su <strong>pago móvil</strong>: banco con su código (0102, 0105…), cédula y teléfono, y si quiere otro medio. <strong>Quien no los registre no aparece</strong> para recibir propinas.',
       '💵 En la encuesta, el cliente elige el monto <strong>en dólares</strong> ($2, $5, $10 u otro) y ve al momento cuánto es <strong>en bolívares a la tasa BCV</strong> del día.',
-      '📋 Botones <strong>«Copiar datos del pago móvil»</strong> (banco, cédula y teléfono) y <strong>«Copiar monto en Bs»</strong> para pagar en segundos desde su banco.' ] }
+      '📋 Botones <strong>«Copiar datos del pago móvil»</strong> (banco, cédula y teléfono) y <strong>«Copiar monto en Bs»</strong> para pagar en segundos desde su banco.' ] },
+    { v:339, fecha:'26 oct', titulo:'Datos del teléfono cifrados', puntos:[
+      '🔐 La copia de datos que el teléfono guarda (para abrir rápido y trabajar sin señal) ahora va <strong>cifrada</strong>. Si alguien toma el teléfono, no puede leer clientes ni fichas sin tu PIN o tu huella.',
+      '🚪 Al <strong>salir</strong> o al vencer la sesión, el teléfono borra la llave: la copia queda cerrada hasta que vuelvas a entrar.',
+      '📴 <strong>Sin señal</strong> sigues pudiendo entrar con tu PIN y ver lo guardado.',
+      '🧹 Lo guardado que lleve <strong>más de 30 días sin usarse</strong> se borra solo.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15472,7 +15483,7 @@ setTimeout(function(){
         const pin = val('pin').trim();
         if(!/^\d{4}$/.test(pin)){ nota('#mc2-pin-msg', 'El PIN debe tener 4 dígitos.', false); return; }
         ev.target.disabled = true;
-        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); }); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
+        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); }); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
         catch(e){ nota('#mc2-pin-msg', 'No se pudo actualizar: ' + esc(e && e.message ? e.message : e), false); }
         ev.target.disabled = false;
       };
@@ -16044,7 +16055,7 @@ setTimeout(function(){
       if(pin===null) return;
       if(!/^\d{4}$/.test(pin.trim())){ alert('El PIN debe tener exactamente 4 dígitos.'); return; }
       let rp = null; try{ rp = await gs('updateStaffPin', s.id, pin.trim(), auth()); }catch(e){ alert('No se pudo cambiar el PIN: ' + (e.message||e)); return; }
-      if(s.id===state.user.id){ state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin.trim(); guardarSesion(state.user); }
+      if(s.id===state.user.id){ state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin.trim(); guardarSesion(state.user); if(rp && rp.ck) ckPoner(s.id, rp.ck, pin.trim()); }
       toast('PIN de ' + s.nombre.split(' ')[0] + ' actualizado.');
       render();
     });
@@ -16186,6 +16197,43 @@ setTimeout(function(){
   const lsDel = k=>{ try{ localStorage.removeItem(k); }catch(e){} };
   // ---- 📋 Copia de los datos en este teléfono (rapidez al abrir) ----
   // Al abrir se muestra al instante lo último que bajó este teléfono y por detrás llegan los datos nuevos de Google.
+  // 🔐 La copia del teléfono va CIFRADA (AES-GCM). La llave la entrega el servidor solo a una sesión válida (ag_ck_<id>) y, además,
+  // se guarda otra copia de esa llave protegida con el PIN (ag_ckp_<id>) para poder entrar sin señal. Al salir o vencer la sesión
+  // se borra ag_ck: la copia queda ilegible hasta volver a entrar con el PIN o la huella. El PIN nunca se guarda.
+  var CK_MEM = {};
+  var hexAB = h=>Uint8Array.from(String(h).match(/../g) || [], x=>parseInt(x, 16));
+  var abB64 = b=>{ let t = ''; new Uint8Array(b).forEach(c=>{ t += String.fromCharCode(c); }); return btoa(t); };
+  var b64AB = t=>Uint8Array.from(atob(t), c=>c.charCodeAt(0));
+  var hayCripto = ()=>!!(window.crypto && crypto.subtle);
+  async function ckGet(id){
+    id = String(id || ''); if(!id || !hayCripto()) return null;
+    if(CK_MEM[id]) return CK_MEM[id];
+    const h = lsGet('ag_ck_' + id); if(!h || !/^[0-9a-f]{64}$/.test(h)) return null;
+    try{ CK_MEM[id] = await crypto.subtle.importKey('raw', hexAB(h), 'AES-GCM', false, ['encrypt', 'decrypt']); return CK_MEM[id]; }catch(e){ return null; }
+  }
+  async function claveDePin(id, pin, sal){
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(pin) + '|' + String(id)), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name:'PBKDF2', salt:sal, iterations:150000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt', 'decrypt']);
+  }
+  // Guarda la llave que mandó el servidor; si se conoce el PIN (al entrar con él), también la versión protegida con el PIN.
+  async function ckPoner(id, hex, pin){
+    id = String(id || ''); if(!id || !/^[0-9a-f]{64}$/.test(String(hex || ''))) return;
+    lsSet('ag_ck_' + id, hex); delete CK_MEM[id];
+    if(pin && /^\d{4}$/.test(String(pin)) && hayCripto()){ try{ const sal = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, await claveDePin(id, pin, sal), new TextEncoder().encode(hex));
+      lsSet('ag_ckp_' + id, { s:abB64(sal), iv:abB64(iv), c:abB64(ct) }); }catch(e){} }
+  }
+  // Sin señal: con el PIN correcto se recupera la llave para abrir la copia.
+  async function ckDesdePin(id, pin){
+    const w = lsGet('ag_ckp_' + id); if(!w || !hayCripto()) return false;
+    try{ const hex = new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64AB(w.iv) }, await claveDePin(id, pin, b64AB(w.s)), b64AB(w.c)));
+      if(!/^[0-9a-f]{64}$/.test(hex)) return false; lsSet('ag_ck_' + id, hex); delete CK_MEM[id]; return true; }catch(e){ return false; }
+  }
+  function ckQuitar(id){ if(!id) return; lsDel('ag_ck_' + id); delete CK_MEM[String(id)]; }
+  async function cifrar(id, obj){ const k = await ckGet(id); if(!k) return null; const iv = crypto.getRandomValues(new Uint8Array(12));
+    return { iv:abB64(iv), c:abB64(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, k, new TextEncoder().encode(JSON.stringify(obj)))) }; }
+  async function descifrar(id, e){ if(!e || !e.iv || !e.c) return null; const k = await ckGet(id); if(!k) return null;
+    try{ return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64AB(e.iv) }, k, b64AB(e.c)))); }catch(x){ return null; } }
   // Guardar sigue yendo directo a Google. Se guarda en el navegador (IndexedDB), una copia por persona, y se borra al cerrar sesión.
   // Si cambia la versión de la app, la copia vieja no se usa (los datos podrían venir con otra forma).
   const COPIA_DIAS = 7;
@@ -16199,12 +16247,26 @@ setTimeout(function(){
     }catch(e){ mal(e); } });
   }
   // Leer nunca hace esperar más de 1,5 s (en un teléfono raro sin IndexedDB, se carga como antes).
-  function copiaLeer(id){ return Promise.race([ idbHacer('readonly', st=>st.get('datos_' + id)), new Promise(r=>setTimeout(()=>r(null), 1500)) ]).catch(()=>null); }
+  async function copiaLeer(id, ms){
+    const c = await Promise.race([ idbHacer('readonly', st=>st.get('datos_' + id)), new Promise(r=>setTimeout(()=>r(null), ms || 1500)) ]).catch(()=>null);
+    if(!c || !c.enc) return null;   // las copias viejas sin cifrar no se usan (se reemplazan al guardar)
+    const d = await descifrar(id, c.enc); return d ? Object.assign({ t:c.t, ver:c.ver, id:c.id }, d) : null;
+  }
   function copiaGuardar(data){
     if(state.prueba || !state.user || !data) return;
     const id = String(state.user.id), u = Object.assign({}, state.user); delete u.pin;   // el PIN nunca va en la copia
-    clearTimeout(tCopia); tCopia = setTimeout(()=>{ idbHacer('readwrite', st=>st.put({ t:Date.now(), ver:FALLAS.version, id, user:u, data }, 'datos_' + id)).catch(()=>{}); }, 2000);
+    clearTimeout(tCopia); tCopia = setTimeout(async ()=>{ const enc = await cifrar(id, { user:u, data }).catch(()=>null); if(!enc) return;   // sin llave no se guarda nada en claro
+      idbHacer('readwrite', st=>st.put({ t:Date.now(), ver:FALLAS.version, id, enc }, 'datos_' + id)).catch(()=>{}); }, 2000);
   }
+  function limpiarGuardadoViejo(){
+    const corte = Date.now() - 30 * 86400000;
+    const barrer = (abrir, almacen)=>new Promise(ok=>{ try{ const rq = indexedDB.open(abrir, 1); rq.onupgradeneeded = ()=>rq.result.createObjectStore(almacen);
+      rq.onsuccess = ()=>{ const db = rq.result; try{ const tx = db.transaction(almacen, 'readwrite'), cur = tx.objectStore(almacen).openCursor();
+        cur.onsuccess = ()=>{ const c = cur.result; if(!c) return; const v = c.value || {}; if(!(v.t > corte) || (!v.enc && String(c.key).indexOf('-|') !== 0)) c.delete(); c.continue(); };
+        tx.oncomplete = tx.onerror = ()=>{ db.close(); ok(); }; }catch(e){ db.close(); ok(); } }; rq.onerror = ()=>ok(); }catch(e){ ok(); } });
+    setTimeout(()=>{ barrer('aguamiel', 'copia'); if(window.AG_WEB) barrer('aguamiel_lect', 'l'); }, 8000);
+  }
+  limpiarGuardadoViejo();
   function copiaBorrar(){ clearTimeout(tCopia); idbHacer('readwrite', st=>st.clear()).catch(()=>{}); }
   function terminarCopia(){ state.desdeCopia = 0; state.copiaSinRed = false; avisoCopia(0); if(window._agFrescoOk) window._agFrescoOk(); window._agFresco = null; }
   // Aviso pequeño arriba: «📋 Mostrando lo guardado a las 9:40 · actualizando…» (o «sin conexión»).
@@ -16275,7 +16337,7 @@ setTimeout(function(){
   // Nombre corto del equipo para la lista de sesiones del servidor (no identifica a la persona).
   function nombreDispositivo(){ const ua = navigator.userAgent || ''; return (/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Otro') + (window.AG_WEB ? ' · app' : ' · Google'); }
   function guardarSesion(who){ if(state.prueba) return; lsSet(CLAVE_SESION, { id:String(who.id), pin:String(who.pin), t:Date.now(), nav:null }); }
-  function borrarSesion(){ lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); state.desdeCopia = 0; avisoCopia(0); }
+  function borrarSesion(){ const sB = lsGet(CLAVE_SESION); if(sB && sB.id) ckQuitar(sB.id); lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); state.desdeCopia = 0; avisoCopia(0); }
   // 📴 Si el servidor dice que la sesión ya no vale (PIN cambiado, persona desactivada), este teléfono olvida sus datos y su PIN guardado.
   function olvidarSinRed(id){ if(!window.AG_WEB || !id) return; lsDel('ag_pinok_' + id); idbHacer('readwrite', st=>st.delete('datos_' + id)).catch(()=>{}); }
   function borrarBorrador(){ lsDel(CLAVE_BORRADOR); }
@@ -16285,7 +16347,7 @@ setTimeout(function(){
   // Devuelve true si la sesión sigue valiendo.
   async function reanudarSesion(sinNav){
     const ses = lsGet(CLAVE_SESION); if(!ses) return false;
-    if(Date.now() - (ses.t||0) > horasSes()*3600000){ if(huellaDe(ses.id) && esLlaveLocal(ses.pin)){ state.loginUserId = String(ses.id); return false; } borrarSesion(); return false; }
+    if(Date.now() - (ses.t||0) > horasSes()*3600000){ ckQuitar(ses.id); if(huellaDe(ses.id) && esLlaveLocal(ses.pin)){ state.loginUserId = String(ses.id); return false; } borrarSesion(); return false; }
     let res = null;
     try{ res = await gs('loginStaff', ses.id, ses.pin, nombreDispositivo()); }
     catch(e){ if(esErrorDeSesion(e)){ olvidarSinRed(ses.id); borrarSesion(); return false; }
@@ -16293,7 +16355,8 @@ setTimeout(function(){
       throw e; }
     if(!res || !res.activo){ borrarSesion(); return false; }
     // Una sesión vieja con el PIN guardado pasa sola a llave: desde aquí el teléfono ya no guarda el PIN.
-    const who = Object.assign({}, res, { pin: res.tok ? 'T:' + res.tok : String(ses.pin) }); delete who.tok;
+    const who = Object.assign({}, res, { pin: res.tok ? 'T:' + res.tok : String(ses.pin) }); delete who.tok; delete who.ck;
+    await ckPoner(ses.id, res.ck, esLlaveLocal(ses.pin) ? '' : ses.pin);
     if(who.pin !== String(ses.pin)){ ses.pin = who.pin; lsSet(CLAVE_SESION, ses); }
     if(window.AG_WEB && !esLlaveLocal(ses.pin)) pinHuella(ses.id, ses.pin).then(h=>{ if(h) lsSet('ag_pinok_' + ses.id, h); });
     state.user = who; state.view = 'app';
