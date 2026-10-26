@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Aguamiel</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f8f6;color:#22282a;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;padding:16px}
+  a{color:#0d9bb5;font-weight:700}
+</style>
+</head>
+<body>
+<!-- Enlace corto del catálogo (v341): el código va después de «#» (no llega a GitHub) y se pasa tal cual a la app de Google. -->
+<p id="m">🌿 Abriendo tu catálogo de Aguamiel…</p>
+<script>
+(function(){
+  var APP = 'https://script.google.com/macros/s/AKfycbyvzuGSC4rECcef_3-kZkhHm3rZdtuBx52qr-ZfBZwtpoJP1WwJOdFbfKpyV3_gULNB/exec';
+  var c = String(location.hash || '').replace(/^#/, '');
+  if(!/^[A-Za-z0-9]{10,40}$/.test(c)){ document.getElementById('m').textContent = 'Este enlace no es válido. Pide uno nuevo a quien te lo envió. 🌿'; return; }
+  var url = APP + '?catalogo=' + encodeURIComponent(c);
+  document.getElementById('m').innerHTML = '🌿 Abriendo tu catálogo de Aguamiel… <br><br><a href="' + url + '">Toca aquí si no se abre</a>';
+  location.replace(url);
+})();
+</script>
+</body>
+</html>

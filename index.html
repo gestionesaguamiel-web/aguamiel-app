@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v340' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v341' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -7152,6 +7152,18 @@ setTimeout(function(){
       const bb = body.querySelector('#co-borrar'); if(bb) bb.onclick = ()=>{ if(!confirm('¿Borrar la receta «' + r.nombre + '»?')) return; correr(bb, ()=>gs('borrarReceta', r.id, auth()), 'Borrada.').then(ok=>{ if(ok){ C.ed = null; render(); } }); };
     }
   }
+  // 🩺 Revisión del menú (v341): resultado de revisionMenuRosita. Cada plato se toca para ir a él en la lista y corregirlo.
+  function revisionMenuHTML(V){
+    if(!V) return '';
+    const plato = (m, extra)=>`<button type="button" data-rev-ir="${esc(m.id)}" style="display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:6px 2px;font:inherit;font-size:12.5px;color:inherit;cursor:pointer"><strong>${esc(m.nombre)}</strong>${m.categoria ? ' <span class="ag-muted">· ' + esc(m.categoria) + '</span>' : ''}${extra ? '<div class="ag-muted" style="font-size:11.5px">' + extra + '</div>' : ''}</button>`;
+    const grupo = (icono, titulo, ayuda, cuerpo, color)=>`<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:${color || '#fff7e6'}"><strong style="font-size:13px">${icono} ${titulo}</strong><div class="ag-muted" style="font-size:11.5px;margin-bottom:4px">${ayuda}</div>${cuerpo}</div>`;
+    let h = `<p style="font-size:13px;margin:4px 0"><strong>${V.ok}</strong> de <strong>${V.total}</strong> platos activos están bien.</p>`;
+    if(V.rotos.length) h += grupo('🔗', 'Descuentan un producto borrado o archivado (' + V.rotos.length + ')', 'Ábrelo y en «Descuenta del inventario» cambia ese producto.', V.rotos.map(m=>plato(m, esc(m.detalle))).join(''), 'var(--danger-l)');
+    if(V.sinConsumo.length) h += grupo('📭', 'No descuentan nada del inventario (' + V.sinConsumo.length + ')', 'Ábrelo y en «Descuenta del inventario» agrega lo que gasta cada plato.', V.sinConsumo.map(m=>plato(m)).join(''));
+    if(V.sinPrecio.length) h += grupo('🏷️', 'Productos sin precio (' + V.sinPrecio.length + ')', 'Sin precio no se sabe cuánto cuesta el plato. Ponlo en Rosita → Costos de recetas → Precios.', V.sinPrecio.map(x=>`<div style="border-top:1px solid var(--line);padding:6px 2px;font-size:12.5px"><strong>${esc(x.nombre)}</strong><div class="ag-muted" style="font-size:11.5px">Lo usan: ${esc(x.platos.slice(0, 5).join(', '))}${x.platos.length > 5 ? ' y ' + (x.platos.length - 5) + ' más' : ''}</div></div>`).join(''), '#eef3ff');
+    if(V.caros.length) h += grupo('📈', 'Salen caros (' + V.caros.length + ')', 'Los ingredientes cuestan más del 35 % del precio: sube el precio o ajusta la porción.', V.caros.map(m=>plato(m, 'Ingredientes ' + dinero(m.costo) + ' de ' + dinero(m.precio) + ' · <strong style="color:#b3261e">' + m.pct + ' %</strong>')).join(''), '#fff1f0');
+    return h;
+  }
   function renderMenuAdmin(body){
     const R = state.rosita;
     if(!state.user.admin){ R.vista='lista'; return renderRosita(body); }
@@ -7178,6 +7190,11 @@ setTimeout(function(){
           <button class="ag-btn" id="mn-agregar" style="width:100%;margin-top:10px">Agregar al menú</button>
         </details>
       </div>
+      <details class="ag-card" style="margin-top:10px" id="mn-rev" ${state.mnRev ? 'open' : ''}><summary style="font-weight:700;cursor:pointer">🩺 Revisión del menú${state.mnRev && state.mnRev.total ? (state.mnRev.ok === state.mnRev.total ? ' · ✅ todo bien' : ' · <span style="color:#b3261e">' + (state.mnRev.total - state.mnRev.ok) + ' por revisar</span>') : ''}</summary>
+        <p class="ag-muted" style="font-size:12px;margin:6px 0">Muestra los platos que no descuentan bien del inventario al cerrar la orden y los que salen caros (ingredientes por encima del 35 % del precio).</p>
+        <div id="mn-rev-res">${revisionMenuHTML(state.mnRev)}</div>
+        <button type="button" class="ag-btn sm" id="mn-rev-btn" style="width:100%;margin-top:8px">🩺 ${state.mnRev ? 'Revisar de nuevo' : 'Revisar ahora'}</button>
+      </details>
       <details class="ag-card" style="margin-top:10px" id="mn-comunes" ${state.mnComAbierto ? 'open' : ''}><summary style="font-weight:700;cursor:pointer">🧩 Listas comunes de acompañantes</summary>
         <p class="ag-muted" style="font-size:12px;margin:6px 0">Cada lista se escribe <strong>una sola vez</strong> (contornos, ensaladas, aderezos…). Los platos solo dicen qué lista usan: si cambias una lista aquí, cambia en <strong>todos</strong> los platos que la usan. 💲 Para cobrar extra escribe <em>+precio</em> (ej: Bollitos aliñados +1).</p>
         <div id="mn-com-listas">${(state.opcComunes||[]).map(L=>{ const n = (state.menu||[]).filter(m=>(m.opciones||[]).some(g=>g.ref===L.id)).length + Object.values(state.menuCategorias||{}).filter(gs=>(gs||[]).some(g=>g.ref===L.id)).length;
@@ -7268,6 +7285,18 @@ setTimeout(function(){
       };
     });
     body.querySelector('#mn-volver').onclick = ()=>{ R.vista='lista'; render(); };
+    const conectarRev = ()=>body.querySelectorAll('[data-rev-ir]').forEach(x=>x.onclick = ()=>{
+      const row = body.querySelector('[data-mn="' + x.dataset.revIr + '"]'); if(!row) return toast('Ese plato no está en la lista.');
+      let d = row.closest('details'); while(d){ d.open = true; d = d.parentElement && d.parentElement.closest('details'); }
+      row.scrollIntoView({ behavior:'smooth', block:'center' }); row.style.outline = '3px solid var(--teal)'; setTimeout(()=>{ row.style.outline = ''; }, 2500);
+    });
+    conectarRev();
+    const brev = body.querySelector('#mn-rev-btn'); if(brev) brev.onclick = async ()=>{
+      brev.disabled = true; brev.textContent = 'Revisando…';
+      try{ state.mnRev = await gs('revisionMenuRosita', auth()); const res = body.querySelector('#mn-rev-res'); if(res){ res.innerHTML = revisionMenuHTML(state.mnRev); conectarRev(); } brev.textContent = '🩺 Revisar de nuevo'; }
+      catch(e){ brev.textContent = '🩺 Revisar ahora'; alert('No se pudo revisar: ' + (e && e.message ? e.message : e)); }
+      brev.disabled = false;
+    };
     const mnDisp = body.querySelector('#mn-disp'); if(mnDisp) mnDisp.ontoggle = ()=>{ state.mnDispAbierto = mnDisp.open; };
     // 🧩 Listas comunes de acompañantes
     const mnCom = body.querySelector('#mn-comunes'); mnCom.ontoggle = ()=>{ state.mnComAbierto = mnCom.open; };
@@ -9044,7 +9073,12 @@ setTimeout(function(){
     { v:340, fecha:'26 oct', titulo:'PIN más seguro', puntos:[
       '🔒 La <strong>administración</strong> entra ahora con PIN de <strong>6 dígitos</strong>: al abrir la app se pide cambiarlo una sola vez. El resto del equipo puede usar de 4 a 6.',
       '⏳ Tras 5 intentos fallidos el usuario se bloquea <strong>cada vez más tiempo</strong> (5 min, 30 min, 2 h, 6 h) y César Zamora recibe el aviso por Telegram. Quien ya está dentro o usa huella no queda bloqueado.',
-      '📄 Los presupuestos y recibos enviados por WhatsApp dejan de abrirse con el enlace a los <strong>30 días</strong>.' ] }
+      '📄 Los presupuestos y recibos enviados por WhatsApp dejan de abrirse con el enlace a los <strong>30 días</strong>.' ] },
+    { v:341, fecha:'26 oct', titulo:'Hoy en números, revisión del menú, avisos de precios y enlaces cortos', puntos:[
+      '💵 Inicio (administración): <strong>Hoy en números</strong> con lo cobrado hoy en $ y Bs, lo gastado, citas, órdenes de Rosita e inventario por reponer; cada cuadro abre su pantalla.',
+      '🩺 Rosita → Menú → <strong>Revisión del menú</strong>: platos que no descuentan del inventario, productos borrados o sin precio y platos cuyo costo pasa del 35 % del precio.',
+      '📈 A César Zamora le llega por Telegram, una vez al día, cuando un producto de comida subió más de 10 % frente a la compra anterior; el aviso de Inventario bajo ahora le llega solo a él.',
+      '🔗 Los enlaces del catálogo para clientes ahora son cortos (gestionesaguamiel-web.github.io/aguamiel-app/c/#…); los enlaces largos ya enviados siguen sirviendo.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9129,11 +9163,30 @@ setTimeout(function(){
     // 💡 Aguamiel Tips: solo le llega a César (el servidor no lo manda a nadie más).
     if(A.tip) h += `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff8e6;font-size:12.5px">💡 <strong>Aguamiel Tips</strong> enviado el ${esc(isoToDMY(A.tip.fecha))} a ${A.tip.enviados} de ${A.tip.total} persona${A.tip.total === 1 ? '' : 's'}:<div style="font-style:italic;margin:3px 0">«${esc(A.tip.texto)}»</div><span class="ag-muted" style="font-size:11.5px">Próximo: ${esc(isoToDMY(A.tip.proxima))} desde las 9 am</span></div>`;
     h += `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:${okRd ? '#f3faf5' : 'var(--danger-l)'};font-size:12.5px">💾 ${txtRd}${rs ? `<div class="ag-muted" style="font-size:11.5px">Semanal (domingos): ${esc(isoToDMY(rs.slice(0, 10)))}${/ERROR/.test(rs) ? ' ⚠️ falló' : ' ✅'}</div>` : ''}<button class="ag-btn sm ghost" data-at-respaldo style="margin-top:6px">💾 Respaldar ahora</button></div>`;
-    return `<div class="ag-sec"><div class="ag-card" style="${n ? 'border:2px solid #f0a030' : ''}">
+    return numerosHoyHTML(A.numeros) + `<div class="ag-sec"><div class="ag-card" style="${n ? 'border:2px solid #f0a030' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="font-size:15px;margin:0">⚡ Atención hoy ${n ? `<span class="ag-badge" style="background:#f0a030;color:#fff">${n}</span>` : ''}</h3><button class="ag-btn sm ghost" data-at-recargar style="flex:0 0 auto;padding:4px 10px">↻</button></div>
       ${(()=>{ const sinLeer = NOVEDADES.filter(x=>x.v > (A.novLeida || 0)).length; return sinLeer ? `<button type="button" data-at-nov style="display:flex;align-items:center;gap:10px;width:100%;margin-top:8px;padding:10px 12px;border-radius:12px;border:2px solid var(--teal);background:var(--teal-l);cursor:pointer;font:inherit;text-align:left;color:var(--ink)"><span style="font-size:22px">🆕</span><span style="flex:1"><strong style="font-size:14px">Actualizaciones de la app</strong><br><span style="font-size:12.5px;color:var(--teal-d)">${sinLeer} novedad${sinLeer === 1 ? '' : 'es'} sin leer · tócalo para verlas</span></span><span style="font-size:20px;color:var(--teal-d)">›</span></button>` : ''; })()}
       ${n ? '' : '<p style="font-size:13px;margin:6px 0 0;color:#1d6b35">✅ Todo al día: no hay nada pendiente por atender.</p>'}${h}
       <div style="display:flex;gap:6px;margin-top:8px"><button class="ag-btn sm ghost" data-at-hist style="flex:1">📜 Historial del día</button><button class="ag-btn sm ghost" data-at-novtodas style="flex:1">🆕 Actualizaciones</button></div></div></div>`;
+  }
+  // 💵 Hoy en números (v341): lo primero que ve administración al abrir la app. Los datos vienen con «Atención hoy» (solo administración, sin datos de clientes).
+  function numerosHoyHTML(N){
+    if(!N || N.error) return '';
+    const caja = (icono, titulo, valor, sub, ir, fondo)=>`<button type="button" ${ir ? `data-at-ir="${ir}"` : 'disabled'} style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:${fondo || 'var(--card)'};text-align:left;cursor:${ir ? 'pointer' : 'default'};color:inherit;font:inherit;min-width:0;width:100%">
+      <span style="font-size:12px;color:var(--sub)">${icono} ${titulo}</span><strong style="font-size:19px;line-height:1.2">${valor}</strong>${sub ? `<span style="font-size:11.5px;color:var(--sub)">${sub}</span>` : ''}</button>`;
+    const bs = N.tasa && N.cobrado ? '≈ ' + bolivares(N.cobrado, N.tasa) + ' · ' : '';
+    const nInv = (N.bajoMin || 0) + (N.agotados || 0);
+    const inv = nInv ? `<div style="grid-column:1 / -1">${caja('📦', 'Inventario por reponer', (N.agotados ? N.agotados + ' agotado' + (N.agotados === 1 ? '' : 's') : '') + (N.agotados && N.bajoMin ? ' · ' : '') + (N.bajoMin ? N.bajoMin + ' bajo el mínimo' : ''),
+      esc((N.bajo || []).map(x=>x.nombre + ' (' + fmtInv(x.stock) + ' ' + x.unidad + ')').join(', ')) + (nInv > (N.bajo || []).length ? ' y ' + (nInv - N.bajo.length) + ' más' : ''), 'inv', '#fff7e6')}</div>` : '';
+    return `<div class="ag-sec"><div class="ag-card">
+      <h3 style="font-size:15px;margin:0 0 8px">💵 Hoy en números</h3>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+        ${caja('💵', 'Cobrado hoy', dinero(N.cobrado), bs + 'mes ' + dinero(N.cobradoMes), 'balance', 'var(--teal-l)')}
+        ${caja('💸', 'Gastado hoy', dinero(N.gastado), 'mes ' + dinero(N.gastadoMes), 'gastos')}
+        ${caja('📅', 'Citas hoy', String(N.citas || 0), N.citas ? (N.citasHechas || 0) + ' completada' + (N.citasHechas === 1 ? '' : 's') : 'sin citas', 'agenda')}
+        ${caja('🍽️', 'Rosita', String(N.ordenes || 0) + ' cerrada' + (N.ordenes === 1 ? '' : 's'), (N.ordenesAbiertas || 0) + ' abierta' + (N.ordenesAbiertas === 1 ? '' : 's') + ' ahora', 'rosita')}
+        ${inv}
+      </div></div></div>`;
   }
   function isoMasDias(iso, d){ const p = String(iso).split('-').map(Number); const x = new Date(Date.UTC(p[0], p[1] - 1, p[2] + d)); return x.toISOString().slice(0, 10); }
   // ⏳ Plazos de los enlaces de catálogo (el servidor acepta de 1 día a 6 meses). Un plazo guardado que no esté en la lista se agrega.
@@ -9167,6 +9220,9 @@ setTimeout(function(){
       else if(k === 'cobrar'){ if(state.cxc) state.cxc.datos = null; state.tab = 'adminpanel'; state.adminSub = 'cobrar'; }
       else if(k === 'disp'){ state.tab = 'disp'; }
       else if(k === 'buzon'){ state.tab = 'adminpanel'; state.adminSub = 'staff'; }
+      else if(k === 'balance' || k === 'gastos'){ state.tab = 'adminpanel'; state.adminSub = k; }
+      else if(k === 'rosita'){ irA({ tab:'rosita', ro:'lista' }); return; }
+      else if(k === 'inv'){ const b0 = ((state.atencion && state.atencion.numeros && state.atencion.numeros.bajo) || [])[0]; state.tab = 'adminpanel'; state.adminSub = 'inv_' + ({ operaciones:'oper' }[b0 && b0.area] || (b0 && b0.area) || 'rosita'); }
       else { if(!state.ag) state.ag = { vista:'lista', filtro:'proximas', editId:null }; state.ag.vista = 'lista'; state.tab = 'agenda'; }
       render();
     });
