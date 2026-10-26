@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v336' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v337' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1935,7 +1935,10 @@ setTimeout(function(){
     };
     const bPr = app.querySelector('#ag-prueba'); if(bPr) bPr.onclick = entrarPrueba;
     const bPrS = app.querySelector('#ag-prueba-salir'); if(bPrS) bPrS.onclick = salirPrueba;
-    const bOut = app.querySelector('#ag-logout'); if(bOut) bOut.onclick=()=>{ registrarAccesoApp('salio', state.user); borrarSesion(); borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
+    const bOut = app.querySelector('#ag-logout'); if(bOut) bOut.onclick=()=>{ registrarAccesoApp('salio', state.user);
+      const sesS = lsGet(CLAVE_SESION);
+      if(sesS && huellaDe(state.user.id) && esLlaveLocal(sesS.pin)){ sesS.t = 0; sesS.nav = null; lsSet(CLAVE_SESION, sesS); state.loginUserId = String(state.user.id); }
+      else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
     app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); });
     const body = app.querySelector('#ag-body');
     if(state.tab==='home') renderHome(body);
@@ -1970,6 +1973,7 @@ setTimeout(function(){
       <div class="ag-body" style="padding-top:0">
         <label class="f">¿Quién eres?</label>
         <select id="ag-who">${activos.map(s=>`<option value="${s.id}" ${s.id===state.loginUserId?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select>
+        ${(()=>{ const sh = lsGet(CLAVE_SESION); return sh && esLlaveLocal(sh.pin) && huellaDe(sh.id) && String(sh.id) === String(state.loginUserId || sh.id) ? `<button type="button" id="ag-huella" style="display:block;width:100%;margin:10px 0 4px;padding:14px;border-radius:14px;border:2px solid var(--teal);background:var(--teal-l);color:var(--teal-d);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">👆 Entrar con huella</button><p class="ag-muted" style="text-align:center;font-size:12px;margin:0 0 6px">o escribe tu PIN</p>` : ''; })()}
         <div class="ag-dots">${[0,1,2,3].map(i=>`<div class="ag-dot ${i<state.pinBuf.length?'on':''}"></div>`).join('')}</div>
         <div class="ag-pinpad">
           ${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-num="${n}">${n}</button>`).join('')}
@@ -1979,6 +1983,10 @@ setTimeout(function(){
         ${state.err?`<p class="ag-err" style="text-align:center">${esc(state.err)}</p>`:''}
       </div>`;
     app.querySelector('#ag-who').onchange = (e)=>{ state.loginUserId = e.target.value; state.pinBuf=''; state.err=''; render(); };
+    const bHu = app.querySelector('#ag-huella'); if(bHu) bHu.onclick = async ()=>{ const sh = lsGet(CLAVE_SESION); if(!sh) return;
+      bHu.disabled = true; bHu.textContent = '👆 Pon tu dedo…';
+      if(await verificarHuella(sh.id)){ sh.t = Date.now(); lsSet(CLAVE_SESION, sh); state.err = ''; state.pinBuf = ''; await loadAll(); return; }
+      bHu.disabled = false; bHu.textContent = '👆 Entrar con huella'; state.err = 'No se reconoció la huella. Inténtalo de nuevo o escribe tu PIN.'; render(); };
     // El PIN se comprueba en el servidor: el navegador ya no conoce los PIN.
     async function tryLogin(){
       if(state.loginBusy) return;
@@ -1987,13 +1995,14 @@ setTimeout(function(){
       const pin = state.pinBuf;
       state.loginBusy = true; state.err = ''; render();
       try{
-        const res = await gs('loginStaff', who.id, pin);
-        const user = Object.assign({}, res, { pin: pin });
+        const res = await gs('loginStaff', who.id, pin, nombreDispositivo());
+        const user = Object.assign({}, res, { pin: res && res.tok ? 'T:' + res.tok : pin }); delete user.tok;
         if(window.AG_WEB) pinHuella(who.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + who.id, h); });   // para poder entrar luego sin señal en este teléfono
         registrarAccesoApp('entro', user); guardarUltimoUsuario(user.id); guardarSesion(user);
         state.tarifas = null; state.cfgAlquiler = null;   // las tarifas de otra persona (p. ej. sin precios) no se arrastran
         state.user = user; state.tab = 'home'; state.err = ''; state.pinBuf = ''; state.loginUserId = null; state.loginBusy = false;
         await loadAll();
+        setTimeout(()=>ofrecerHuella(user), 2500);   // 👆 en la app instalada: «¿Entrar con tu huella la próxima vez?»
       }catch(e){
         // 📴 Sin señal: se entra si este teléfono ya vio ese PIN con señal y guarda la copia de esa persona.
         if(window.AG_WEB && ((e && e.sinRed) || navigator.onLine === false)){
@@ -9002,7 +9011,12 @@ setTimeout(function(){
     { v:336, fecha:'26 oct', titulo:'Seguridad: tareas automáticas protegidas', puntos:[
       '🔒 Las tareas automáticas (respaldos, envío de avisos, recordatorios, mantenimiento de la noche, tasas, resumen del lunes) ahora <strong>solo las ejecuta Google a su hora</strong>. Antes alguien con la dirección de la app podía dispararlas muchas veces.',
       '🛡️ El registro de accesos tiene un límite para que no lo puedan llenar de anotaciones falsas.',
-      '✅ No cambia nada de lo que ves ni de cómo trabajas.' ] }
+      '✅ No cambia nada de lo que ves ni de cómo trabajas.' ] },
+    { v:337, fecha:'26 oct', titulo:'Entrar con huella y sesiones más seguras', puntos:[
+      '👆 <strong>Entrar con huella o cara</strong> en la app instalada: después de entrar con tu PIN, la app te ofrece activarla. Luego, al abrirla o tras «Salir», tocas «👆 Entrar con huella». Tu huella nunca sale del teléfono.',
+      '🔑 <strong>El PIN sigue siendo siempre la otra opción</strong>: si la huella falla o cambias de teléfono, entras con tu PIN como siempre.',
+      '🔒 El teléfono <strong>ya no guarda tu PIN</strong>: guarda una llave de sesión que vence sola si no se usa en 30 días y se anula al cambiar el PIN.',
+      '📵 Nuevo en Mi cuenta: <strong>«Cerrar sesión en mis otros teléfonos»</strong>, por si pierdes uno o entraste en uno prestado. Ahí también activas o desactivas la huella.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15402,6 +15416,8 @@ setTimeout(function(){
             <div class="ag-row" style="gap:6px;margin-top:8px"><button type="button" class="ag-btn sm ghost" id="mc2-cv-ver" style="flex:1">⬇️ Descargar</button><button type="button" class="ag-btn sm ghost" id="mc2-cv-quitar" style="flex:1;color:var(--danger)">Quitar</button></div>` : '<p class="ag-muted" style="font-size:12.5px;margin:0">Aún no has adjuntado tu currículum.</p>'}
           <label class="ag-btn ${P.cv ? 'ghost' : ''}" style="display:block;text-align:center;margin-top:8px;cursor:pointer">📎 ${P.cv ? 'Reemplazar' : 'Adjuntar'} currículum<input type="file" id="mc2-cv" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" style="display:none"/></label>
           <p class="ag-muted" style="font-size:11.5px;margin:6px 0 0">PDF, Word o foto, hasta 5 MB.</p><div id="mc2-cv-msg" style="font-size:13px;margin-top:6px"></div>`)}
+        ${seccion('👆 Entrar con huella', window.AG_WEB ? `<p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Abre la app con tu huella o tu cara en vez del PIN, en este teléfono. Tu huella nunca sale del teléfono. El PIN sigue sirviendo siempre.</p><div id="mc2-huella" class="ag-muted" style="font-size:13px">Revisando este teléfono…</div>` : '<p class="ag-muted" style="font-size:12.5px;margin:0">Se usa desde la <strong>app instalada</strong> (la versión web de Aguamiel). En este enlace de Google el teléfono no permite usar la huella.</p>')}
+        ${seccion('🔒 Mis sesiones', '<p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Si perdiste un teléfono o entraste en uno prestado, cierra tu sesión en todos los demás. En este te quedas.</p><button type="button" class="ag-btn sm ghost" id="mc2-otras" style="width:100%">🔒 Cerrar sesión en mis otros teléfonos</button><div id="mc2-otras-msg" style="font-size:13px;margin-top:6px"></div>')}
         ${seccion('🔑 Cambiar mi PIN', `<div class="ag-row" style="gap:6px"><input id="mc2-pin" maxlength="4" inputmode="numeric" placeholder="Nuevo PIN (4 dígitos)" autocomplete="off"/><button type="button" class="ag-btn sm" id="mc2-pin-ok" style="flex:0 0 auto">Guardar</button></div><div id="mc2-pin-msg" style="font-size:13px;margin-top:6px"></div>`)}`;
       const $ = s=>fsb.querySelector(s), val = id=>$('#mc2-' + id).value;
       const nota = (sel, t, ok)=>{ const m = $(sel); m.style.color = ok === false ? 'var(--danger)' : '#1d6b35'; m.innerHTML = t; };
@@ -15435,11 +15451,19 @@ setTimeout(function(){
       };
       const bv = $('#mc2-cv-ver'); if(bv) bv.onclick = ()=>bajarCV(state.user.id, bv);
       const bq = $('#mc2-cv-quitar'); if(bq) bq.onclick = async ()=>{ if(!confirm('¿Quitar tu currículum?')) return; bq.disabled = true; try{ await gs('quitarMiCV', auth()); P.cv = null; pintar(); }catch(e){ bq.disabled = false; alert(e && e.message ? e.message : e); } };
+      const bOtras = $('#mc2-otras'); if(bOtras) bOtras.onclick = async ()=>{ if(!confirm('¿Cerrar tu sesión en todos tus otros teléfonos? Tendrán que entrar de nuevo con tu PIN.')) return; bOtras.disabled = true;
+        try{ const rr = await gs('cerrarMisOtrasSesiones', auth()); nota('#mc2-otras-msg', '✅ Listo: ' + (rr.cerradas ? 'se cerró tu sesión en ' + rr.cerradas + ' teléfono' + (rr.cerradas === 1 ? '' : 's') + '.' : 'no tenías sesiones abiertas en otros teléfonos.')); }
+        catch(e){ nota('#mc2-otras-msg', 'No se pudo: ' + esc(e && e.message ? e.message : e), false); } bOtras.disabled = false; };
+      const hu = $('#mc2-huella'); if(hu){ const pintarH = async ()=>{ const ok = await soportaHuella(), ya = huellaDe(state.user.id);
+          hu.innerHTML = !ok ? 'Este teléfono no tiene huella o lector de cara disponible para el navegador.' : ya ? '✅ Activada en este teléfono. <button type="button" class="ag-btn sm ghost" id="mc2-hu-off" style="margin-left:6px">Desactivar</button>' : '<button type="button" class="ag-btn sm" id="mc2-hu-on" style="width:100%">👆 Activar en este teléfono</button>';
+          const on = $('#mc2-hu-on'); if(on) on.onclick = async ()=>{ if(await registrarHuella(state.user)){ toast('👆 Listo: la próxima vez entras con tu huella.'); } pintarH(); };
+          const off = $('#mc2-hu-off'); if(off) off.onclick = ()=>{ lsDel('ag_huella_' + state.user.id); toast('Huella desactivada en este teléfono.'); pintarH(); }; };
+        pintarH(); }
       $('#mc2-pin-ok').onclick = async ev=>{
         const pin = val('pin').trim();
         if(!/^\d{4}$/.test(pin)){ nota('#mc2-pin-msg', 'El PIN debe tener 4 dígitos.', false); return; }
         ev.target.disabled = true;
-        try{ await gs('cambiarMiPin', pin, auth()); state.user.pin = pin; guardarSesion(state.user); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
+        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); }); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
         catch(e){ nota('#mc2-pin-msg', 'No se pudo actualizar: ' + esc(e && e.message ? e.message : e), false); }
         ev.target.disabled = false;
       };
@@ -16010,8 +16034,8 @@ setTimeout(function(){
       const pin = prompt('Nuevo PIN de 4 dígitos para ' + s.nombre + ':', '');
       if(pin===null) return;
       if(!/^\d{4}$/.test(pin.trim())){ alert('El PIN debe tener exactamente 4 dígitos.'); return; }
-      try{ await gs('updateStaffPin', s.id, pin.trim(), auth()); }catch(e){ alert('No se pudo cambiar el PIN: ' + (e.message||e)); return; }
-      if(s.id===state.user.id){ state.user.pin = pin.trim(); guardarSesion(state.user); }
+      let rp = null; try{ rp = await gs('updateStaffPin', s.id, pin.trim(), auth()); }catch(e){ alert('No se pudo cambiar el PIN: ' + (e.message||e)); return; }
+      if(s.id===state.user.id){ state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin.trim(); guardarSesion(state.user); }
       toast('PIN de ' + s.nombre.split(' ')[0] + ' actualizado.');
       render();
     });
@@ -16203,6 +16227,44 @@ setTimeout(function(){
       reservaActual: state.reservaActual || null, reservaPersona: state.reservaPersona || null };
   }
   function claveVista(){ const n = navActual(); if(n.rosita) delete n.rosita.filtro; if(n.ag) delete n.ag.filtro; delete n.reservaActual; delete n.reservaPersona; return JSON.stringify(n); }
+  // 👆 Huella / cara (WebAuthn con el lector del propio teléfono). Solo en la app instalada (web): dentro del enlace de Google el
+  // navegador no lo permite. La huella nunca sale del teléfono: él solo confirma «es su dueño» y entonces se usa la llave guardada.
+  function esLlaveLocal(p){ return /^T:/.test(String(p || '')); }
+  function huellaDe(id){ return !!(window.AG_WEB && id && lsGet('ag_huella_' + id)); }
+  let _soportaHuella = null;
+  async function soportaHuella(){
+    if(_soportaHuella !== null) return _soportaHuella;
+    try{ _soportaHuella = !!(window.AG_WEB && window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ _soportaHuella = false; }
+    return _soportaHuella;
+  }
+  const b64u = buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const deB64u = t=>Uint8Array.from(atob(String(t).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(t).length + 3) % 4)), c=>c.charCodeAt(0));
+  async function registrarHuella(u){
+    try{
+      const cred = await navigator.credentials.create({ publicKey:{ challenge:crypto.getRandomValues(new Uint8Array(32)), rp:{ name:'Aguamiel' },
+        user:{ id:new TextEncoder().encode(String(u.id)).slice(0, 64), name:String(u.nombre || 'Aguamiel'), displayName:String(u.nombre || 'Aguamiel') },
+        pubKeyCredParams:[{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }], timeout:60000,
+        authenticatorSelection:{ authenticatorAttachment:'platform', userVerification:'required', residentKey:'discouraged' } } });
+      if(!cred) return false;
+      lsSet('ag_huella_' + u.id, b64u(cred.rawId)); return true;
+    }catch(e){ if(!/NotAllowed|Abort/i.test(String(e && e.name))) alert('No se pudo activar la huella: ' + (e && e.message ? e.message : e)); return false; }
+  }
+  async function verificarHuella(id){
+    const cid = lsGet('ag_huella_' + id); if(!cid) return false;
+    try{ const a = await navigator.credentials.get({ publicKey:{ challenge:crypto.getRandomValues(new Uint8Array(32)), timeout:60000, userVerification:'required',
+        allowCredentials:[{ type:'public-key', id:deB64u(cid), transports:['internal'] }] } });
+      return !!(a && a.response && a.response.authenticatorData);
+    }catch(e){ return false; }
+  }
+  // Después de entrar con el PIN en la app instalada: se ofrece una vez (o de nuevo pasados 30 días si dijo «Ahora no»).
+  async function ofrecerHuella(u){
+    if(!u || state.prueba || huellaDe(u.id) || !(await soportaHuella())) return;
+    const k = 'ag_huella_no_' + u.id, no = lsGet(k); if(no && Date.now() - no < 30 * 86400000) return;
+    if(!confirm('👆 ¿Quieres entrar con tu huella (o tu cara) la próxima vez?\n\nTu huella no sale del teléfono. El PIN sigue sirviendo siempre.')){ lsSet(k, Date.now()); return; }
+    if(await registrarHuella(u)) toast('👆 Listo: la próxima vez entras con tu huella.'); else lsSet(k, Date.now());
+  }
+  // Nombre corto del equipo para la lista de sesiones del servidor (no identifica a la persona).
+  function nombreDispositivo(){ const ua = navigator.userAgent || ''; return (/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Otro') + (window.AG_WEB ? ' · app' : ' · Google'); }
   function guardarSesion(who){ if(state.prueba) return; lsSet(CLAVE_SESION, { id:String(who.id), pin:String(who.pin), t:Date.now(), nav:null }); }
   function borrarSesion(){ lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); state.desdeCopia = 0; avisoCopia(0); }
   // 📴 Si el servidor dice que la sesión ya no vale (PIN cambiado, persona desactivada), este teléfono olvida sus datos y su PIN guardado.
@@ -16214,15 +16276,17 @@ setTimeout(function(){
   // Devuelve true si la sesión sigue valiendo.
   async function reanudarSesion(sinNav){
     const ses = lsGet(CLAVE_SESION); if(!ses) return false;
-    if(Date.now() - (ses.t||0) > horasSes()*3600000){ borrarSesion(); return false; }
+    if(Date.now() - (ses.t||0) > horasSes()*3600000){ if(huellaDe(ses.id) && esLlaveLocal(ses.pin)){ state.loginUserId = String(ses.id); return false; } borrarSesion(); return false; }
     let res = null;
-    try{ res = await gs('loginStaff', ses.id, ses.pin); }
+    try{ res = await gs('loginStaff', ses.id, ses.pin, nombreDispositivo()); }
     catch(e){ if(esErrorDeSesion(e)){ olvidarSinRed(ses.id); borrarSesion(); return false; }
       if(window.AG_WEB && e && e.sinRed && state.desdeCopia && state.user) return true;   // 📴 sin señal: se sigue con la sesión guardada en este teléfono
       throw e; }
     if(!res || !res.activo){ borrarSesion(); return false; }
-    const who = Object.assign({}, res, { pin: String(ses.pin) });
-    if(window.AG_WEB) pinHuella(ses.id, ses.pin).then(h=>{ if(h) lsSet('ag_pinok_' + ses.id, h); });
+    // Una sesión vieja con el PIN guardado pasa sola a llave: desde aquí el teléfono ya no guarda el PIN.
+    const who = Object.assign({}, res, { pin: res.tok ? 'T:' + res.tok : String(ses.pin) }); delete who.tok;
+    if(who.pin !== String(ses.pin)){ ses.pin = who.pin; lsSet(CLAVE_SESION, ses); }
+    if(window.AG_WEB && !esLlaveLocal(ses.pin)) pinHuella(ses.id, ses.pin).then(h=>{ if(h) lsSet('ag_pinok_' + ses.id, h); });
     state.user = who; state.view = 'app';
     // Se anota la reapertura como mucho una vez por hora en este equipo.
     const ua = lsGet('aguamiel_ultreg'); if(!ua || ua.id!==String(who.id) || Date.now() - ua.t > 3600000){ lsSet('aguamiel_ultreg', { id:String(who.id), t:Date.now() }); setTimeout(()=>registrarAccesoApp('reabrio', who), 1500); }
