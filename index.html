@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v339' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v340' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1984,7 +1984,7 @@ setTimeout(function(){
         <label class="f">¿Quién eres?</label>
         <select id="ag-who">${activos.map(s=>`<option value="${s.id}" ${s.id===state.loginUserId?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select>
         ${(()=>{ const sh = lsGet(CLAVE_SESION); return sh && esLlaveLocal(sh.pin) && huellaDe(sh.id) && String(sh.id) === String(state.loginUserId || sh.id) ? `<button type="button" id="ag-huella" style="display:block;width:100%;margin:10px 0 4px;padding:14px;border-radius:14px;border:2px solid var(--teal);background:var(--teal-l);color:var(--teal-d);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">👆 Entrar con huella</button><p class="ag-muted" style="text-align:center;font-size:12px;margin:0 0 6px">o escribe tu PIN</p>` : ''; })()}
-        <div class="ag-dots">${[0,1,2,3].map(i=>`<div class="ag-dot ${i<state.pinBuf.length?'on':''}"></div>`).join('')}</div>
+        <div class="ag-dots">${(()=>{ const w = activos.find(s=>s.id===state.loginUserId), L = (w && w.pinLen) || 0; return Array.from({ length:L || Math.max(4, state.pinBuf.length) }, (x, i)=>`<div class="ag-dot ${i<state.pinBuf.length?'on':''}"></div>`).join(''); })()}</div>
         <div class="ag-pinpad">
           ${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-num="${n}">${n}</button>`).join('')}
           <button data-num="del">⌫</button><button data-num="0">0</button><button data-num="ok">✓</button>
@@ -2037,9 +2037,13 @@ setTimeout(function(){
       const n = b.dataset.num;
       if(n==='del') state.pinBuf = state.pinBuf.slice(0,-1);
       else if(n==='ok'){ if(state.pinBuf.length) tryLogin(); return; }
-      else if(state.pinBuf.length<4){
-        state.pinBuf += n;
-        if(state.pinBuf.length===4){ tryLogin(); return; }
+      else{
+        // PIN de 4 a 6 dígitos (administración: 6). Se entra solo al completar su largo; con una lista vieja sin ese dato, con ✓.
+        const w = state.staff.find(s=>s.id===state.loginUserId), L = (w && w.pinLen) || 0;
+        if(state.pinBuf.length < (L || 6)){
+          state.pinBuf += n;
+          if(L && state.pinBuf.length===L){ tryLogin(); return; }
+        }
       }
       render();
     });
@@ -2798,7 +2802,7 @@ setTimeout(function(){
   const BADGE_DISP = { ok:'✅ disponible', parcial:'🟡 solo parte del horario', fuera:'⚪ fuera de su horario', sin:'🚫 sin disponibilidad', nada:'❔ no indicó disponibilidad' };
   // ---------- 📖 Manual de uso dentro de la app (fisioterapeutas: el suyo; administración: los dos) ----------
   const MANUAL_FISIO = [
-    ['🔑 Entrar a la app', '<p>Abre el enlace de la app (guárdalo en la pantalla de inicio del teléfono), elige tu nombre en «¿Quién eres?» y escribe tu PIN de 4 dígitos. Si te equivocas 5 veces, espera 5 minutos. Si olvidaste el PIN, pídele uno nuevo a la administración.</p><p>Verás: <strong>Inicio, Clientes, Nueva ficha, Agenda, Rosita y Disponible</strong>.</p>'],
+    ['🔑 Entrar a la app', '<p>Abre el enlace de la app (guárdalo en la pantalla de inicio del teléfono), elige tu nombre en «¿Quién eres?» y escribe tu PIN (de 4 a 6 dígitos; la administración usa 6). Si te equivocas 5 veces, la app te bloquea un rato, y cada vez más tiempo si vuelve a pasar. Si olvidaste el PIN, pídele uno nuevo a la administración.</p><p>Verás: <strong>Inicio, Clientes, Nueva ficha, Agenda, Rosita y Disponible</strong>.</p>'],
     ['✈️ Telegram: tus avisos', '<p>Todos tus avisos llegan por Telegram y muchos traen botones para responder sin entrar a la app.</p><ol><li>Instala Telegram.</li><li>En la app: <strong>Inicio → ⚙️ Mi cuenta → ✈️ Mi Telegram → Abrir Telegram</strong>.</li><li>En Telegram toca <strong>Iniciar</strong>.</li><li>Vuelve a la app y toca <strong>Ya lo hice</strong>.</li></ol><p>Te llegan: nueva atención asignada (✅ Confirmar), pedidos de cobertura (Sí puedo / No puedo), cliente que confirmó, aviso 15 minutos antes del final, «¿Terminó la sesión?» y Aguamiel Tips cada 5 días.</p>'],
     ['🕒 Tu disponibilidad semanal', '<ol><li>Pestaña <strong>Disponible</strong>.</li><li>Marca los días y horas en que puedes atender la semana siguiente (o «No tengo disponibilidad»).</li><li>Guarda. El punto rojo de la pestaña desaparece.</li></ol><p>Hazlo antes del domingo. Si te asignan una cita fuera de tu horario, te llega como pedido de cobertura.</p>'],
     ['📅 Tus citas', '<ul><li><strong>Confirmar</strong>: toca ✅ Confirmar en el aviso de Telegram o en la app (Inicio o Agenda).</li><li><strong>Coberturas</strong>: si otra compañera no puede, te llega «¿Puedes cubrir esta cita?». La primera que acepta queda asignada.</li><li><strong>Agenda</strong>: ves solo tus citas; en reservas de varias personas, solo las que te tocan.</li><li><strong>📍 Hoy tienes cita</strong> (Inicio): el día de la atención ves el teléfono del cliente hasta que cierras su ficha.</li></ul>'],
@@ -9036,7 +9040,11 @@ setTimeout(function(){
       '🔐 La copia de datos que el teléfono guarda (para abrir rápido y trabajar sin señal) ahora va <strong>cifrada</strong>. Si alguien toma el teléfono, no puede leer clientes ni fichas sin tu PIN o tu huella.',
       '🚪 Al <strong>salir</strong> o al vencer la sesión, el teléfono borra la llave: la copia queda cerrada hasta que vuelvas a entrar.',
       '📴 <strong>Sin señal</strong> sigues pudiendo entrar con tu PIN y ver lo guardado.',
-      '🧹 Lo guardado que lleve <strong>más de 30 días sin usarse</strong> se borra solo.' ] }
+      '🧹 Lo guardado que lleve <strong>más de 30 días sin usarse</strong> se borra solo.' ] },
+    { v:340, fecha:'26 oct', titulo:'PIN más seguro', puntos:[
+      '🔒 La <strong>administración</strong> entra ahora con PIN de <strong>6 dígitos</strong>: al abrir la app se pide cambiarlo una sola vez. El resto del equipo puede usar de 4 a 6.',
+      '⏳ Tras 5 intentos fallidos el usuario se bloquea <strong>cada vez más tiempo</strong> (5 min, 30 min, 2 h, 6 h) y César Zamora recibe el aviso por Telegram. Quien ya está dentro o usa huella no queda bloqueado.',
+      '📄 Los presupuestos y recibos enviados por WhatsApp dejan de abrirse con el enlace a los <strong>30 días</strong>.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15438,7 +15446,7 @@ setTimeout(function(){
           <p class="ag-muted" style="font-size:11.5px;margin:6px 0 0">PDF, Word o foto, hasta 5 MB.</p><div id="mc2-cv-msg" style="font-size:13px;margin-top:6px"></div>`)}
         ${seccion('👆 Entrar con huella', window.AG_WEB ? `<p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Abre la app con tu huella o tu cara en vez del PIN, en este teléfono. Tu huella nunca sale del teléfono. El PIN sigue sirviendo siempre.</p><div id="mc2-huella" class="ag-muted" style="font-size:13px">Revisando este teléfono…</div>` : '<p class="ag-muted" style="font-size:12.5px;margin:0">Se usa desde la <strong>app instalada</strong> (la versión web de Aguamiel). En este enlace de Google el teléfono no permite usar la huella.</p>')}
         ${seccion('🔒 Mis sesiones', '<p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Si perdiste un teléfono o entraste en uno prestado, cierra tu sesión en todos los demás. En este te quedas.</p><button type="button" class="ag-btn sm ghost" id="mc2-otras" style="width:100%">🔒 Cerrar sesión en mis otros teléfonos</button><div id="mc2-otras-msg" style="font-size:13px;margin-top:6px"></div>')}
-        ${seccion('🔑 Cambiar mi PIN', `<div class="ag-row" style="gap:6px"><input id="mc2-pin" maxlength="4" inputmode="numeric" placeholder="Nuevo PIN (4 dígitos)" autocomplete="off"/><button type="button" class="ag-btn sm" id="mc2-pin-ok" style="flex:0 0 auto">Guardar</button></div><div id="mc2-pin-msg" style="font-size:13px;margin-top:6px"></div>`)}`;
+        ${seccion('🔑 Cambiar mi PIN', `<div class="ag-row" style="gap:6px"><input id="mc2-pin" maxlength="6" inputmode="numeric" placeholder="${state.user && state.user.admin ? 'Nuevo PIN (6 dígitos)' : 'Nuevo PIN (4 a 6 dígitos)'}" autocomplete="off"/><button type="button" class="ag-btn sm" id="mc2-pin-ok" style="flex:0 0 auto">Guardar</button></div><div id="mc2-pin-msg" style="font-size:13px;margin-top:6px"></div>`)}`;
       const $ = s=>fsb.querySelector(s), val = id=>$('#mc2-' + id).value;
       const nota = (sel, t, ok)=>{ const m = $(sel); m.style.color = ok === false ? 'var(--danger)' : '#1d6b35'; m.innerHTML = t; };
       $('#mc2-tg').onclick = ()=>abrirMiTelegram();
@@ -15481,9 +15489,10 @@ setTimeout(function(){
         pintarH(); }
       $('#mc2-pin-ok').onclick = async ev=>{
         const pin = val('pin').trim();
-        if(!/^\d{4}$/.test(pin)){ nota('#mc2-pin-msg', 'El PIN debe tener 4 dígitos.', false); return; }
+        const adm = !!(state.user && state.user.admin);
+        if(!pinOkLocal(pin, adm)){ nota('#mc2-pin-msg', pinReglaTxt(adm), false); return; }
         ev.target.disabled = true;
-        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); }); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
+        try{ const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user); if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); }); pinLargoListo(pin); $('#mc2-pin').value = ''; nota('#mc2-pin-msg', '✅ PIN actualizado. Úsalo la próxima vez que entres.'); }
         catch(e){ nota('#mc2-pin-msg', 'No se pudo actualizar: ' + esc(e && e.message ? e.message : e), false); }
         ev.target.disabled = false;
       };
@@ -15636,7 +15645,7 @@ setTimeout(function(){
       <div class="ag-card" style="${SV === 'add' ? '' : 'display:none'}">
         <h3>➕ Agregar personal</h3>
         <label class="f">Nombre</label><input id="ad-nombre"/>
-        <label class="f">PIN (4 dígitos)</label><input id="ad-pin" maxlength="4" inputmode="numeric"/>
+        <label class="f">PIN (4 a 6 dígitos · administración: 6)</label><input id="ad-pin" maxlength="6" inputmode="numeric"/>
         <label class="f">Cargo</label>
         <select id="ad-cargo">${CARGOS.map(c=>`<option>${c}</option>`).join('')}<option value="__otro__">Otro…</option></select>
         <input id="ad-cargo-otro" placeholder="Especifica el cargo" style="display:none;margin-top:6px"/>
@@ -15962,8 +15971,8 @@ setTimeout(function(){
     };
     body.querySelector('#ad-save').onclick = async ()=>{
       const nombre = val('ad-nombre').trim(); const pin = val('ad-pin').trim();
-      if(!nombre || pin.length!==4 || !/^\d{4}$/.test(pin)){ alert('Ingresa un nombre y un PIN de 4 dígitos'); return; }
       const admin = body.querySelector('#ad-admin').checked;
+      if(!nombre || !pinOkLocal(pin, admin)){ alert('Ingresa un nombre. ' + pinReglaTxt(admin)); return; }
       const cargoSel = val('ad-cargo');
       const cargo = cargoSel==='__otro__' ? val('ad-cargo-otro').trim() || 'Fisioterapeuta' : cargoSel;
       const btn = body.querySelector('#ad-save'); btn.disabled = true; btn.textContent = 'Agregando…';
@@ -16051,11 +16060,11 @@ setTimeout(function(){
     });
     body.querySelectorAll('[data-repin]').forEach(b=>b.onclick= async ()=>{
       const s = state.staff.find(s=>s.id===b.dataset.repin);
-      const pin = prompt('Nuevo PIN de 4 dígitos para ' + s.nombre + ':', '');
+      const pin = prompt('Nuevo PIN para ' + s.nombre + (s.admin ? ' (6 dígitos):' : ' (4 a 6 dígitos):'), '');
       if(pin===null) return;
-      if(!/^\d{4}$/.test(pin.trim())){ alert('El PIN debe tener exactamente 4 dígitos.'); return; }
+      if(!pinOkLocal(pin.trim(), s.admin)){ alert(pinReglaTxt(s.admin)); return; }
       let rp = null; try{ rp = await gs('updateStaffPin', s.id, pin.trim(), auth()); }catch(e){ alert('No se pudo cambiar el PIN: ' + (e.message||e)); return; }
-      if(s.id===state.user.id){ state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin.trim(); guardarSesion(state.user); if(rp && rp.ck) ckPoner(s.id, rp.ck, pin.trim()); }
+      if(s.id===state.user.id){ state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin.trim(); guardarSesion(state.user); if(rp && rp.ck) ckPoner(s.id, rp.ck, pin.trim()); pinLargoListo(pin.trim()); }
       toast('PIN de ' + s.nombre.split(' ')[0] + ' actualizado.');
       render();
     });
@@ -16219,7 +16228,7 @@ setTimeout(function(){
   async function ckPoner(id, hex, pin){
     id = String(id || ''); if(!id || !/^[0-9a-f]{64}$/.test(String(hex || ''))) return;
     lsSet('ag_ck_' + id, hex); delete CK_MEM[id];
-    if(pin && /^\d{4}$/.test(String(pin)) && hayCripto()){ try{ const sal = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    if(pin && /^\d{4,6}$/.test(String(pin)) && hayCripto()){ try{ const sal = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
       const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, await claveDePin(id, pin, sal), new TextEncoder().encode(hex));
       lsSet('ag_ckp_' + id, { s:abB64(sal), iv:abB64(iv), c:abB64(ct) }); }catch(e){} }
   }
@@ -16285,6 +16294,7 @@ setTimeout(function(){
     state.opcAgotadas = data.opcAgotadas || []; state.opcComunes = data.opcComunes || []; state.opcUnifAt = data.opcUnifAt || ''; state.pedidos = data.pedidos || []; state.paginasImagen = data.paginasImagen || []; state.accesos = data.accesos || [];
     state.tasas = data.tasas || state.tasas || null; if(data.telHoy) state.telHoy = data.telHoy; if(data.atiendeHoy) state.atiendeHoy = data.atiendeHoy; state.metodosPago = data.metodosPago || []; state.menuNoDisp = data.menuNoDisponible || [];
     state.cumplesEnv = data.cumplesEnviados || {}; state.cumpleEq = data.cumpleEquipo || [];
+    setTimeout(pedirPinLargo, 400);
   }
   // Huella de los datos para saber si algo cambió. Antes solo miraba 1 de cada 7 caracteres y no notaba cambios pequeños
   // (por ejemplo un número o una letra distinta con el mismo largo); ahora revisa todos.
@@ -16301,6 +16311,37 @@ setTimeout(function(){
   // 👆 Huella / cara (WebAuthn con el lector del propio teléfono). Solo en la app instalada (web): dentro del enlace de Google el
   // navegador no lo permite. La huella nunca sale del teléfono: él solo confirma «es su dueño» y entonces se usa la llave guardada.
   function esLlaveLocal(p){ return /^T:/.test(String(p || '')); }
+  // 🔒 Largo del PIN (v340): administración 6 dígitos; el resto del equipo de 4 a 6. El servidor vuelve a comprobarlo.
+  function pinOkLocal(pin, adm){ return (adm ? /^\d{6}$/ : /^\d{4,6}$/).test(String(pin || '')); }
+  function pinReglaTxt(adm){ return adm ? 'El PIN de un administrador debe tener 6 dígitos.' : 'El PIN debe tener de 4 a 6 dígitos.'; }
+  function pinLargoListo(pin){ const yo = (state.staff || []).find(s=>String(s.id)===String(state.user && state.user.id)); if(yo){ yo.pinLen = String(pin).length; if(yo.pinLen >= 6) yo.pinCorto = false; } if(String(pin).length >= 6 && state.user) state.user.pinCorto = false; }
+  // Administración que todavía entra con PIN de 4 dígitos (de antes de la v340): se le pide uno de 6 antes de seguir.
+  function pedirPinLargo(){
+    const yo = state.user && !state.user.prueba && (state.staff || []).find(s=>String(s.id)===String(state.user.id));
+    if(!yo || !yo.pinCorto || navigator.onLine === false || document.getElementById('ag-pinlargo')) return;
+    const el = document.createElement('div'); el.id = 'ag-pinlargo';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+    el.innerHTML = `<div class="ag-card" style="max-width:360px;width:100%;margin:0">
+      <h3>🔒 Nuevo PIN de 6 dígitos</h3>
+      <p class="ag-muted" style="font-size:13px">Por seguridad, la administración ahora entra con un PIN de <strong>6 dígitos</strong>. Elige uno nuevo (sin fechas ni números seguidos).</p>
+      <input id="pl-pin" type="password" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="Nuevo PIN (6 dígitos)"/>
+      <input id="pl-pin2" type="password" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="Repite el PIN" style="margin-top:6px"/>
+      <div id="pl-msg" class="ag-err" style="font-size:13px;margin-top:6px"></div>
+      <button type="button" class="ag-btn" id="pl-ok" style="width:100%;margin-top:8px">💾 Guardar PIN</button></div>`;
+    document.body.appendChild(el);
+    el.querySelector('#pl-ok').onclick = async ev=>{
+      const pin = el.querySelector('#pl-pin').value.trim(), msg = el.querySelector('#pl-msg');
+      if(!pinOkLocal(pin, true)){ msg.textContent = pinReglaTxt(true); return; }
+      if(pin !== el.querySelector('#pl-pin2').value.trim()){ msg.textContent = 'Los dos PIN no son iguales.'; return; }
+      if(/^(\d)\1{5}$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin)){ msg.textContent = 'Ese PIN es muy fácil de adivinar. Elige otro.'; return; }
+      ev.target.disabled = true; msg.textContent = '';
+      try{
+        const rp = await gs('cambiarMiPin', pin, auth()); state.user.pin = rp && rp.tok ? 'T:' + rp.tok : pin; guardarSesion(state.user);
+        if(rp && rp.ck) ckPoner(state.user.id, rp.ck, pin); if(window.AG_WEB) pinHuella(state.user.id, pin).then(h=>{ if(h) lsSet('ag_pinok_' + state.user.id, h); });
+        pinLargoListo(pin); el.remove(); toast('✅ PIN de 6 dígitos guardado. Úsalo la próxima vez que entres.');
+      }catch(e){ msg.textContent = 'No se pudo guardar: ' + (e && e.message ? e.message : e); ev.target.disabled = false; }
+    };
+  }
   function huellaDe(id){ return !!(window.AG_WEB && id && lsGet('ag_huella_' + id)); }
   let _soportaHuella = null;
   async function soportaHuella(){
