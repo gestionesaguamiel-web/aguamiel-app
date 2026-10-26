@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v346' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v347' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -4700,7 +4700,8 @@ setTimeout(function(){
   window.agTasaFecha = inp=>{ const w = inp.closest('[data-compra]'), t = w && w.querySelector('[id$="-tasa"]'), f = inp.value; if(!t || !/^\d{4}-\d{2}-\d{2}$/.test(f)) return;
     gs('getTasaDelDia', f, auth()).then(x=>{ if(x && x.bcv > 0 && inp.value === f){ t.value = numVE(x.bcv); const c = w.querySelector('[id$="-costo"]'); if(c) c.dispatchEvent(new Event('input')); } }).catch(()=>{}); };
   // Antes de registrar: comprueba que el monto tenga sentido (evita escribir bolívares como si fueran dólares). Devuelve false si hay que detenerse.
-  function abonoValido(montoTxt, mon, totalRef){
+  function abonoValido(montoTxt, mon, totalRef, saldo, pct, metodo){
+    if(!abonoNoExcede(montoTxt, mon, saldo, pct, metodo)) return false;
     if(mon.moneda === 'Bs'){
       if(!(numEs(montoTxt) > 0)){ alert('Escribe el monto del abono en bolívares.'); return false; }
       if(!(mon.tasa > 0)){ alert('Escribe la tasa BCV del día para convertir los bolívares a dólares.'); return false; }
@@ -4710,6 +4711,14 @@ setTimeout(function(){
     if(!(m > 0)){ alert('Escribe el monto del abono.'); return false; }
     if(totalRef > 0 && m > Math.max(totalRef * 3, 500)) return confirm('Escribiste ' + dinero(m) + ' en dólares, que es muchísimo más que el total (' + dinero(totalRef) + ').\n\n¿Seguro que son dólares? Si el pago fue en bolívares, toca «Cancelar» y elige «Bolívares (Bs)».');
     return true;
+  }
+  // 💵 v347: un abono mayor que lo que falta por pagar se confirma antes (quedaría saldo a favor o es un error de tipeo).
+  function abonoNoExcede(montoTxt, mon, saldo, pct, metodo){
+    if(saldo === undefined || saldo === null || saldo === '' || !(Number(saldo) >= 0)) return true; saldo = Number(saldo);
+    const usd = mon.moneda === 'Bs' ? (mon.tasa > 0 ? numEs(montoTxt) / mon.tasa : 0) : numPrecio(montoTxt);
+    const cubre = usd * factorCuenta(metodo, pct);
+    if(!(usd > 0) || cubre <= saldo + 0.5) return true;
+    return confirm('Este abono cubre ' + dinero(Math.round(cubre * 100) / 100) + ' y solo faltan ' + dinero(saldo) + ' por pagar.\n\n¿Registrarlo igual? (quedaría ' + dinero(Math.round((cubre - saldo) * 100) / 100) + ' a favor del cliente)');
   }
   // Para los cuadros que piden un monto «en dólares» al verificar un pago: avisa si el número es absurdamente mayor a lo esperado (p. ej. bolívares escritos como dólares).
   function montoRazonable(m, ref){
@@ -4915,7 +4924,10 @@ setTimeout(function(){
     if(esCocina()){ const hoy = hoyISO(); return t.filter(p=>p.estado!=='Cancelada' && (p.estado==='Abierta' || pedidoDeHoy(p) || (p.fechaEntrega||'') >= hoy)); }
     return t.filter(p=>pedidoDeHoy(p) && participoEn(p));
   }
-  function paraCocinaHoy(p){ const hoy = hoyISO(); const f = p.fechaEntrega || fechaLocal(p.createdAt); return p.estado!=='Cancelada' && f <= hoy && (f===hoy || p.estado==='Abierta'); }
+  // v347: aviso de choque de horario después de posponer, transferir o cambiar profesionales (igual que al guardar la reserva).
+  function avisarChoques(res){ const ch = (res && res.choques) || []; if(ch.length) setTimeout(()=>alert('⚠️ Ojo: posible choque de horario\n\n' + ch.join('\n') + '\n\nEl cambio quedó guardado. Si hace falta, cambia la hora o la profesional.'), 700); }
+  // v347: una orden abierta de días anteriores sigue en cocina solo 2 días (luego es un olvido de cierre, no algo por preparar).
+  function paraCocinaHoy(p){ const hoy = hoyISO(); const f = p.fechaEntrega || fechaLocal(p.createdAt); const tope = fechaLocal(new Date(Date.now() - 2*864e5).toISOString()); return p.estado!=='Cancelada' && f <= hoy && (f===hoy || (p.estado==='Abierta' && f >= tope)); }
   function renderRosita(body){
     if(!state.rosita) state.rosita = { vista:'lista', filtro: esCocina() ? 'cocina' : 'abiertas', editId:null };
     const R = state.rosita;
@@ -7770,7 +7782,11 @@ setTimeout(function(){
     return state._agendaPromesa;
   }
   function nombreStaff(id){ const s = state.staff.find(x=>String(x.id)===String(id)); return s ? s.nombre : '—'; }
-  function saldoReserva(r){ const pag = (r.pagos||[]).reduce((t,p)=>t+(Number(p.monto)||0),0); const cub = (r.pagos||[]).reduce((t,p)=>t+((p.cubre !== undefined && p.cubre !== null && p.cubre !== '') ? (Number(p.cubre)||0) : (Number(p.monto)||0)),0); const extra = (r.cargos||[]).reduce((t,c)=>t+(Number(c.monto)||0),0); const total = Math.round(((Number(r.montoTotal)||0) + extra)*100)/100; return { pagado: pag, cubierto: cub, extra, total, saldo: Math.round((total - cub)*100)/100 }; }
+  function saldoReserva(r){ const pag = (r.pagos||[]).reduce((t,p)=>t+(Number(p.monto)||0),0); const cub = (r.pagos||[]).reduce((t,p)=>t+((p.cubre !== undefined && p.cubre !== null && p.cubre !== '') ? (Number(p.cubre)||0) : (Number(p.monto)||0)),0); const extra = (r.cargos||[]).reduce((t,c)=>t+(Number(c.monto)||0),0); const total = Math.round(((Number(r.montoTotal)||0) + extra)*100)/100;
+    // v347: con el precio especial perdido (algún abono en Bs), lo de Rosita se lleva a la escala de los abonos (no tenía rebaja).
+    const pct = Number(r.pagoPct) || 0, perdio = pct > 0 && (r.pagos||[]).some(p=>String(p.moneda||'') === 'Bs' || factorCuenta(p.metodo, pct) < 1);
+    const totalCub = perdio ? Math.round(((Number(r.montoTotal)||0) + extra * (1 - pct / 100))*100)/100 : total;
+    return { pagado: pag, cubierto: cub, extra, total, saldo: Math.round((totalCub - cub)*100)/100 }; }
   // 🕒 v343: el día en línea de tiempo: una columna por profesional (y «Sin asignar»), los huecos libres a la vista y una línea roja en la hora actual.
   function lineaTiempoHTML(A){
     const hoy = hoyISO(), dia = /^\d{4}-\d{2}-\d{2}$/.test(String(A.diaLinea || '')) ? A.diaLinea : hoy;
@@ -8062,7 +8078,7 @@ setTimeout(function(){
       const nom = nombreStaff(quien);
       if(!confirm('¿Pasarle esta cita a ' + nom + '? Dejará de aparecer en tus citas.')) return;
       if(b.disabled) return; b.disabled = true; b.textContent = 'Transfiriendo…';
-      try{ const res = await gs('transferirCitaProfesional', id, quien, nota, auth()); actualizar(res, 'Cita transferida a ' + nom); }
+      try{ const res = await gs('transferirCitaProfesional', id, quien, nota, auth()); actualizar(res, 'Cita transferida a ' + nom); avisarChoques(res); }
       catch(e){ b.disabled = false; b.textContent = 'Transferir y avisar'; alert(e.message || 'No se pudo transferir. Intenta de nuevo.'); }
     });
     body.querySelectorAll('[data-cita-avisook]').forEach(b=>b.onclick = ()=>{ state.citaAviso = null; repintar(); });
@@ -8499,7 +8515,7 @@ setTimeout(function(){
         if(!ids.length){ alert('Marca a la(s) profesional(es) que están en planta.'); return; }
         ev.target.disabled = true; ev.target.textContent = 'Asignando…';
         try{ const res = await gs('asignarEnPlanta', id, ids, auth()); if(r) Object.assign(r, res); if(res.fichaActualizada) actualizarFichaLocal(res.fichaActualizada);
-          toast('🏠 Asignada en planta a ' + ids.map(x=>nombreStaff(x).split(' ')[0]).join(' y ') + '. Ya les aparece en su sesión.'); render(); }
+          toast('🏠 Asignada en planta a ' + ids.map(x=>nombreStaff(x).split(' ')[0]).join(' y ') + '. Ya les aparece en su sesión.'); render(); avisarChoques(res); }
         catch(e){ ev.target.disabled = false; ev.target.textContent = '✅ Asignar y confirmar'; alert('No se pudo asignar: ' + (e && e.message ? e.message : e)); }
       };
     });
@@ -9450,7 +9466,14 @@ setTimeout(function(){
       '🗑️ Todo lo que se borra (clientes con sus fichas, gastos, ingresos, menú, inventario, compras, paquetes, órdenes…) queda 10 días en Admin → Papelera.',
       '🔐 Los informes y antecedentes de salud solo le llegan a quien puede ver las fichas de ese cliente.',
       '🛒 Si desmarcas una compra que se sumó al inventario, se resta lo que entró. 💵 Al borrar un abono se recalcula lo que cubre la cuenta. 🧾 Corregir un recibo cargado a una reserva actualiza lo cargado; los platos nuevos vuelven a «por preparar» en cocina.',
-      '👥 La limpieza de duplicados ya no une personas solo por el nombre: hace falta la misma cédula o el mismo teléfono.' ] }
+      '👥 La limpieza de duplicados ya no une personas solo por el nombre: hace falta la misma cédula o el mismo teléfono.' ] },
+    { v:347, fecha:'27 oct', titulo:'Cuentas que cuadran y menos sorpresas', puntos:[
+      '💵 Si un abono pasa del saldo, la app te pregunta antes de guardarlo. Los pagos en Bs que verificas desde el enlace quedan con su monto en Bs y su tasa.',
+      '🍽️ Lo de Rosita no se rebaja con el precio especial del paquete, y los cobros de Rosita cuentan el día en que se cobraron.',
+      '🚫 Cancelar una orden abierta saca de la reserva los platos incluidos. Las órdenes abiertas olvidadas dejan de salir en cocina a los 2 días.',
+      '📦 Facturas en kg o L se convierten a la unidad del inventario (g, ml…). Si un producto ya entró por la lista de compras, te avisa para no sumarlo dos veces.',
+      '🗑️ Borrar una reserva devuelve los abonos a su presupuesto y deja las órdenes de Rosita para cobrar aparte. Una ficha restaurada vuelve con sus informes y su reserva.',
+      '⚠️ Posponer, transferir o cambiar profesionales avisa si hay choque de horario. Importar clientes ya no borra datos con casillas vacías.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9997,7 +10020,7 @@ setTimeout(function(){
         const res = posponer ? await gs('posponerReserva', r.id, val('cr-fecha'), val('cr-hora'), val('cr-motivo').trim(), auth())
                              : await gs('cancelarReserva', r.id, val('cr-motivo').trim(), auth());
         Object.assign(r, res); A.avisosAuto = res.avisosAuto || [];
-        A.vista='avisar'; A.tipoAviso = posponer ? 'pospuesta' : 'cancelada'; render();
+        A.vista='avisar'; A.tipoAviso = posponer ? 'pospuesta' : 'cancelada'; render(); if(posponer) avisarChoques(res);
         toast(posponer ? 'Reserva pospuesta.' : 'Reserva cancelada.' + (res.ordenesCanceladasAuto ? ' La orden de Rosita con platos incluidos se canceló sola (sigue visible como cancelada y no se cobra).' : ''));
         if(res.ordenesCanceladasAuto){ (state.pedidos||[]).forEach(p=>{ if(p.reservaId===r.id && p.estado==='Abierta' && (p.items||[]).length && (p.items||[]).every(it=>it.incluido && !(Number(it.extraOpc)>0))) p.estado = 'Cancelada'; }); try{ pedirRefresco(); }catch(e){} }
         // Si la clienta tiene órdenes de Rosita abiertas, se pregunta si también se cancelan
@@ -10083,7 +10106,7 @@ setTimeout(function(){
     pistaCobertura(body, 'pg', body.querySelector('#pg-monto'), body.querySelector('#pg-metodo'), leerMonPg, r.pagoPct, sp.saldo);
     body.querySelector('#pg-agregar').onclick = async ()=>{
       const mon = leerMonPg(), pago = { fecha: val('pg-fecha'), monto: val('pg-monto'), metodo: val('pg-metodo'), nota: val('pg-nota').trim(), moneda: mon.moneda, tasa: mon.tasa };
-      if(!abonoValido(pago.monto, mon, Number(sp.total) || 0)) return;
+      if(!abonoValido(pago.monto, mon, Number(sp.total) || 0, sp.saldo, r.pagoPct, pago.metodo)) return;
       try{ Object.assign(r, await gs('registrarPagoReserva', r.id, pago, auth())); render(); toast('Abono registrado.'); }
       catch(e){ alert('No se pudo registrar: ' + e); }
     };
@@ -10761,7 +10784,7 @@ setTimeout(function(){
       b.disabled = true; b.textContent = 'Guardando…';
       try{
         const res = await gs('cambiarProfesionalesDia', c.id, profs, val('pg-nota').trim(), auth());
-        Object.assign(c, res); actualizarFichaLocal(res.fichaActualizada); A.pgAbierto = ''; A.avisosAuto = res.avisosAuto || []; A.vista = 'avisar'; A.editId = c.id; A.tipoAviso = 'nueva'; render(); toast('Fisioterapeuta cambiada.');
+        Object.assign(c, res); actualizarFichaLocal(res.fichaActualizada); A.pgAbierto = ''; A.avisosAuto = res.avisosAuto || []; A.vista = 'avisar'; A.editId = c.id; A.tipoAviso = 'nueva'; render(); toast('Fisioterapeuta cambiada.'); avisarChoques(res);
       }catch(e){ alert('No se pudo cambiar: ' + (e && e.message ? e.message : e)); b.disabled = false; b.textContent = 'Guardar cambio'; }
     });
   }
@@ -12403,7 +12426,7 @@ setTimeout(function(){
     pistaCobertura(body, 'pv', body.querySelector('#pv-pmonto'), body.querySelector('#pv-pmetodo'), leerMonPv, p.pagoPct, p.saldo);
     body.querySelector('#pv-pagregar').onclick = async ()=>{
       const mon = leerMonPv(), pago = { fecha: val('pv-pfecha'), monto: val('pv-pmonto'), metodo: val('pv-pmetodo'), nota: val('pv-pnota').trim(), moneda: mon.moneda, tasa: mon.tasa };
-      if(!abonoValido(pago.monto, mon, Number(p.montoCobrar !== undefined ? p.montoCobrar : p.total) || 0)) return;
+      if(!abonoValido(pago.monto, mon, Number(p.montoCobrar !== undefined ? p.montoCobrar : p.total) || 0, p.saldo, p.pagoPct, pago.metodo)) return;
       const btn = body.querySelector('#pv-pagregar'); btn.disabled = true; btn.textContent = 'Registrando…';
       try{ aplicarPresupuesto(p, await gs('registrarPagoPresupuesto', p.id, pago, auth())); state.agenda = null; render(); toast('Abono registrado.'); }
       catch(e){ alert('No se pudo registrar: ' + e); btn.disabled=false; btn.textContent='Registrar abono'; }
@@ -14225,6 +14248,8 @@ setTimeout(function(){
             const r = await gsEspera(60000, 'sumarFacturaInventario', F.destino, paraInv, F.ubicacion || '', [F.proveedor, F.factura ? 'Fact. ' + F.factura : '', isoToDMY(F.fecha)].filter(Boolean).join(' · '), auth());
             Iv.cargado = false;
             setTimeout(()=>toast('📦 ' + dst[2] + ': ' + [r.sumados.length ? r.sumados.length + ' sumado' + (r.sumados.length === 1 ? '' : 's') : '', r.creados.length ? r.creados.length + ' nuevo' + (r.creados.length === 1 ? '' : 's') : ''].filter(Boolean).join(' y ') + '.'), 1200);
+            const ojo = (r.sumados || []).filter(x=>x.indexOf('⚠️') >= 0).concat(r.dobles || []);
+            if(ojo.length) setTimeout(()=>alert('📦 Revisa en el inventario:\n\n• ' + ojo.join('\n• ') + '\n\nSi es la misma compra, corrige la cantidad en 📦 Inventario.'), 1500);
           }catch(eI){ alert('El gasto quedó guardado, pero los productos no se pudieron sumar a ' + dst[2] + ': ' + (eI && eI.message ? eI.message : eI) + '\nSúmalos a mano en el inventario.'); }
         }
       }catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
