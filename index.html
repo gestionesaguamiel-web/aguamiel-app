@@ -260,6 +260,8 @@
   .ag-franja.mal{background:var(--danger-l);color:var(--danger);border-bottom:2px solid var(--danger)}
   .ag-franja button{border:none;background:#fff;color:var(--teal-d);font:inherit;font-size:12.5px;border-radius:999px;padding:6px 12px;min-height:30px;cursor:pointer;flex:0 0 auto}
   body.ag-con-franja{padding-top:calc(38px + env(safe-area-inset-top))}
+  .ag-franja.mini{left:auto;right:8px;top:calc(6px + env(safe-area-inset-top));max-width:none;width:auto;min-height:30px;padding:4px 11px;border-radius:999px;border:2px solid;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;font-size:12.5px}
+  .ag-franja.mini button{display:none}
   @media (min-width:768px){ .ag-franja{max-width:720px} }
   @media (min-width:1100px){ .ag-franja{max-width:960px} }
   @media (min-width:768px){ .ag-nav.abajo,.ag-mas-hoja{max-width:720px} .ag-fab{right:max(16px, calc((100vw - 720px) / 2 + 16px))} }
@@ -1189,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v344' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v346' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1560,6 +1562,7 @@ setTimeout(function(){
     if(d.toDateString() === ayer.toDateString()) return 'de ayer ' + h;
     return 'del ' + d.toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit' }) + ' ' + h;
   }
+  let franjaAbrir = 0, franjaTm = 0;
   function colaAviso(){
     if(!window.AG_WEB || !document.body) return;
     const n = colaLeer(COLA_K).length, mal = colaLeer(COLA_MAL), S = window.agSinRed, est = S ? S.estado() : 'ok', t = S ? S.ultimaCopia() : null;
@@ -1570,13 +1573,22 @@ setTimeout(function(){
     else if(est === 'sin'){ tipo = 'sin'; txt = '📴 Sin conexión' + (t ? ' · datos ' + horaCorta(t) : '') + ' · ' + (n ? cambios(n) + ' por subir' : 'todo guardado'); }
     else if(n){ tipo = 'pend'; txt = '⏳ ' + cambios(n) + ' por subir'; accion = 'Subir ahora'; }
     else if(franjaPrev === 'sube' || franjaPrev === 'sin' || franjaPrev === 'pend'){ tipo = 'ok'; txt = '✅ Todo al día'; }
+    // v345: la franja se ve completa unos segundos cuando cambia el estado y luego se pliega en una pastilla pequeña arriba a la derecha
+    // (no tapa ni empuja la pantalla). Tocar la pastilla la abre otra vez. Los cambios siguen guardados en el teléfono y se suben solos.
+    const corto = { mal:'⚠️ ' + mal.length, sube:'🔄', sin:'📴' + (n ? ' ' + n : ''), pend:'⏳ ' + n, ok:'✅' }[tipo] || '';
     let b = document.getElementById('ag-cola-aviso');
     if(!tipo){ if(b && b.dataset.tipo !== 'ok') b.remove(); franjaPrev = ''; document.body.classList.remove('ag-con-franja'); return; }
+    const cambio = franjaPrev !== tipo;
     franjaPrev = tipo;
     if(!b){ b = document.createElement('div'); b.id = 'ag-cola-aviso'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
-    b.dataset.tipo = tipo; b.className = 'ag-franja ' + tipo;
-    b.innerHTML = '<span>' + esc(txt) + '</span>' + (accion ? '<button type="button" id="ag-franja-btn">' + accion + '</button>' : '');
-    document.body.classList.add('ag-con-franja');
+    if(cambio) franjaAbrir = Date.now() + 5000;
+    const abierta = Date.now() < franjaAbrir;
+    b.dataset.tipo = tipo; b.className = 'ag-franja ' + tipo + (abierta ? '' : ' mini');
+    b.title = txt; b.setAttribute('aria-label', txt);
+    b.innerHTML = abierta ? '<span>' + esc(txt) + '</span>' + (accion ? '<button type="button" id="ag-franja-btn">' + accion + '</button>' : '') : '<span>' + esc(corto) + '</span>';
+    document.body.classList.toggle('ag-con-franja', abierta);
+    b.onclick = ev=>{ if(ev.target.closest('button') || Date.now() < franjaAbrir) return; franjaAbrir = Date.now() + 6000; colaAviso(); };
+    clearTimeout(franjaTm); if(abierta) franjaTm = setTimeout(colaAviso, franjaAbrir - Date.now() + 50);
     const bt = document.getElementById('ag-franja-btn');
     if(bt && tipo === 'pend') bt.onclick = ()=>{ bt.disabled = true; colaEnviar(); };
     if(bt && tipo === 'mal') bt.onclick = ()=>{ const l = colaLeer(COLA_MAL);
@@ -1954,9 +1966,10 @@ setTimeout(function(){
   // acompañante o las que se le asignaron; las que tienen informe solo las elimina un administrador). El servidor lo vuelve a comprobar.
   // Evita crear dos veces al mismo cliente (mismo nombre, sin importar mayúsculas ni tildes): causaba fichas repartidas en dos registros.
   function normNombreCli(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
-  function clienteConMismoNombre(nombre){
-    const n = normNombreCli(nombre); if(!n) return null;
-    return (state.clientes||[]).find(c=>normNombreCli(c.nombre)===n) || null;
+  // v346: con cédulas distintas son personas diferentes (no se pregunta).
+  function clienteConMismoNombre(nombre, cedula){
+    const n = normNombreCli(nombre); if(!n) return null; const d = String(cedula || '').replace(/\D/g, '');
+    return (state.clientes||[]).find(c=>{ if(normNombreCli(c.nombre)!==n) return false; const dc = String(c.cedula || '').replace(/\D/g, ''); return !(d.length >= 6 && dc.length >= 6 && d !== dc); }) || null;
   }
   function textoClienteYaExiste(c){ return 'Ya existe un cliente llamado «' + c.nombre + '»' + (c.cedula ? ' (cédula ' + c.cedula + ')' : '') + '.\n\nAceptar = usar ese registro (no se crea otro).\nCancelar = crear uno nuevo de todas formas (solo si es otra persona distinta).'; }
   function puedeEliminarFicha(f){
@@ -2182,7 +2195,7 @@ setTimeout(function(){
       ${esCocina() ? '' : `<nav class="ag-nav abajo" aria-label="Secciones" style="grid-template-columns:repeat(${navAbajo.length},minmax(0,1fr))">
         ${navAbajo.map(([k,ic,tx])=>`<button type="button" data-tab="${k}" class="${(k==='mas' ? enMas : state.tab===k)?'active':''}"><span class="ic">${ic}</span><span class="tx">${tx}${k==='mas' && puntoMas ? '<span style="color:#d33"> ●</span>' : ''}${k==='disp' ? '<span id="disp-punto" style="color:#d33;'+(dispRecordar()?'':'display:none')+'"> ●</span>' : ''}</span></button>`).join('')}
       </nav>
-      ${['home','clientes','agenda'].includes(state.tab) ? '<button type="button" id="ag-fab-nueva" class="ag-fab" aria-label="Nueva ficha">📝 Nueva ficha</button>' : ''}`}`;
+      ${(state.tab==='home' || (state.tab==='clientes' && !state.selClienteId) || (state.tab==='agenda' && (!state.ag || !state.ag.vista || state.ag.vista==='lista'))) ? (()=>{ const ca = citasDeAhora(), r0 = ca[0] && ca[0].r; return r0 ? `<button type="button" id="ag-fab-nueva" class="ag-fab" aria-label="Atender a ${esc(r0.clienteNombre)}" style="background:#1d6b35;box-shadow:0 6px 16px rgba(29,107,53,.35);display:flex;align-items:center;gap:8px;text-align:left"><span>▶</span><span style="display:flex;flex-direction:column;line-height:1.15">Atender a ${esc(String(r0.clienteNombre || '').split(' ')[0])}${ca.length > 1 ? ' +' + (ca.length - 1) : ''}<small style="font-weight:500;opacity:.9">${esc(r0.hora)}${r0.paqueteNombre ? ' · ' + esc(r0.paqueteNombre) : ''}</small></span></button>` : '<button type="button" id="ag-fab-nueva" class="ag-fab" aria-label="Nueva ficha">📝 Nueva ficha</button>'; })() : ''}`}`;
     const alertaPagos = app.querySelector('#ag-pagos-alerta');
     if(alertaPagos) alertaPagos.onclick = ()=>{
       // Lleva directo al presupuesto (o a la lista, si son varios) y fuerza a pedirlos de nuevo al servidor.
@@ -2203,7 +2216,7 @@ setTimeout(function(){
       else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); if(window.AG_WEB) colaSoltar(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
     const irTab = k=>{ state.tab=k; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ if(b.dataset.tab === 'mas') return abrirMenuMas(tabsMas, irTab); irTab(b.dataset.tab); });
-    const fab = app.querySelector('#ag-fab-nueva'); if(fab) fab.onclick = ()=>irTab('nueva');
+    const fab = app.querySelector('#ag-fab-nueva'); if(fab) fab.onclick = ()=>{ const ca = citasDeAhora(); if(ca.length) abrirMenuNuevo(ca, irTab); else irTab('nueva'); };
     const body = app.querySelector('#ag-body');
     if(state.tab==='home') renderHome(body);
     else if(state.tab==='clientes') renderClientes(body);
@@ -3272,14 +3285,14 @@ setTimeout(function(){
       const data = { id: editing?editing.id:undefined, nombre, cedula:val('cf-cedula').trim(), direccion:val('cf-direccion').trim(),
         edad: fn.edad!==undefined ? String(fn.edad) : edadMano, fnac: fn.iso, tipo:val('cf-tipo'), ocupacion: nino ? '' : val('cf-ocupacion').trim(),
         representante: nino ? rp.representante : (editing ? (editing.representante||'') : ''), representanteId: nino ? rp.representanteId : (editing ? (editing.representanteId||'') : ''),
-        antecedentes: ai.lista, hospTiene: ai.hosp.tiene, hospDetalle: ai.hosp.detalle, otrosAntecedentes: val('fx-otros-ant').trim() };
+        antecedentes: ai.lista, hospTiene: ai.hosp.tiene, hospDetalle: ai.hosp.detalle, otrosAntecedentes: val('fx-otros-ant').trim(), antecedentesOcultos: !!(editing && editing.antecedentesOcultos) };
       // Solo se manda el teléfono si de verdad se escribió algo — así, si
       // un no-administrador lo dejó vacío (porque está oculto para él), no
       // se borra el que ya estaba guardado.
       if(telefono) data.telefono = telefono;
       if(telAdic) data.telefonoAdicional = telAdic;
       if(!editing && !state.registrarIntegrante && !state.registrarPersonaReserva){
-        const igual = clienteConMismoNombre(nombre);
+        const igual = clienteConMismoNombre(nombre, data.cedula);
         if(igual && confirm(textoClienteYaExiste(igual))){ state.editing = false; state.selClienteId = igual.id; render(); toast('Usaste el registro que ya existía.'); return; }
       }
       const btn = body.querySelector('#cf-save'); btn.disabled = true; btn.textContent = 'Guardando…';
@@ -3329,7 +3342,7 @@ setTimeout(function(){
           <p class="ag-muted" style="font-size:13px">${(c.antecedentes&&c.antecedentes.length) ? c.antecedentes.map(it=>esc(it.nombre)+(it.detalle?' — '+esc(it.detalle):'')).join('<br/>') : 'Ninguno registrado.'}</p>
           ${c.hospTiene==='Sí'?`<p class="ag-muted" style="font-size:13px">Hospitalización/cirugía: Sí${c.hospDetalle?' — '+esc(c.hospDetalle):''}</p>`:''}
           ${c.otrosAntecedentes?`<p class="ag-muted" style="font-size:13px">${esc(c.otrosAntecedentes)}</p>`:''}
-        ` : ''}
+        ` : (c.antecedentesOcultos ? '<p class="ag-muted" style="font-size:12.5px;margin-top:8px">🔒 Los antecedentes de salud solo los ve quien atiende a este cliente.</p>' : '')}
       </div>
       ${(()=>{ const g = gruposDelCliente(c.id); return g.length ? `<div class="ag-sec-h" style="margin-top:14px">👥 Visitas en grupo</div>` + g.map(x=>`<div class="ag-muted" style="font-size:12.5px;padding:3px 0">${esc(isoToDMY(x.fecha))} · con ${esc(x.otros.join(', '))}${x.responsable?' · <strong>responsable:</strong> '+esc(x.responsable):''}</div>`).join('') : ''; })()}
       <div class="ag-sec-h" style="margin-top:14px">Historial de fichas (${fichas.length})</div>
@@ -3341,8 +3354,7 @@ setTimeout(function(){
     if(cdDel) cdDel.onclick = async ()=>{
       const nFichas = state.fichas.filter(x=>x.clienteId===c.id).length;
       const nInf = state.informes.filter(x=>x.clienteId===c.id || state.fichas.some(fx=>fx.id===x.fichaId && fx.clienteId===c.id)).length;
-      if(!confirm('¿Eliminar a ' + c.nombre + '?\n\nTambién se borrarán ' + nFichas + ' ficha(s) y ' + nInf + ' informe(s) de este cliente.\nEsta acción NO se puede deshacer.')) return;
-      if(!confirm('Confirma de nuevo: ¿borrar definitivamente a ' + c.nombre + '?')) return;
+      if(!confirm('¿Eliminar a ' + c.nombre + '?\n\nTambién se borrarán ' + nFichas + ' ficha(s) y ' + nInf + ' informe(s) de este cliente.\n\nTodo queda 10 días en Admin → Papelera por si hay que restaurarlo.')) return;
       cdDel.disabled = true; cdDel.textContent = 'Eliminando…';
       try{ await gs('deleteCliente', c.id, auth()); }
       catch(e){ alert('No se pudo eliminar: ' + e); cdDel.disabled=false; cdDel.textContent='🗑️ Eliminar cliente'; return; }
@@ -3652,7 +3664,7 @@ setTimeout(function(){
           const ai = collectAntecedentesImportantes(antWrap);
           try{
             const savedCliente = await gs('saveCliente', {
-              id: c.id, antecedentes: ai.lista, hospTiene: ai.hosp.tiene, hospDetalle: ai.hosp.detalle,
+              id: c.id, antecedentesOcultos: !!c.antecedentesOcultos, antecedentes: ai.lista, hospTiene: ai.hosp.tiene, hospDetalle: ai.hosp.detalle,
               otrosAntecedentes: val2(antWrap,'fx-otros-ant')
             }, auth());
             Object.assign(c, savedCliente);
@@ -3863,7 +3875,7 @@ setTimeout(function(){
       const faltan = faltantesCliente(data);
       if(faltan.length){ alert('Para crear el cliente falta: ' + faltan.join(', ') + '.'); return; }
       if(telefono && !esTelefonoValido(telefono)){ alert('El teléfono ' + motivoTelefono(telefono) + '.'); return; }
-      const igualN = clienteConMismoNombre(nombre);
+      const igualN = clienteConMismoNombre(nombre, data.cedula);
       if(igualN && confirm(textoClienteYaExiste(igualN))){ nuevoClienteWrap.style.display = 'none'; body.querySelector('#nf-cliente').value = igualN.id; drawResumen(); toast('Usaste el registro que ya existía.'); return; }
       const btn = body.querySelector('#nfc-crear'); btn.disabled = true; btn.textContent = 'Creando…';
       try{
@@ -3933,7 +3945,7 @@ setTimeout(function(){
           const cliente = state.clientes.find(x=>x.id===clienteId);
           try{
             const savedCliente = await gs('saveCliente', {
-              id: clienteId, antecedentes: ai.lista, hospTiene: ai.hosp.tiene, hospDetalle: ai.hosp.detalle,
+              id: clienteId, antecedentesOcultos: !!(cliente && cliente.antecedentesOcultos), antecedentes: ai.lista, hospTiene: ai.hosp.tiene, hospDetalle: ai.hosp.detalle,
               otrosAntecedentes: val2(antWrap,'fx-otros-ant')
             }, auth());
             if(cliente) Object.assign(cliente, savedCliente);
@@ -4644,14 +4656,7 @@ setTimeout(function(){
   function metodoDe(nombre){ return metodosLista().find(m=>m.nombre===nombre) || null; }
   // ---- Abonos en dólares o en bolívares ----
   // Número escrito a la venezolana: «75.000», «75.000,50», «75000,5». Solo se usa para bolívares (en dólares el punto es decimal).
-  function numEs(s){
-    let t = String(s == null ? '' : s).trim().replace(/[^\d.,]/g, '');
-    if(!t) return 0;
-    if(t.includes(',') && t.includes('.')) t = t.replace(/\./g, '').replace(',', '.');
-    else if(t.includes(',')) t = t.replace(',', '.');
-    else if(/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
-    return Number(t) || 0;
-  }
+  function numEs(s){ return Math.abs(numPrecio(String(s == null ? '' : s).replace(/-/g, ''))); }   // v346: misma regla única que numPrecio («75.000» = 75 mil)
   function metodoEsBs(nombre){ const m = metodoDe(nombre); return (m && m.tipo) ? m.tipo === 'bs' : /\(bs\)|pago m[oó]vil|transferencia|punto|bol[ií]var/i.test(String(nombre || '')); }
   function abonoMonedaHTML(pref){
     return `<div data-ab-moneda="${pref}" style="margin-top:8px">
@@ -4677,7 +4682,7 @@ setTimeout(function(){
         if(S.moneda === 'Bs' && numEs(montoInp.value) === saldoRef){ montoInp.value = ''; limpiado = true; }
         else if(S.moneda !== 'Bs' && limpiado && !String(montoInp.value).trim()){ montoInp.value = String(saldoRef); limpiado = false; }
       }
-      const m = S.moneda === 'Bs' ? numEs(montoInp.value) : 0, t = numEs(tasaIn.value);
+      const m = S.moneda === 'Bs' ? numEs(montoInp.value) : 0, t = fnum(tasaIn.value);
       const eq = (S.moneda === 'Bs' && saldoRef && t > 0) ? ' · Saldo pendiente: ' + dinero(saldoRef) + ' ≈ Bs ' + numVE(Math.round(saldoRef * t * 100) / 100) : '';
       hint.textContent = S.moneda !== 'Bs' ? '' : (t > 0 ? (m > 0 ? '≈ ' + dinero(Math.round(m / t * 100) / 100) + ' (Bs ' + numVE(m) + ' ÷ tasa ' + numVE(t) + ')' : 'Escribe el monto en bolívares: se convierte a dólares con esta tasa.') + eq : '⚠️ No hay tasa guardada: escribe la tasa del día para poder convertir.');
     };
@@ -4685,8 +4690,15 @@ setTimeout(function(){
     montoInp.addEventListener('input', pintar); tasaIn.addEventListener('input', pintar);
     metodoSel.addEventListener('change', ()=>{ if(metodoEsBs(metodoSel.value) && S.moneda !== 'Bs'){ S.moneda = 'Bs'; pintar(); } });
     pintar();
-    return ()=>({ moneda:S.moneda, tasa:S.moneda === 'Bs' ? numEs(tasaIn.value) : 0 });
+    // 💱 v346: si el abono es de otro día, se trae la tasa BCV de ESE día (se puede corregir a mano).
+    const fechaIn = root.querySelector('#' + pref + '-fecha');
+    if(fechaIn) fechaIn.addEventListener('change', ()=>{ const f = fechaIn.value; if(!/^\d{4}-\d{2}-\d{2}$/.test(f)) return;
+      gs('getTasaDelDia', f, auth()).then(t=>{ if(t && t.bcv > 0 && fechaIn.value === f){ tasaIn.value = numVE(t.bcv); pintar(); } }).catch(()=>{}); });
+    return ()=>({ moneda:S.moneda, tasa:S.moneda === 'Bs' ? fnum(tasaIn.value) : 0 });
   }
+  // 💱 v346: compra de la comida del personal con otra fecha → se trae la tasa BCV de ese día.
+  window.agTasaFecha = inp=>{ const w = inp.closest('[data-compra]'), t = w && w.querySelector('[id$="-tasa"]'), f = inp.value; if(!t || !/^\d{4}-\d{2}-\d{2}$/.test(f)) return;
+    gs('getTasaDelDia', f, auth()).then(x=>{ if(x && x.bcv > 0 && inp.value === f){ t.value = numVE(x.bcv); const c = w.querySelector('[id$="-costo"]'); if(c) c.dispatchEvent(new Event('input')); } }).catch(()=>{}); };
   // Antes de registrar: comprueba que el monto tenga sentido (evita escribir bolívares como si fueran dólares). Devuelve false si hay que detenerse.
   function abonoValido(montoTxt, mon, totalRef){
     if(mon.moneda === 'Bs'){
@@ -4694,7 +4706,7 @@ setTimeout(function(){
       if(!(mon.tasa > 0)){ alert('Escribe la tasa BCV del día para convertir los bolívares a dólares.'); return false; }
       return true;
     }
-    const m = fnum(montoTxt);
+    const m = numPrecio(montoTxt);
     if(!(m > 0)){ alert('Escribe el monto del abono.'); return false; }
     if(totalRef > 0 && m > Math.max(totalRef * 3, 500)) return confirm('Escribiste ' + dinero(m) + ' en dólares, que es muchísimo más que el total (' + dinero(totalRef) + ').\n\n¿Seguro que son dólares? Si el pago fue en bolívares, toca «Cancelar» y elige «Bolívares (Bs)».');
     return true;
@@ -4719,7 +4731,7 @@ setTimeout(function(){
     const box = document.createElement('div'); box.className = 'ag-muted'; box.style.cssText = 'font-size:12.5px;margin-top:6px;line-height:1.4'; cont.appendChild(box);
     const pintar = ()=>{
       const mon = leerMon(), f = factorCuenta(metodoSel.value, pct), conDesc = f === 1;
-      const usd = mon.moneda === 'Bs' ? (mon.tasa > 0 ? numEs(montoInp.value) / mon.tasa : 0) : (fnum(montoInp.value));
+      const usd = mon.moneda === 'Bs' ? (mon.tasa > 0 ? numEs(montoInp.value) / mon.tasa : 0) : (numPrecio(montoInp.value));
       const s = Number(saldo) || 0, saldoBs = f < 1 ? s / f : s;
       let h = '🏷️ Esta cuenta tiene <strong>precio especial −' + pctTxt(pct) + '</strong> que solo aplica a lo pagado en divisas. ';
       h += conDesc ? 'Con <strong>' + esc(metodoSel.value) + '</strong> el descuento aplica.' : '<span style="color:#8a4b00">Con <strong>' + esc(metodoSel.value) + '</strong> no aplica el descuento: ' + (usd > 0 ? 'este abono de ' + dinero(usd) + ' cubre ' + dinero(Math.round(usd * f * 100) / 100) + ' de la cuenta. ' : '') + '</span>';
@@ -5447,7 +5459,7 @@ setTimeout(function(){
     body.querySelector('#ro-pers-abrir').onclick = ()=>{ persForm.style.display = ''; body.querySelector('#rp-nombre').focus(); };
     body.querySelector('#rp-cancelar').onclick = ()=>{ persForm.style.display = 'none'; };
     body.querySelector('#rp-ok').onclick = async ()=>{
-      const nombre = val('rp-nombre').trim(), precio = Number(String(val('rp-precio')).replace(',','.'));
+      const nombre = val('rp-nombre').trim(), precio = numPrecio(val('rp-precio'));
       if(!nombre){ alert('Escribe el nombre del plato.'); return; }
       if(!(precio>=0) || val('rp-precio').trim()===''){ alert('Escribe el precio.'); return; }
       const personas = val('rp-personas'), cat = val('rp-cat'), desc = val('rp-desc').trim();
@@ -5819,7 +5831,7 @@ setTimeout(function(){
     if(r){
       if(r.paqueteNombre) incluye.push('📦 Paquete ' + r.paqueteNombre);
       if(esIndividual(r)) r.personas.forEach(pp=>{ const sv = serviciosPersonaTexto(pp); const cm = (pp.comidas||[]).map(x=>cantTxt(x.cantidad, x.menuId, x.nombre)).join(', '); if(sv || cm) incluye.push('👤 ' + pp.nombre + ': ' + [sv ? '💆 ' + sv : '', cm ? '🍽️ ' + cm : ''].filter(Boolean).join(' · ')); });
-      else { if(serviciosTexto(r)) incluye.push('💆 ' + serviciosTexto(r)); if((r.comidas||[]).length) incluye.push('🍽️ ' + r.comidas.map(x=>cantTxt(x.cantidad, x.menuId, x.nombre)).join(', ')); if(acompanantesDe(r).length) incluye.push('👥 Para disfrutar junto con ' + acompTexto(r)); }
+      else { if(serviciosTexto(r)) incluye.push('💆 ' + serviciosTexto(r)); if(comidasVisibles(r).length) incluye.push('🍽️ ' + comidasVisibles(r).map(x=>cantTxt(x.cantidad, x.menuId, x.nombre)).join(', ')); if(acompanantesDe(r).length) incluye.push('👥 Para disfrutar junto con ' + acompTexto(r)); }
     }
     else if(p){ gruposPresupuesto(p).forEach(g=>{ if(g.titulo) incluye.push(g.titulo); g.items.forEach(it=>incluye.push((g.titulo ? '   ' : '') + (it.tipo==='comida' ? '🍽️ ' : it.tipo==='libre' ? '✨ ' : '💆 ') + (it.cantidad>1 ? it.cantidad + ' × ' : '') + it.descripcion)); }); }
     // Regalo: el homenajeado es quien lo disfruta; "de parte de", quien lo compró.
@@ -6084,17 +6096,25 @@ setTimeout(function(){
     });
     // Comidas de la reserva que aún no tienen su orden en Rosita (ej: visita futura).
     reservas.forEach(r=>{
-      if(!(r.comidas||[]).length) return;
+      if(!comidasVisibles(r).length) return;
       if(r.pedidoId && comidas.some(g=>g.pedido.id===r.pedidoId)) return;
       if(comidas.some(g=>g.pedido.reservaId===r.id)) return;
       comidas.push({ pedido:{ id:'res-'+r.id, clienteNombre:r.clienteNombre, items:[] }, responsable:true,
-        items: r.comidas.map(x=>({ menuId:x.menuId, nombre:x.nombre, precio:Number(x.precio)||0, cantidad:Number(x.cantidad)||1, nota:x.nota||'', incluido:true, paraNombre:x.paraNombre||'', para: x.paraNombre ? 'n:' + x.paraNombre : '' })) });
+        items: comidasVisibles(r).map(x=>({ menuId:x.menuId, nombre:x.nombre, precio:Number(x.precio)||0, cantidad:Number(x.cantidad)||1, nota:x.nota||'', incluido:true, paraNombre:x.paraNombre||'', para: x.paraNombre ? 'n:' + x.paraNombre : '' })) });
     });
     return { c, fecha, servicios, reservas, comidas };
   }
   // sinPrecios = es un regalo: se muestra TODO lo que disfrutó, pero ningún
   // monto (ni precios, ni totales, ni recibos, ni abonos). El recibo no cambia.
   // Tiempo del mensaje según el día: pasado, hoy o una visita futura.
+  // 🙈 v346: lo que el cliente no ve de su paquete (marcado como oculto al armar el paquete). Lo cobrado aparte (extras) siempre se ve.
+  // 💲 v346: desglose del paquete para el presupuesto. Todo se nombra; lo marcado «sin precio» no muestra su precio (queda dentro del total del paquete).
+  function desglosePaquete(p){
+    const pr = (x, nombre)=>{ const c = Number(x.cantidad)||1, v = Number(x.precio)||0; return (c > 1 ? c + '× ' : '') + nombre + (!x.oculto && v > 0 ? ' (' + dinero(v) + (c > 1 ? ' c/u' : '') + ')' : ''); };
+    const serv = (p.servicios||[]).length ? p.servicios.map(x=>pr(x, x.mostrar || x.servicio)) : (p.terapias||[]);
+    return serv.concat((p.comidas||[]).map(c=>pr(c, c.nombre))).join(' · ');
+  }
+  function comidasVisibles(r){ return (r && r.comidas) || []; }   // v346: lo «sin precio» se nombra igual; solo se esconde su precio
   function tiempoNota(n){ const h = hoyISO(); return n.fecha > h ? 'fut' : (n.fecha === h ? 'hoy' : 'pas'); }
   function notaConsumoHTML(n, sinPrecios){
     const tp = tiempoNota(n);
@@ -6479,17 +6499,17 @@ setTimeout(function(){
     const bcvHoy = (state.tasas && Number(state.tasas.bcv) > 0) ? String(state.tasas.bcv) : '';
     const compraHTML = pre=>`<div style="background:#fff8e6;border:1px solid #f0d9a8;border-radius:10px;padding:8px 10px" data-compra="${pre}">
         <div class="ag-row"><div><label class="f" style="margin-top:0">Moneda de la compra</label><select id="${pre}-mon" onchange="(function(s){var w=s.closest('[data-compra]');w.querySelector('[data-c-tasa]').style.display=s.value==='VES'?'':'none';w.querySelector('[data-c-lbl]').textContent=s.value==='VES'?'Costo total (Bs)':'Costo total ($)';w.querySelector('[data-c-eq]').textContent='';})(this)"><option value="USD">Dólares ($)</option><option value="VES">Bolívares (Bs)</option></select></div>
-          <div><label class="f" style="margin-top:0" data-c-lbl>Costo total ($)</label><input id="${pre}-costo" inputmode="decimal" placeholder="Ej: 12" oninput="(function(i){var w=i.closest('[data-compra]'),m=w.querySelector('select').value,t=Number(String(w.querySelector('[data-c-tasa] input').value).replace(',','.'))||0,c=Number(String(i.value).replace(',','.'))||0;w.querySelector('[data-c-eq]').textContent=(m==='VES'&&t>0&&c>0)?'≈ $'+(Math.round(c/t*100)/100).toFixed(2)+' a tasa BCV '+t:'';})(this)"/></div></div>
+          <div><label class="f" style="margin-top:0" data-c-lbl>Costo total ($)</label><input id="${pre}-costo" inputmode="decimal" placeholder="Ej: 12" oninput="(function(i){var w=i.closest('[data-compra]'),m=w.querySelector('select').value,t=window.agNum(w.querySelector('[data-c-tasa] input').value),c=window.agNum(i.value,1);w.querySelector('[data-c-eq]').textContent=(m==='VES'&&t>0&&c>0)?'≈ $'+(Math.round(c/t*100)/100).toFixed(2)+' a tasa BCV '+t:'';})(this)"/></div></div>
         <div data-c-tasa style="display:none"><label class="f">Tasa BCV (Bs por $)</label><input id="${pre}-tasa" inputmode="decimal" value="${esc(bcvHoy)}" placeholder="Ej: 36,5"/></div>
         <div data-c-eq style="font-size:12.5px;font-weight:700;color:#8a5a00;margin-top:4px"></div>
-        <div class="ag-row"><div><label class="f">Fecha de compra</label><input id="${pre}-fecha" type="date" value="${esc(hoyISO())}"/></div><div></div></div>
+        <div class="ag-row"><div><label class="f">Fecha de compra</label><input id="${pre}-fecha" type="date" value="${esc(hoyISO())}" onchange="window.agTasaFecha&&window.agTasaFecha(this)"/></div><div></div></div>
         <div class="ag-row"><div><label class="f">Nº de factura <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input id="${pre}-fac" placeholder="Ej: 001234"/></div><div><label class="f">💳 Con qué se pagó</label>${finMetodoSelect('id="' + pre + '-met"', '')}</div></div>
         <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Se suma solo en <strong>Finanzas → Egresos</strong> como «Comida del personal» (lo del mismo día y la misma factura queda junto). Déjalo vacío si no hubo compra.</div></div>`;
     const leerCompra = pre=>{ const g = id=>{ const el = body.querySelector('#' + pre + '-' + id); return el ? el.value.trim() : ''; };
-      const costo = g('costo'); if(!costo) return null; if(!(Number(costo.replace(',', '.')) > 0)){ alert('Escribe un costo válido (ej: 12) o déjalo vacío.'); return false; }
+      const costo = g('costo'); if(!costo) return null; if(!(numPrecio(costo) > 0)){ alert('Escribe un costo válido (ej: 12) o déjalo vacío.'); return false; }
       if(!g('met')){ alert('Elige con qué se pagó la compra (efectivo $, pago móvil…).'); return false; }
       const moneda = g('mon') || 'USD', tasa = g('tasa');
-      if(moneda === 'VES' && !(Number(tasa.replace(',', '.')) > 0)){ alert('Escribe la tasa BCV para convertir los bolívares a dólares.'); return false; }
+      if(moneda === 'VES' && !(fnum(tasa) > 0)){ alert('Escribe la tasa BCV para convertir los bolívares a dólares.'); return false; }
       return { costo, moneda, tasa: moneda === 'VES' ? tasa : '', fecha:g('fecha'), factura:g('fac'), metodo:g('met') }; };
     if(modoPers) pasos.push(['💵 Compra <span class="ag-muted" style="font-weight:400">(va a Egresos)</span>', compraHTML('iv-n-c')]);
     pasos.push(['Categoría', catSel(I.nCat || (ctrlNuevo==='equipo' ? (catsTodas.find(c=>invPareceEquipo(c)) || catsTodas[0]) : catsTodas[0]), 'id="iv-n-cat"')]);
@@ -7141,7 +7161,7 @@ setTimeout(function(){
         if(iv){ const ub = invUniBase(iv.unidad); l.comprarCant = Math.round(l.comprar / ub[1] * 1000) / 1000; l.comprarUni = iv.unidad; l.comprarTxt = String(l.comprarCant).replace('.', ',') + ' ' + iv.unidad; }
         else { const cl = cantLegible(l.comprar, base); l.comprarCant = Math.round(cl[0] * 1000) / 1000; l.comprarUni = cl[1]; l.comprarTxt = cl[2]; }
         const T = ((pr && pr.tiendas) || []).filter(t=>t.ultimo > 0).sort((a, b)=>a.ultimo - b.ultimo);
-        const pu = pr && pr.base === base ? (T.length ? T[0].ultimo : (pr.ultimo || pr.max)) : (fnum(x.precioManual) > 0 ? fnum(x.precioManual) / u[1] : 0);
+        const pu = pr && pr.base === base ? (T.length ? T[0].ultimo : (pr.ultimo || pr.max)) : (numPrecio(x.precioManual) > 0 ? numPrecio(x.precioManual) / u[1] : 0);
         if(pu > 0){ l.costo = Math.round(l.comprar * pu * 100) / 100; l.tienda = T.length && pr.base === base ? T[0].nombre : ''; } else l.sinPrecio = true;
       }
       return l; }).filter(Boolean);
@@ -7365,7 +7385,7 @@ setTimeout(function(){
     body.querySelectorAll('[data-co-excl]').forEach(b=>b.onclick = ()=>correr(b, ()=>gs('corregirPrecioIngrediente', b.dataset.no === '1' ? 'incluir' : 'excluir', b.dataset.coExcl, auth()), b.dataset.no === '1' ? '✓ Esa compra vuelve a contar.' : '🚫 Esa compra ya no cuenta para el precio.'));
     body.querySelectorAll('[data-co-borrar]').forEach(b=>b.onclick = ()=>{ if(!confirm('¿Borrar este precio escrito a mano?')) return; correr(b, ()=>gs('corregirPrecioIngrediente', 'borrar', b.dataset.coBorrar, auth()), '🗑️ Precio borrado.'); });
     body.querySelectorAll('[data-co-fijar]').forEach(b=>b.onclick = ()=>{ const pn = b.closest('[data-co-panel]'), v = k=>(pn.querySelector('[data-co-fx="' + k + '"]') || {}).value || '';
-      if(!(fnum(v('precio')) > 0) || !(fnum(v('cant')) > 0)){ alert('Escribe el precio y la cantidad (ej. $10 por 1 kg).'); return; }
+      if(!(numPrecio(v('precio')) > 0) || !(numPrecio(v('cant')) > 0)){ alert('Escribe el precio y la cantidad (ej. $10 por 1 kg).'); return; }
       correr(b, ()=>gs('savePrecioIngrediente', b.dataset.coFijar, v('precio'), v('cant'), v('uni'), auth(), v('tienda').trim(), true, v('moneda'), v('fecha')), '✏️ Precio corregido: ahora manda sobre las compras.'); });
     // 🧾 Abrir la factura de donde salió el precio (Admin → Finanzas → Egresos) para corregirla.
     body.querySelectorAll('[data-co-ir]').forEach(b=>b.onclick = ()=>{ const [fac, mes] = b.dataset.coIr.split('|'); state.gs = { mes:mes || hoyISO().slice(0, 7), datos:null, vista:'lista', f:null, error:'', abrir:fac }; state.costos = null; state.tab = 'adminpanel'; state.adminSub = 'gastos'; render(); });
@@ -7651,7 +7671,7 @@ setTimeout(function(){
       const item = { categoria: catNuevo(), nombre: val('mn-nombre').trim(), descripcion: val('mn-desc').trim(), precio: val('mn-precio').trim(), personas: val('mn-personas'), unidad: val('mn-unidad'), piezas: val('mn-piezas').trim() };
       if(!item.categoria){ alert('Elige una categoría o escribe el nombre de la nueva.'); return; }
       if(!item.nombre){ alert('Escribe el nombre del plato.'); return; }
-      if(item.precio==='' || !(Number(String(item.precio).replace(',','.'))>=0)){ alert('Escribe un precio válido (ej: 12.5).'); return; }
+      if(item.precio==='' || !(numPrecio(item.precio)>=0)){ alert('Escribe un precio válido (ej: 12.5).'); return; }
       try{ const saved = await gs('saveMenuItem', item, auth()); if(!state.mnAbiertas) state.mnAbiertas = {}; state.mnAbiertas[item.categoria] = true; state.menu.push(Object.assign({ activo:true, orden: state.menu.length+1 }, saved)); render(); toast('Agregado al menú.'); }
       catch(e){ alert('No se pudo agregar: ' + e); }
     };
@@ -7714,7 +7734,7 @@ setTimeout(function(){
       // 💲 Cambiar el precio al momento (tocando el precio), sin abrir el formulario completo.
       row.querySelector('[data-mn-precio]').onclick = async (ev)=>{
         const btn = ev.currentTarget, nuevo = prompt('Precio de «' + m.nombre + '» (en $):', String(m.precio).replace('.', ',')); if(nuevo === null) return;
-        const pr = fnum(nuevo); if(!(pr >= 0) || !String(nuevo).trim()){ alert('Escribe un precio válido (ej: 12,50).'); return; }
+        const pr = numPrecio(nuevo); if(!(pr >= 0) || !String(nuevo).trim()){ alert('Escribe un precio válido (ej: 12,50).'); return; }
         const o = leer(); o.precio = pr; const antes = Number(m.precio); btn.disabled = true;
         try{ const saved = await gs('saveMenuItem', o, auth()); Object.assign(m, saved); render(); verFila(); toast('💲 ' + m.nombre + ': ' + dinero(antes) + ' → ' + dinero(m.precio)); if(Number(m.precio) !== antes) sgAuto(); }
         catch(e){ btn.disabled = false; alert('No se pudo cambiar el precio: ' + (e && e.message ? e.message : e)); }
@@ -7860,7 +7880,7 @@ setTimeout(function(){
       const cant = +row.querySelector('[data-cant]').textContent; if(!cant) return null;
       const sel = row.querySelector('[data-var]'); const o = sel ? sel.options[sel.selectedIndex] : null;
       const x = { categoria: row.dataset.cat, servicio: row.dataset.srv, mostrar: row.dataset.mostrar, tipoFicha: row.dataset.tipo,
-        variante: o ? o.dataset.key : '', varianteNombre: o ? o.dataset.nom : '', cantidad: cant, precio: fnum(row.querySelector('[data-srv-precio]').value) };
+        variante: o ? o.dataset.key : '', varianteNombre: o ? o.dataset.nom : '', cantidad: cant, precio: numPrecio(row.querySelector('[data-srv-precio]').value) };
       return x;
     }).filter(Boolean);
   }
@@ -9419,7 +9439,18 @@ setTimeout(function(){
       '🚦 Inventario con <strong>semáforo</strong> (agotado, por reponer, bien), una barra de cuánto queda y un botón para <strong>pasar lo que falta a la lista de compras</strong>.',
       '📴 <strong>Disponible</strong> ya funciona sin señal también para administración.' ] },
     { v:344, fecha:'26 oct', titulo:'Las versiones nuevas se ponen solas', puntos:[
-      '🔄 La app instalada ahora revisa sola si hay una versión nueva al abrirla o al volver a ella, y se actualiza en segundos, sin borrar nada ni pasos extra. Si estás llenando algo, espera a que termines.' ] }
+      '🔄 La app instalada ahora revisa sola si hay una versión nueva al abrirla o al volver a ella, y se actualiza en segundos, sin borrar nada ni pasos extra. Si estás llenando algo, espera a que termines.' ] },
+    { v:345, fecha:'26 oct', titulo:'El PIN siempre con su largo correcto', puntos:[
+      '🔢 Al tocar «Salir» o al entrar sin señal, la pantalla del PIN ahora muestra siempre los puntos correctos (6 para administración) y entra sola al completarlos.',
+      '📶 La franja de «Sin conexión» se ve unos segundos y luego se pliega en un circulito arriba a la derecha (tócalo para ver el detalle). Lo que anotes sin señal sigue guardándose en el teléfono y se sube solo al volver la señal.' ] },
+    { v:346, fecha:'26 oct', titulo:'Montos en Bs, Papelera para todo y paquetes con precios a tu gusto', puntos:[
+      '💲 Paquetes: cada servicio y producto tiene «Con precio / Sin precio». En el presupuesto sale todo por nombre; lo marcado sin precio queda dentro del precio total del paquete.',
+      '🔢 «75.000» en bolívares ahora siempre son setenta y cinco mil (Egresos, otros ingresos, comida del personal, lista de compras, abonos, precios). Las tasas aceptan 857,01 o 857.01.',
+      '💱 Un abono o una compra de otro día usa la tasa BCV de ESE día (puedes corregirla).',
+      '🗑️ Todo lo que se borra (clientes con sus fichas, gastos, ingresos, menú, inventario, compras, paquetes, órdenes…) queda 10 días en Admin → Papelera.',
+      '🔐 Los informes y antecedentes de salud solo le llegan a quien puede ver las fichas de ese cliente.',
+      '🛒 Si desmarcas una compra que se sumó al inventario, se resta lo que entró. 💵 Al borrar un abono se recalcula lo que cubre la cuenta. 🧾 Corregir un recibo cargado a una reserva actualiza lo cargado; los platos nuevos vuelven a «por preparar» en cocina.',
+      '👥 La limpieza de duplicados ya no une personas solo por el nombre: hace falta la misma cédula o el mismo teléfono.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9538,6 +9569,39 @@ setTimeout(function(){
     fondo.onclick = e=>{ if(e.target === fondo) cerrarMenuMas(); };
     document.body.appendChild(fondo);
     fondo.querySelectorAll('[data-mas]').forEach(b=>b.onclick = ()=>{ cerrarMenuMas(); ir(b.dataset.mas); });
+  }
+  // ▶ v346: botón ➕ inteligente. Con una cita de hoy que empieza en la próxima hora (o empezó hace menos de 30 min) y no se ha atendido,
+  // el botón se pone verde con su nombre; al tocarlo se abren las citas de ahora (▶ Atender abre la ficha con la reserva ya puesta),
+  // «Ficha sin cita» y «Nueva reserva». Sin citas cerca sigue siendo «Nueva ficha».
+  // ➕ Botón inteligente (cita cercana → «▶ Atender»): apagado hasta que la administración elija la opción del botón.
+  const BOTON_CITA = false;
+  function citasDeAhora(){
+    if(!BOTON_CITA) return [];
+    const ag = state.agenda; if(!ag || !Array.isArray(ag.reservas) || !state.user) return [];
+    const hoy = hoyISO(), d = new Date(), m = d.getHours() * 60 + d.getMinutes(), yo = String(state.user.id);
+    return ag.reservas.filter(r=>r.fecha === hoy && r.estado === 'Confirmada' && (state.user.admin || (r.profesionales || []).map(String).includes(yo)))
+      .map(r=>{ const p = String(r.hora || '').split(':').map(Number); return { r, dif:(p[0] || 0) * 60 + (p[1] || 0) - m }; })
+      .filter(x=>x.dif <= 60 && x.dif >= -30).sort((a, b)=>Math.abs(a.dif) - Math.abs(b.dif)).slice(0, 4);
+  }
+  function atenderCita(r){
+    if(atenderPrograma(r)) return;
+    // Con acompañantes cada persona tiene su ficha: se abre la agenda de hoy, donde se elige a quién se atiende.
+    if((r.personas || []).length > 1){ state.tab = 'agenda'; state.ag = Object.assign({ filtro:'proximas' }, state.ag || {}, { vista:'lista', filtro:'hoy', editId:null }); render(); return; }
+    avisarInicioAtencion(r, null); state.reservaActual = r; state.reservaPersona = null; state.preselectClienteId = r.clienteId; state.formTipo = r.tipoFicha || 'normal'; state.tab = 'nueva'; render();
+  }
+  function abrirMenuNuevo(citas, ir){
+    cerrarMenuMas();
+    const cuando = d=>d > 1 ? 'en ' + d + ' min' : d >= -1 ? 'ahora' : 'empezó hace ' + (-d) + ' min';
+    const fondo = document.createElement('div'); fondo.id = 'ag-mas'; fondo.className = 'ag-mas-fondo';
+    fondo.innerHTML = `<div class="ag-mas-hoja" role="dialog" aria-label="Nuevo"><div class="ag-mas-asa"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--sub);margin:2px 4px 6px">Citas de ahora</div>
+      ${citas.map((x, i)=>`<button type="button" data-nv-cita="${esc(x.r.id)}" style="${i === 0 ? 'border:2px solid #1d6b35;background:#f3faf5' : ''}"><b style="min-width:48px;color:${i === 0 ? '#1d6b35' : 'var(--teal-d)'}">${esc(x.r.hora)}</b><span style="flex:1;text-align:left;display:flex;flex-direction:column;line-height:1.25"><strong>${esc(x.r.clienteNombre)}${(x.r.personas || []).length > 1 ? ' +' + ((x.r.personas || []).length - 1) : ''}</strong><small style="color:var(--sub);font-weight:400">${esc(x.r.paqueteNombre || durTxt(x.r.duracionMin || 60))} · ${cuando(x.dif)}</small></span><span style="background:#1d6b35;color:#fff;border-radius:999px;padding:7px 12px;font-size:13px">▶ Atender</span></button>`).join('')}
+      <div style="font-size:13px;font-weight:700;color:var(--sub);margin:10px 4px 6px">Otra cosa</div>
+      <div style="display:grid;grid-template-columns:${state.user.admin ? '1fr 1fr' : '1fr'};gap:8px"><button type="button" data-nv="ficha" style="justify-content:center">📝 Ficha sin cita</button>${state.user.admin ? '<button type="button" data-nv="reserva" style="justify-content:center">📅 Nueva reserva</button>' : ''}</div></div>`;
+    fondo.onclick = e=>{ if(e.target === fondo) cerrarMenuMas(); };
+    document.body.appendChild(fondo);
+    fondo.querySelectorAll('[data-nv-cita]').forEach(b=>b.onclick = ()=>{ const r = (state.agenda.reservas || []).find(x=>x.id === b.dataset.nvCita); cerrarMenuMas(); if(r) atenderCita(r); });
+    fondo.querySelectorAll('[data-nv]').forEach(b=>b.onclick = ()=>{ cerrarMenuMas(); if(b.dataset.nv === 'ficha') ir('nueva'); else { state.tab = 'agenda'; state.ag = Object.assign({ filtro:'proximas' }, state.ag || {}, { vista:'form', editId:null }); render(); } });
   }
   function cerrarMenuMas(){ const m = document.getElementById('ag-mas'); if(m) m.remove(); }
   function isoMasDias(iso, d){ const p = String(iso).split('-').map(Number); const x = new Date(Date.UTC(p[0], p[1] - 1, p[2] + d)); return x.toISOString().slice(0, 10); }
@@ -10002,7 +10066,7 @@ setTimeout(function(){
           });
           info.querySelectorAll('[data-gp-ok]').forEach(b=>b.onclick = async ()=>{
             const rr = prompt('¿Qué monto confirmas que recibiste de esta persona ($)?\n\nDéjalo en 0 si todavía no lo ves en tu banco.', String(b.dataset.monto || '0')); if(rr === null) return;
-            const monto = fnum(rr); if(!montoRazonable(monto, b.dataset.monto)) return;
+            const monto = numPrecio(rr); if(!montoRazonable(monto, b.dataset.monto)) return;
             b.disabled = true; b.textContent = 'Verificando…';
             try{ await gs('verificarPagoPersona', d.presupuestoId, b.dataset.gpOk, monto, auth()); state.pagosPend = (state.pagosPend||[]).filter(x=>!(x.id===d.presupuestoId && x.key===b.dataset.gpOk)); toast('Pago verificado' + (monto > 0 ? ' y abono de ' + dinero(monto) + ' registrado.' : '.')); await cargarAgenda(); render(); }
             catch(e2){ alert('No se pudo verificar: ' + (e2 && e2.message ? e2.message : e2)); b.disabled = false; b.textContent = '✅ Verificar y registrar abono'; }
@@ -10307,7 +10371,7 @@ setTimeout(function(){
     }
     // El ahorro sale de la misma «Suma de lo incluido» que ves en el formulario (que abre con las tarifas de hoy).
     const valor = Math.round(((p.servicios||[]).reduce((a,x)=>a + (Number(x.precio)||0) * (Number(x.cantidad)||1), 0) + (p.comidas||[]).reduce((a,c)=>a + (Number(c.precio)||0) * (Number(c.cantidad)||1), 0)) * 100) / 100;
-    const precio = fnum(p.precio || 0);
+    const precio = numPrecio(p.precio || 0);
     const ahorro = precio > 0 ? Math.max(0, Math.round((valor - precio) * 100) / 100) : 0, pct = valor ? Math.round(ahorro / valor * 100) : 0;
     const personas = p.sug && Number(p.sug.personas) > 1 ? Number(p.sug.personas) : 0;
     const metodos = metodosLista().map(m=>m.nombre).slice(0, 6);
@@ -10392,7 +10456,7 @@ setTimeout(function(){
         // El precio final también se pone al día, conservando el descuento que le diste: si costaba la suma, cuesta la nueva
         // suma; si tenía rebaja (ej. 10 % menos), mantiene esa misma proporción. Antes había que entrar a cada paquete y tocar «Usar la suma».
         const suma = (ss, cs)=>Math.round((ss.reduce((a,x)=>a + (Number(x.precio)||0) * (Number(x.cantidad)||1), 0) + cs.reduce((a,c)=>a + (Number(c.precio)||0) * (Number(c.cantidad)||1), 0)) * 100) / 100;
-        const sumaVieja = suma(p.servicios || [], p.comidas || []), sumaNueva = suma(servicios, comidas), pv = fnum(p.precio || 0);
+        const sumaVieja = suma(p.servicios || [], p.comidas || []), sumaNueva = suma(servicios, comidas), pv = numPrecio(p.precio || 0);
         let precioNuevo = pv;
         if(pv > 0 && sumaVieja > 0 && sumaNueva > 0) precioNuevo = pv >= sumaVieja - 0.005 ? sumaNueva : Math.round(pv * sumaNueva / sumaVieja * 100) / 100;
         const nuevo = Object.assign({}, p, { servicios, comidas, precio:precioNuevo });
@@ -10795,6 +10859,7 @@ setTimeout(function(){
         <details class="pq-plegable" style="margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:8px 10px"><summary style="cursor:pointer;font-weight:700;font-size:14px">💆 Servicios incluidos <span class="ag-muted" style="font-weight:400;font-size:12px" data-pq-resumen="serv">${servIni.length ? '· ' + servIni.reduce((t,x)=>t+(Number(x.cantidad)||1),0) + ' elegido(s)' : '· toca para elegir'}</span></summary>
         <div id="pq-servicios" style="margin-top:6px">${serviciosSelectorHTML('pqs', servIni)}</div></details></div>
         <div id="pq-com-wrap" style="display:${diasIni.length?'none':''}"><details class="pq-plegable" style="margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px"><summary style="cursor:pointer;font-weight:700;font-size:14px">🍽️ Comidas incluidas <span class="ag-muted" style="font-weight:400;font-size:12px" data-pq-resumen="com">${Object.values(cant).reduce((t,n)=>t+(Number(n)||0),0) ? '· ' + Object.values(cant).reduce((t,n)=>t+(Number(n)||0),0) + ' elegida(s)' : '· opcional, toca para elegir'}</span></summary><div id="pq-comidas" style="margin-top:6px">${comidasSelectorHTML('pqc', cant)}</div></details></div>
+        <div id="pq-ocultos"></div>
         <div style="background:#f6fafa;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:13px"><span id="pq-suma"></span> <button type="button" class="ag-btn sm ghost" id="pq-usar-suma" style="padding:2px 8px;margin-left:4px">Usar la suma</button></div>
         <label class="f">Precio final del paquete ($)</label><input id="pq-precio" inputmode="decimal" value="${esc(ed?ed.precio:'')}"/>
         <p class="ag-muted" style="font-size:11.5px">Puedes poner un precio de paquete menor a la suma (eso es el ahorro para el cliente).</p>
@@ -10823,7 +10888,7 @@ setTimeout(function(){
         ${p.sug && p.sug.id ? `<div style="font-size:12px;color:var(--sub)">${p.sug.manual ? '✏️ Sugerido y personalizado (no se rearma solo)' : '💡 Sugerido (su precio se pone al día con las tarifas)'}</div>` : ''}
         ${p.propuestaPor ? `<div style="font-size:12px;color:#34508a;font-weight:600">🧩 Propuesta de ${esc(p.propuestaPor)}${p.precio?'':' · pendiente de precio'}${p.dias&&p.dias.some(d=>(d.servicios||[]).some(x=>x.nuevo))?' · con procedimientos sin tarifa':''}</div>` : ''}
         ${(p.dias||[]).length ? `<div style="font-size:12px;color:var(--teal-d);font-weight:600">📅 Programa de ${p.dias.length} días</div><div class="ag-muted" style="font-size:12px">${esc(resumenDias(p.dias))}</div>` : ''}
-        <div class="ag-muted" style="font-size:12px">${esc(TIPOS[p.tipoFicha]||'')}${p.terapias.length?' · '+esc(p.terapias.join(', ')):''}${p.comidas.length?' · 🍽️ '+esc(p.comidas.map(c=>c.cantidad+'× '+c.nombre).join(', ')):''}</div>
+        <div class="ag-muted" style="font-size:12px">${esc(TIPOS[p.tipoFicha]||'')}${p.terapias.length?' · '+esc(p.terapias.join(', ')):''}${p.comidas.length?' · 🍽️ '+esc(p.comidas.map(c=>c.cantidad+'× '+c.nombre+(c.oculto?' 🙈':'')).join(', ')):''}</div>
         <div class="ag-row" style="gap:6px;flex-wrap:wrap"><button class="ag-btn sm ghost" data-pq-editar="${p.id}">✏️ Editar</button><button class="ag-btn sm ghost" data-pq-activo="${p.id}">${p.activo?'Desactivar':'Activar'}</button><button class="ag-btn sm danger" data-pq-borrar="${p.id}">🗑️</button></div>
         <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:2px">🏷️ Mover a: <select data-pq-mover="${esc(p.id)}" style="flex:1;min-width:0;padding:5px 6px;font-size:12.5px">${paqCats().map(o=>`<option value="${esc(o[0])}" ${o[0] === c[0] ? 'selected' : ''}>${esc(o[1])} ${esc(o[2])}</option>`).join('')}</select></label>
       </div>`).join('') || '<p class="ag-muted" style="font-size:12.5px;margin:2px 4px 0">Aún no hay paquetes en esta categoría.</p>')); }).join('')}
@@ -10838,8 +10903,23 @@ setTimeout(function(){
     let leerServicios = ()=>[], leerComidas = ()=>[], leerDias = ()=>[];
     const progOn = ()=> body.querySelector('#pq-prog').checked;
     // Con días, los servicios del paquete son la suma de lo que lleva cada día.
-    const serviciosTodos = ()=> progOn() ? serviciosDeDias(leerDias()) : leerServicios();
-    const comidasTodas = ()=> progOn() ? [].concat(...leerDias().map(d=>JSON.parse(JSON.stringify(d.comidas||[])))) : leerComidas();
+    const serviciosTodos = ()=> progOn() ? serviciosDeDias(leerDias()) : conOcultos(leerServicios(), kS);
+    // 💲 v346: servicios y productos «sin precio»: se nombran en el presupuesto pero sin su precio (quedan dentro del total del paquete).
+    const kS = x=>'s:' + x.servicio + '|' + (x.variante||''), kC = x=>'c:' + x.menuId;
+    const ocultosPq = new Set(((ed && ed.servicios) || []).filter(x=>x.oculto).map(kS).concat(((ed && ed.comidas) || []).filter(c=>c.oculto).map(kC)));
+    const conOcultos = (l, k)=>l.map(c=>ocultosPq.has(k(c)) ? Object.assign({}, c, { oculto:true }) : (()=>{ const x = Object.assign({}, c); delete x.oculto; return x; })());
+    const comidasTodas = ()=> progOn() ? [].concat(...leerDias().map(d=>JSON.parse(JSON.stringify(d.comidas||[])))) : conOcultos(leerComidas(), kC);
+    const pintarOcultos = ()=>{
+      const el = body.querySelector('#pq-ocultos'); if(!el) return;
+      const l = progOn() ? [] : leerServicios().filter(x=>Number(x.cantidad) > 0).map(x=>({ k:kS(x), n:(x.cantidad > 1 ? x.cantidad + '× ' : '') + (x.mostrar || x.servicio), v:x.precio }))
+        .concat(leerComidas().filter(c=>Number(c.cantidad) > 0).map(c=>({ k:kC(c), n:(c.cantidad > 1 ? c.cantidad + '× ' : '') + c.nombre, v:c.precio })));
+      el.innerHTML = l.length ? `<div style="margin-top:8px;border:1px dashed #b9c4c1;border-radius:12px;padding:8px 10px"><div style="font-weight:700;font-size:13px">💲 ¿Qué precios ve el cliente?</div>
+        <div class="ag-muted" style="font-size:11.5px;margin:2px 0 6px">En el presupuesto sale todo por nombre. Lo marcado 🙈 sale <b>sin su precio</b> (queda dentro del precio del paquete); lo demás muestra su precio. Si marcas todo, solo se ve el precio total.</div>
+        ${l.length > 1 ? `<div style="display:flex;gap:6px;margin-bottom:4px"><button type="button" class="ag-btn sm ghost" data-pq-octodo="1" style="flex:1;padding:4px;font-size:12px">🙈 Todo sin precio</button><button type="button" class="ag-btn sm ghost" data-pq-octodo="0" style="flex:1;padding:4px;font-size:12px">💲 Todo con precio</button></div>` : ''}
+        ${l.map(c=>{ const o = ocultosPq.has(c.k); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:13px"><span style="min-width:0">${esc(c.n)} <span class="ag-muted" style="font-size:12px">${o ? '' : dinero(c.v)}</span></span><button type="button" class="ag-btn sm ${o ? '' : 'ghost'}" data-pq-oc="${esc(c.k)}" style="flex:0 0 auto;padding:4px 10px;font-size:12px;${o ? 'background:#4d5654;border-color:#4d5654' : ''}">${o ? '🙈 Sin precio' : '💲 Con precio'}</button></div>`; }).join('')}</div>` : '';
+      el.querySelectorAll('[data-pq-oc]').forEach(b=>b.onclick = ()=>{ const k = b.dataset.pqOc; if(ocultosPq.has(k)) ocultosPq.delete(k); else ocultosPq.add(k); pintarOcultos(); chequearOferta(); });
+      el.querySelectorAll('[data-pq-octodo]').forEach(b=>b.onclick = ()=>{ l.forEach(c=>{ if(b.dataset.pqOctodo === '1') ocultosPq.add(c.k); else ocultosPq.delete(c.k); }); pintarOcultos(); chequearOferta(); });
+    };
     let chequearOferta = ()=>{};
     const suma = ()=>{
       const t = serviciosTodos().reduce((a,x)=>a+x.precio*x.cantidad,0) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0);
@@ -10848,7 +10928,7 @@ setTimeout(function(){
       const rs = body.querySelector('[data-pq-resumen="serv"]'), rc = body.querySelector('[data-pq-resumen="com"]');
       if(rs){ const n = leerServicios().reduce((a,x)=>a+(Number(x.cantidad)||0),0); rs.textContent = n ? '· ' + n + ' elegido(s)' : '· toca para elegir'; }
       if(rc){ const n = leerComidas().reduce((a,x)=>a+(Number(x.cantidad)||0),0); rc.textContent = n ? '· ' + n + ' elegida(s)' : '· opcional, toca para elegir'; }
-      chequearOferta(); return t;
+      pintarOcultos(); chequearOferta(); return t;
     };
     leerDias = wireDiasEditor(body.querySelector('#pq-prog-wrap'), 'pqp', ()=>suma(), ()=>val('pq-prog-tipo'));
     body.querySelector('#pq-prog-tipo').onchange = ()=>{ leerDias.redibujar(); };
@@ -10857,7 +10937,7 @@ setTimeout(function(){
       const cat = CATALOGO_SERVICIOS[+val('pq-st-cat')] || CATALOGO_SERVICIOS[CATALOGO_SERVICIOS.length-2];
       const hechos = []; const filas = [];
       body.querySelectorAll('[data-st-precio]').forEach(inp=>{
-        const precio = Number(String(inp.value).replace(',','.')); if(!(inp.value.trim() && precio >= 0)) return;
+        const precio = numPrecio(inp.value); if(!(inp.value.trim() && precio >= 0)) return;
         const nombre = sinTarifa[+inp.dataset.stPrecio]; hechos.push({ nombre, precio }); filas.push({ categoria:cat.nombre, servicio:nombre, variante:'', precio, activo:true });
       });
       if(!filas.length){ alert('Escribe el precio de al menos un procedimiento.'); return; }
@@ -10886,7 +10966,7 @@ setTimeout(function(){
     const firmaCont = ()=>JSON.stringify([serviciosTodos().map(x=>[x.servicio, x.variante, x.cantidad]), comidasTodas().map(x=>[x.menuId, x.cantidad]), progOn() ? leerDias().map(d=>(d.servicios||[]).map(x=>[x.servicio, x.variante, x.cantidad])) : 0]);
     const contIni = firmaCont();
     // También queda personalizado si le cambias el precio a mano: así el ajuste automático por tarifas no te lo devuelve al precio de la fórmula.
-    const precioCambiado = ()=> ed && Math.abs((fnum(val('pq-precio'))) - (Number(ed.precio) || 0)) > 0.001;
+    const precioCambiado = ()=> ed && Math.abs((numPrecio(val('pq-precio'))) - (Number(ed.precio) || 0)) > 0.001;
     const sugActual = ()=> ed && ed.sug ? ((ed.sug.manual || firmaCont() !== contIni || precioCambiado()) ? Object.assign({}, ed.sug, { manual:true }) : ed.sug) : null;
     // Para el texto del mensaje: si solo cambió el precio, se conserva el gancho y los beneficios de la sugerencia.
     const sugTexto = ()=> ed && ed.sug ? ((ed.sug.manual || firmaCont() !== contIni) ? Object.assign({}, ed.sug, { manual:true }) : ed.sug) : null;
@@ -10897,7 +10977,7 @@ setTimeout(function(){
       const comidas = comidasTodas(), sumaPura = servicios.reduce((a,x)=>a+x.precio*x.cantidad,0) + comidas.reduce((a,c)=>a+c.precio*c.cantidad,0);
       return { nombre: val('pq-nombre').trim() || 'Paquete', descripcion: val('pq-desc').trim(), precio: val('pq-precio') || Math.round(sumaPura*100)/100, servicios, comidas, dias, sug: sugTexto() };
     };
-    const firmaPaq = ()=>JSON.stringify([val('pq-nombre').trim(), val('pq-desc').trim(), String(val('pq-precio')).trim(), serviciosTodos().map(x=>[x.servicio, x.variante, x.cantidad, x.precio]), comidasTodas().map(x=>[x.menuId, x.cantidad, x.precio]), progOn() ? leerDias() : 0]);
+    const firmaPaq = ()=>JSON.stringify([val('pq-nombre').trim(), val('pq-desc').trim(), String(val('pq-precio')).trim(), serviciosTodos().map(x=>[x.servicio, x.variante, x.cantidad, x.precio, !!x.oculto]), comidasTodas().map(x=>[x.menuId, x.cantidad, x.precio, !!x.oculto]), progOn() ? leerDias() : 0]);
     const sigIni = firmaPaq(), ofertaIni = ed ? (ed.oferta || '') : '';
     // Si el mensaje lo armó la app (trae «Precio del paquete») y no lo has tocado, se pone al día solo con el nombre, servicios, precio y ahorro de ahora.
     let ofertaAuto = null, ofertaAntesAuto = null, autoOff = false, ofertaPrev = null;
@@ -11198,8 +11278,8 @@ setTimeout(function(){
       const mapa = {}; (state.tarifas||[]).forEach(t=>mapa[claveTarifa(t.categoria,t.servicio,t.variante)] = t);
       const fila = (k)=>{ if(!mapa[k]){ const [c,sv,v] = k.split('|'); mapa[k] = { categoria:c, servicio:sv, variante:v, etiqueta:'', precio:'', activo:true }; } return mapa[k]; };
       body.querySelectorAll('[data-tf-precio]').forEach(inp=>{
-        const k = inp.dataset.tfPrecio; const v = inp.value.trim().replace(',','.');
-        if(mapa[k] || v!=='') fila(k).precio = v==='' ? '' : Number(v);
+        const k = inp.dataset.tfPrecio; const v = inp.value.trim();
+        if(mapa[k] || v!=='') fila(k).precio = v==='' ? '' : numPrecio(v);
       });
       body.querySelectorAll('[data-tf-nombre]').forEach(inp=>{
         const k = inp.dataset.tfNombre; const original = k.split('|')[2]; const n = inp.value.trim();
@@ -11398,7 +11478,7 @@ setTimeout(function(){
     const txt = fsb.querySelector('#dp-texto');
     const pintar = ()=>{ if(!S.editado) txt.value = textoDatosPago(base(), S.sel, S.desc); };
     pintar();
-    fsb.querySelector('#dp-monto').oninput = e=>{ const v = Number(String(e.target.value).replace(',', '.')); S.monto = v > 0 ? v : 0; pintar(); };
+    fsb.querySelector('#dp-monto').oninput = e=>{ const v = numPrecio(e.target.value); S.monto = v > 0 ? v : 0; pintar(); };
     fsb.querySelectorAll('[data-dp-m]').forEach(ch=>ch.onchange = ()=>{ const m = lista[+ch.dataset.dpM]; if(ch.checked) S.sel.add(m.nombre); else S.sel.delete(m.nombre); S.editado = false; pintar(); });
     const cd = fsb.querySelector('#dp-desc'); if(cd) cd.onchange = ()=>{ S.desc = cd.checked; S.editado = false; pintar(); };
     txt.oninput = ()=>{ S.editado = true; };
@@ -12039,7 +12119,7 @@ setTimeout(function(){
       itemsEl.querySelectorAll('[data-pf-descr]').forEach(inp=>inp.oninput=()=>{ P.items[+inp.dataset.pfDescr].descripcion = inp.value; });
       itemsEl.querySelectorAll('[data-pf-detalle]').forEach(inp=>inp.oninput=()=>{ P.items[+inp.dataset.pfDetalle].detalle = inp.value; });
       itemsEl.querySelectorAll('[data-pf-cant]').forEach(inp=>inp.onchange=()=>{ P.items[+inp.dataset.pfCant].cantidad = Number(inp.value)||0; dibujarItems(); });
-      itemsEl.querySelectorAll('[data-pf-precio]').forEach(inp=>inp.onchange=()=>{ P.items[+inp.dataset.pfPrecio].precio = fnum(inp.value); dibujarItems(); });
+      itemsEl.querySelectorAll('[data-pf-precio]').forEach(inp=>inp.onchange=()=>{ P.items[+inp.dataset.pfPrecio].precio = numPrecio(inp.value); dibujarItems(); });
       totales(); dibujarGC();
     };
     // 🎁 Gift card opcional: un toque para agregarla (o quitarla). Si no se agrega, el presupuesto se la ofrece al cliente.
@@ -12071,7 +12151,7 @@ setTimeout(function(){
         addEl.querySelector('#pa-ok').onclick = ()=>{
           const c = arbol[+cat.value], s2 = c.servicios[+sv.value], v = s2.variantes[+vr.value];
           if(pr.value.trim()===''){ alert('Escribe el precio.'); return; }
-          P.items.push({ tipo:'terapia', descripcion: s2.mostrar + (v.nombre?' · '+v.nombre:''), detalle: c.mostrar, cantidad: Number(val('pa-cant'))||1, precio: fnum(pr.value), terapia: s2.nombre, categoria: c.nombre, tipoFicha: c.tipo, variante: v.variante });
+          P.items.push({ tipo:'terapia', descripcion: s2.mostrar + (v.nombre?' · '+v.nombre:''), detalle: c.mostrar, cantidad: Number(val('pa-cant'))||1, precio: numPrecio(pr.value), terapia: s2.nombre, categoria: c.nombre, tipoFicha: c.tipo, variante: v.variante });
           dibujarItems();
         };
       } else if(t==='alquiler'){
@@ -12103,7 +12183,7 @@ setTimeout(function(){
         const leerSpa = ()=> spaChk.checked ? leerSpaSel() : [];
         spaChk.onchange = ()=>{ spaWrap.style.display = spaChk.checked ? '' : 'none'; totalEv(); };
         const totalEv = ()=>{
-          const alq = fnum(val('pa-precio'));
+          const alq = numPrecio(val('pa-precio'));
           const spa = leerSpa().reduce((t,x)=>t+x.precio*x.cantidad,0);
           const comida = leerMenu().reduce((t,c)=>t+c.precio*c.cantidad,0) + spa;
           const preps = P.evPreps.reduce((t,x)=>t+(Number(x.precio)||0)*(Number(x.cantidad)||0),0);
@@ -12128,7 +12208,7 @@ setTimeout(function(){
             <div class="ag-row" style="gap:6px;margin-top:6px;align-items:center"><span class="ag-muted" style="font-size:12px">Cant.</span><input data-prep-cant="${i}" value="${esc(x.cantidad)}" inputmode="numeric" style="width:60px"/><span class="ag-muted" style="font-size:12px">Precio c/u $</span><input data-prep-precio="${i}" value="${esc(x.precio)}" inputmode="decimal" style="width:80px"/></div></div>`).join('');
           el.querySelectorAll('[data-prep-desc]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepDesc].descripcion = inp.value; });
           el.querySelectorAll('[data-prep-cant]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepCant].cantidad = Number(inp.value)||0; totalEv(); });
-          el.querySelectorAll('[data-prep-precio]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepPrecio].precio = fnum(inp.value); totalEv(); });
+          el.querySelectorAll('[data-prep-precio]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepPrecio].precio = numPrecio(inp.value); totalEv(); });
           el.querySelectorAll('[data-prep-quitar]').forEach(b=>b.onclick=()=>{ P.evPreps.splice(+b.dataset.prepQuitar,1); dibujarPreps(); totalEv(); });
         };
         addEl.querySelector('#pa-prep-add').onclick = ()=>{ P.evPreps.push({ descripcion:'', cantidad:1, precio:'' }); dibujarPreps(); };
@@ -12141,7 +12221,7 @@ setTimeout(function(){
           if(P.evPreps.some(x=>!String(x.descripcion||'').trim() && (Number(x.precio)||0))){ alert('Hay una preparación con precio pero sin descripción.'); return; }
           const nLen = lenChk.checked ? (Number(lenN.value)||0) : 0;
           P.items.push({ tipo:'libre', categoria:'Eventos', descripcion:'Evento · alquiler exclusivo del espacio · ' + r.horas + ' horas · ' + r.personas + ' personas' + (nLen ? ' · con lencería para ' + nLen : ''),
-            detalle: String(cfg.incluye||'') + (nLen ? ' · Toallas y batas' : ''), cantidad:1, precio: fnum(val('pa-precio')) });
+            detalle: String(cfg.incluye||'') + (nLen ? ' · Toallas y batas' : ''), cantidad:1, precio: numPrecio(val('pa-precio')) });
           leerSpa().forEach(x=>P.items.push({ tipo:'terapia', descripcion: x.mostrar + (x.varianteNombre?' · '+x.varianteNombre:''), detalle: 'Servicio de spa', cantidad:x.cantidad, precio:x.precio, terapia:x.servicio, categoria:x.categoria, tipoFicha:x.tipoFicha, variante:x.variante }));
           leerMenu().forEach(c=>{ const m = (state.menu||[]).find(x=>x.id===c.menuId); P.items.push({ tipo:'comida', descripcion:c.nombre, detalle:'Rincón de Rosita' + (m&&m.descripcion?' · '+m.descripcion:''), cantidad:c.cantidad, precio:c.precio, menuId:c.menuId }); });
           P.evPreps.filter(x=>String(x.descripcion||'').trim()).forEach(x=>P.items.push({ tipo:'comida', descripcion:x.descripcion.trim(), detalle:'Preparación personalizada', cantidad:Number(x.cantidad)||1, precio:Number(x.precio)||0, menuId:'', categoria:'Preparación personalizada' }));
@@ -12164,7 +12244,7 @@ setTimeout(function(){
           <button class="ag-btn sm" id="pa-ok" style="width:100%;margin-top:6px">Agregar al presupuesto</button>` : '<p class="ag-muted">No hay paquetes activos. Créalos en 📅 Agenda → 📦 Paquetes.</p>';
         const ok = addEl.querySelector('#pa-ok');
         if(ok) ok.onclick = ()=>{ const p = paqs.find(x=>x.id===val('pa-paq')); const conDias = (p.dias||[]).length;
-          P.items.push({ tipo:'paquete', descripcion: 'Paquete: ' + p.nombre, detalle: [conDias ? resumenDias(p.dias) : p.terapias.join(', '), p.comidas.map(c=>c.cantidad+'× '+c.nombre).join(', ')].filter(Boolean).join(' · '), cantidad: Number(val('pa-cant'))||1, precio: p.precio, paqueteId: p.id,
+          P.items.push({ tipo:'paquete', descripcion: 'Paquete: ' + p.nombre, detalle: conDias ? [resumenDias(p.dias), p.comidas.map(c=>c.cantidad+'× '+c.nombre).join(', ')].filter(Boolean).join(' · ') : desglosePaquete(p), cantidad: Number(val('pa-cant'))||1, precio: p.precio, paqueteId: p.id,
             dias: conDias ? JSON.parse(JSON.stringify(p.dias)) : undefined, programaTipo: conDias ? (p.tipoPrograma||'reductivo') : undefined }); dibujarItems(); };
       } else if(t==='programa'){
         // ===== PROGRAMA POR DÍAS: cada día con sus terapias, un solo precio =====
@@ -12186,7 +12266,7 @@ setTimeout(function(){
         addEl.querySelector('#pa-ok').onclick = ()=>{
           const nombre = val('pa-prog-nombre').trim(); if(!nombre){ alert('Escribe el nombre del programa.'); return; }
           const dias = leerD(); if(!dias.length || dias.some(d=>!d.servicios.length)){ alert('Cada día debe llevar al menos un servicio (o quita el día vacío).'); return; }
-          const precio = Number(String(precioEl.value).replace(',','.')); if(!(precio >= 0) || precioEl.value.trim()===''){ alert('Escribe el precio total del programa.'); return; }
+          const precio = numPrecio(precioEl.value); if(!(precio >= 0) || precioEl.value.trim()===''){ alert('Escribe el precio total del programa.'); return; }
           P.items.push({ tipo:'programa', descripcion:'Programa: ' + nombre, detalle: dias.length + ' días · ' + resumenDias(dias), cantidad:1, precio, dias, programaTipo: val('pa-prog-tipo'), tipoFicha: val('pa-prog-tipo') });
           dibujarItems(); dibujarAgregar(); toast('Programa agregado al presupuesto.');
         };
@@ -12194,7 +12274,7 @@ setTimeout(function(){
         addEl.innerHTML = `<label class="f" style="margin-top:0">Concepto</label><input id="pa-desc" placeholder="Ej: Decoración de cumpleaños"/>
           <div class="ag-row"><div><label class="f">Cantidad</label><input id="pa-cant" value="1" inputmode="numeric"/></div><div><label class="f">Precio $</label><input id="pa-precio" inputmode="decimal"/></div></div>
           <button class="ag-btn sm" id="pa-ok" style="width:100%;margin-top:6px">Agregar al presupuesto</button>`;
-        addEl.querySelector('#pa-ok').onclick = ()=>{ const d = val('pa-desc').trim(); if(!d){ alert('Escribe el concepto.'); return; } P.items.push({ tipo:'libre', descripcion:d, detalle:'', cantidad:Number(val('pa-cant'))||1, precio:fnum(val('pa-precio')) }); dibujarItems(); };
+        addEl.querySelector('#pa-ok').onclick = ()=>{ const d = val('pa-desc').trim(); if(!d){ alert('Escribe el concepto.'); return; } P.items.push({ tipo:'libre', descripcion:d, detalle:'', cantidad:Number(val('pa-cant'))||1, precio:numPrecio(val('pa-precio')) }); dibujarItems(); };
       }
     };
     body.querySelectorAll('[data-pf-add]').forEach(b=>b.onclick=()=>{ P.addTipo = b.dataset.pfAdd; body.querySelectorAll('[data-pf-add]').forEach(x=>x.classList.toggle('ghost', x!==b)); dibujarAgregar(); });
@@ -12344,7 +12424,7 @@ setTimeout(function(){
       const pe = (p.pagosReportados||[]).find(x=>x.key === b.dataset.pgOk) || {};
       const rr = prompt('¿Qué monto confirmas que recibiste de ' + (pe.nombre || 'esta persona') + ' ($)?\n\nDéjalo en 0 si todavía no lo ves en tu banco: igual queda verificado, sin abono.', String(b.dataset.monto || '0'));
       if(rr === null) return;
-      const monto = fnum(rr); if(!montoRazonable(monto, b.dataset.monto)) return;
+      const monto = numPrecio(rr); if(!montoRazonable(monto, b.dataset.monto)) return;
       b.disabled = true; b.textContent = 'Verificando…';
       try{
         aplicarPresupuesto(p, await gs('verificarPagoPersona', p.id, b.dataset.pgOk, monto, auth())); state.agenda = null;
@@ -12364,7 +12444,7 @@ setTimeout(function(){
       const sug = p.pagoReportadoMonto || 0;
       const r = prompt('¿Qué monto confirmas que recibiste ($)?\n\nDéjalo en 0 si todavía no lo ves en tu banco: igual queda verificada la solicitud, sin abono.', sug ? String(sug) : '0');
       if(r === null) return;
-      const monto = fnum(r);
+      const monto = numPrecio(r);
       if(!montoRazonable(monto, sug)) return;
       bve.disabled = true; bve.textContent = 'Verificando…';
       try{
@@ -12796,6 +12876,7 @@ setTimeout(function(){
     const n = parseFloat(s); return isFinite(n) ? n : 0;
   }
   function fnum(v){ return aNum(v); }
+  window.agNum = aNum;   // para los oninput escritos dentro del HTML
   function numPrecio(v){ return aNum(v, true); }
   // El precio escrito puede ser lo pagado por TODO (200 g de café en 2449,50 → 12,2475 por g) o el de cada kg/gramo (lomo a 10.000 el kg).
   const GL_PXU = [['kg','kg'],['g','gramos'],['L','litros'],['ml','ml'],['unidades','unidades / envases']];
@@ -12804,7 +12885,7 @@ setTimeout(function(){
   const glPxModos = x=>[['total','💵 Lo que pagué por todo'], ['unidad','🏷️ Precio de cada ' + glPxUni(x)]];
   function glPx(x){ const p = numPrecio(x.pxkg); if(glPxModo(x) === 'unidad') return p; const q = numPrecio(x.pesoq); return p > 0 && q > 0 ? p / q : 0; }
   function glPxMonto(x){ const q = numPrecio(x.pesoq), p = numPrecio(x.pxkg); if(glPxModo(x) === 'total') return p > 0 ? Math.round(p * 100) / 100 : 0; return q > 0 && p > 0 ? Math.round(q * p * 100) / 100 : 0; }
-  function glPxCant(x){ const q = numPrecio(x.pesoq); if(q > 0) return Math.round(q * 1000) / 1000; const px = glPx(x), m = fnum(x.monto); return px > 0 && m > 0 ? Math.round(m / px * 1000) / 1000 : 0; }
+  function glPxCant(x){ const q = numPrecio(x.pesoq); if(q > 0) return Math.round(q * 1000) / 1000; const px = glPx(x), m = numPrecio(x.monto); return px > 0 && m > 0 ? Math.round(m / px * 1000) / 1000 : 0; }
   // 🍾 Envases (botella de 500 ml, paquete de 250 g): lo comprado en total para costear = unidades × contenido. Ej. 1 botella de 500 ml a 13.000 → 26 por ml.
   // Si lo comprado ya está en ml/g/kg/L (500 ml), ese ES el total: no se multiplica por el envase (antes daba 500 × 500 = 250.000 ml).
   // Solo cuando se compran unidades/envases (2 botellas) el total es unidades × contenido.
@@ -12814,7 +12895,7 @@ setTimeout(function(){
     if(!(c > 0)) return 0;
     if(glEnMedida(x)){ const q = numPrecio(x.pesoq), a = GL_BASE[x.pxu || 'kg'], b = GL_BASE[cu]; return a && b && a[0] === b[0] ? Math.round(q * a[1] / b[1] * 1000) / 1000 : q; }
     const q = Number(unidades) || 0; return c > 0 && q > 0 ? Math.round(c * q * 1000) / 1000 : 0; }
-  function glContTexto(x){ const q = glPxCant(x) || fnum(x.cant) || fnum(String(x.cuanto || '').match(/[\d.,]+/) ? String(x.cuanto).match(/[\d.,]+/)[0] : '') || (fnum(x.cont) > 0 ? 1 : 0), tot = glContTotal(x, q), m = fnum(x.monto);
+  function glContTexto(x){ const q = glPxCant(x) || fnum(x.cant) || fnum(String(x.cuanto || '').match(/[\d.,]+/) ? String(x.cuanto).match(/[\d.,]+/)[0] : '') || (fnum(x.cont) > 0 ? 1 : 0), tot = glContTotal(x, q), m = numPrecio(x.monto);
     const cu = x.contu || 'ml', c = numPrecio(x.cont), f4 = n=>n.toLocaleString('es-VE', { maximumFractionDigits:4 });
     const env = glEnMedida(x) && c > 0 && tot > 0 ? tot / c : 0;
     return tot ? '= ' + (env ? f4(env) + (env === 1 ? ' envase' : ' envases') + ' de ' + f4(c) + ' ' + cu + ' · ' : '') + f4(tot) + ' ' + cu + ' en total' + (m > 0 ? ' · ' + f4(m / tot) + ' por ' + cu : '') : ''; }
@@ -13008,7 +13089,7 @@ setTimeout(function(){
     const ves = f.moneda === 'VES', tasa = fnum(f.tasa), pct = fnum(f.ivaPct), fac = gastoFactor(f);
     let base = 0, iva = 0, orig = 0, nominal = 0;
     (f.items||[]).forEach(x=>{
-      const m = fnum(x.monto); if(!(m > 0)) return; orig += m;
+      const m = numPrecio(x.monto); if(!(m > 0)) return; orig += m;
       const p = m * fac, nm = ves ? (tasa > 0 ? m / tasa : 0) : m; let b = p, v = 0, nb = nm, nv = 0;
       if(x.conIva){ if(f.preciosConIva){ b = p / (1 + pct/100); v = p - b; nb = nm / (1 + pct/100); nv = nm - nb; } else { v = b * pct / 100; nv = nb * pct / 100; } }
       base += b; iva += v; nominal += nb + nv;
@@ -13181,12 +13262,12 @@ setTimeout(function(){
         <button class="ag-btn" id="np-guardar" style="width:100%;margin-top:10px">💾 Guardar el pago del mes</button>
       </div>`;
     const inputs = ()=>Array.from(cont.querySelectorAll('[data-np]'));
-    const total = ()=>{ cont.querySelector('#np-total').innerHTML = 'Total del mes: <strong>' + dinero(inputs().reduce((a, el)=>a + fnum(el.value), 0)) + '</strong>'; };
+    const total = ()=>{ cont.querySelector('#np-total').innerHTML = 'Total del mes: <strong>' + dinero(inputs().reduce((a, el)=>a + numPrecio(el.value), 0)) + '</strong>'; };
     inputs().forEach(el=>el.addEventListener('input', total)); total();
     cont.querySelector('#np-volver').onclick = ()=>{ G.vista = 'lista'; render(); };
     // Editar la lista de personal operativo; lo ya escrito en los montos se conserva.
     const guardarLista = async (nombres)=>{
-      inputs().forEach(el=>{ const p = personal[+el.dataset.np]; if(p.id && el.value !== '') (D.nominaBase = D.nominaBase || {})[p.id] = fnum(el.value); });
+      inputs().forEach(el=>{ const p = personal[+el.dataset.np]; if(p.id && el.value !== '') (D.nominaBase = D.nominaBase || {})[p.id] = numPrecio(el.value); });
       try{ D.nominaPersonal = await gs('saveNominaPersonal', nombres, auth()); render(); }
       catch(e){ alert('No se pudo guardar la lista: ' + (e && e.message ? e.message : e)); }
     };
@@ -13209,7 +13290,7 @@ setTimeout(function(){
       guardarLista((D.nominaPersonal || []).concat({ id:'', nombre:n, cargo:c }));
     };
     cont.querySelector('#np-guardar').onclick = async (ev)=>{
-      const pagos = inputs().map(el=>{ const p = personal[+el.dataset.np]; return { id:p.id, nombre:p.nombre, monto:fnum(el.value) }; }).filter(p=>p.monto > 0);
+      const pagos = inputs().map(el=>{ const p = personal[+el.dataset.np]; return { id:p.id, nombre:p.nombre, monto:numPrecio(el.value) }; }).filter(p=>p.monto > 0);
       if(!pagos.length){ alert('Escribe el pago de al menos una persona.'); return; }
       ev.target.disabled = true;
       try{ G.datos = await gs('saveNomina', mes, cont.querySelector('#np-fecha').value, pagos, auth(), hon ? 'honorarios' : 'nomina'); G.vista = 'lista'; render(); toast(hon ? 'Honorarios guardados.' : 'Pago del personal guardado.'); }
@@ -13250,7 +13331,7 @@ setTimeout(function(){
     const SUG = D.cuentasSugeridas || ['Efectivo divisas', 'Binance', 'Banco (bolívares)', 'Efectivo bolívares', 'Zelle', 'Zinli'];
     if(!D.configurado || FD.edit){
       if(!FD.cuentas) FD.cuentas = (D.cuentasCfg && D.cuentasCfg.length ? D.cuentasCfg : [{ nombre:'Efectivo divisas', monto:'' }, { nombre:'Binance', monto:'' }, { nombre:'Banco (bolívares)', monto:'' }]).map(k=>({ nombre:k.nombre, monto:k.monto === '' ? '' : String(k.monto) }));
-      const totalC = ()=>FD.cuentas.reduce((a, k)=>a + (fnum(k.monto)), 0);
+      const totalC = ()=>FD.cuentas.reduce((a, k)=>a + (numPrecio(k.monto)), 0);
       body.innerHTML = `<div class="ag-card"><h3>🏦 ${D.configurado ? 'Cambiar el fondo de reserva' : 'Crear el fondo de reserva'}</h3>
         <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Indica cuánto hay en cada lugar al empezar (efectivo, Binance, banco…) y desde qué día cuenta. Desde ese día se le <strong>suman los ingresos</strong> y se le <strong>restan los egresos</strong> de Finanzas, cada uno en su cuenta según con qué se pagó. El presupuesto de cada mes se aparta del fondo para los gastos.</p>
         <label class="f">¿Dónde está el dinero y cuánto hay? ($)</label>
@@ -13331,7 +13412,7 @@ setTimeout(function(){
       p.querySelectorAll('[data-fr-t]').forEach(b=>b.onclick = ()=>{ signo = +b.dataset.frT; p.querySelectorAll('[data-fr-t]').forEach(x=>x.classList.toggle('ghost', x !== b));
         p.querySelector('#fr-aj-una').style.display = signo ? '' : 'none'; p.querySelector('#fr-aj-tr').style.display = signo ? 'none' : ''; p.querySelector('#fr-aj-lbl').textContent = signo > 0 ? '¿En qué cuenta entra?' : '¿De qué cuenta sale?'; });
       p.querySelector('#fr-aj-ok').onclick = async ev=>{
-        const m = Math.abs(fnum(p.querySelector('#fr-aj-m').value)); if(!m){ alert('Escribe el monto.'); return; }
+        const m = Math.abs(numPrecio(p.querySelector('#fr-aj-m').value)); if(!m){ alert('Escribe el monto.'); return; }
         const d = { monto:signo ? signo * m : m, nota:p.querySelector('#fr-aj-n').value, fecha:p.querySelector('#fr-aj-f').value };
         if(!signo){ d.tipo = 'traslado'; d.de = p.querySelector('#fr-aj-de').value; d.a = p.querySelector('#fr-aj-a').value; if(!d.de || !d.a || d.de === d.a){ alert('Elige la cuenta de origen y la de destino (distintas).'); return; } }
         else { d.cuenta = p.querySelector('#fr-aj-c').value; if(!d.cuenta){ alert('Elige la cuenta.'); return; } }
@@ -13591,23 +13672,23 @@ setTimeout(function(){
       const cDesc = fEl.querySelector('[data-ppf-desc]');
       if(cDesc) cDesc.onchange = ()=>{
         P.form.descontar = cDesc.checked; const t = Number(cDesc.dataset.t) || 0, inp = fEl.querySelector('[data-ppf="monto"]');
-        if(inp && fnum(inp.value) > 0){ const v = Math.max(0, Math.round((fnum(inp.value) + (cDesc.checked ? -t : t)) * 100) / 100); inp.value = String(v); P.form.monto = String(v); }
+        if(inp && numPrecio(inp.value) > 0){ const v = Math.max(0, Math.round((numPrecio(inp.value) + (cDesc.checked ? -t : t)) * 100) / 100); inp.value = String(v); P.form.monto = String(v); }
       };
       fEl.querySelector('[data-ppf-ok]').onclick = async (ev)=>{
         const F = P.form;
         if(!String(F.nombre||'').trim()){ alert('Escribe a quién se le pagó.'); return; }
         if(P.tab === 'eventual' && !F.personaId && !String(F.motivo||'').trim()){ alert('Escribe qué trabajo hizo.'); return; }
-        if(!(fnum(F.monto) > 0)){ alert('Escribe el monto pagado.'); return; }
+        if(!(numPrecio(F.monto) > 0)){ alert('Escribe el monto pagado.'); return; }
         if(F.moneda === 'VES' && !(fnum(F.tasa) > 0)){ alert('Escribe la tasa para convertir los bolívares.'); return; }
         if(!F.metodo){ alert('Elige con qué se pagó (efectivo $, efectivo Bs, pago móvil, transferencia, Binance…).'); return; }
         ev.target.disabled = true; ev.target.textContent = 'Guardando…';
         try{
           const pDesc = F.descontar ? personas.find(x=>String(x.id) === String(F.personaId)) : null, lDesc = pDesc ? pendDe(pDesc) : [];
           const notaDesc = lDesc.length ? 'Se le descontaron ' + dinero(finSuma(lDesc.map(c=>({ monto:c.total })))) + ' de cuentas (' + lDesc.map(c=>c.concepto).join(', ') + ')' : '';
-          G.datos = await gs('registrarPagoPersonal', { tipo:P.tab, personaId:F.personaId, nombre:F.nombre.trim(), motivo:F.motivo, fecha:F.fecha, monto:fnum(F.monto), moneda:F.moneda, tasa:fnum(F.tasa), metodo:F.metodo,
+          G.datos = await gs('registrarPagoPersonal', { tipo:P.tab, personaId:F.personaId, nombre:F.nombre.trim(), motivo:F.motivo, fecha:F.fecha, monto:numPrecio(F.monto), moneda:F.moneda, tasa:fnum(F.tasa), metodo:F.metodo,
             nota:[F.nota, notaDesc].filter(Boolean).join(' · ').slice(0, 300), descontar:lDesc.map(c=>c.id) }, auth());
           if(state.fin) state.fin.datos = null;
-          P.form = null; render(); toast('Pago registrado: ' + F.nombre.trim() + ' · ' + (F.moneda === 'VES' ? 'Bs ' + F.monto : dinero(fnum(F.monto))));
+          P.form = null; render(); toast('Pago registrado: ' + F.nombre.trim() + ' · ' + (F.moneda === 'VES' ? 'Bs ' + F.monto : dinero(numPrecio(F.monto))));
         }catch(e){ ev.target.disabled = false; ev.target.textContent = '💾 Guardar pago'; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
       };
     }
@@ -13644,7 +13725,7 @@ setTimeout(function(){
 
   // Datos de Ingresos y Balance (una sola consulta por mes).
   // Vista previa: \ a BCV → Bs … → al fondo \$… a tasa Binance.
-  function oiPrevTexto(O){ const n = v=>fnum(v == null ? '' : v), m = n(O.monto), bcv = n(O.tasa), us = n(O.tasaFondo); if(!(m > 0) || !(us > 0)) return '';
+  function oiPrevTexto(O){ const n = v=>fnum(v == null ? '' : v), m = numPrecio(O.monto == null ? '' : O.monto), bcv = n(O.tasa), us = n(O.tasaFondo); if(!(m > 0) || !(us > 0)) return '';
     const bs = O.moneda === 'VES' ? m : m * bcv; if(!(bs > 0)) return ''; return 'Bs ' + bs.toLocaleString('es-VE', { maximumFractionDigits:2 }) + ' → al fondo entra ' + dinero(Math.round(bs / us * 100) / 100) + ' (tasa Binance).'; }
   function finEstado(){ if(!state.fin) state.fin = { mes: hoyISO().slice(0, 7), datos:null, error:'', origen:'' }; return state.fin; }
   function finListo(cont){
@@ -14025,7 +14106,7 @@ setTimeout(function(){
         try{
           const r = interpretarFacturaVoz(vozTxt.value, hoyISO());
           if(!r.items.length){ res.style.color = 'var(--danger)'; res.textContent = 'No encontré productos. Di cada uno con su precio, por ejemplo: «arroz 2 kilos 3 dólares, azúcar 1 kilo 1,50».'; return; }
-          const llenos = F.items.filter(x=>String(x.concepto||'').trim() || fnum(x.monto) > 0);
+          const llenos = F.items.filter(x=>String(x.concepto||'').trim() || numPrecio(x.monto) > 0);
           let nuevos = r.items.map(x=>({ concepto:x.concepto, categoria:'', monto:x.monto === '' ? '' : String(x.monto), conIva:!!x.conIva, nombre:x.nombre || '', cant:x.cant || '', uni:x.uni || '' }));
           if(llenos.length && !confirm('Ya tienes ' + llenos.length + ' renglón(es). ¿Agregar los ' + nuevos.length + ' nuevos debajo?\n\n«Cancelar» = reemplazar los que hay por los nuevos.')) F.items = nuevos;
           else F.items = llenos.concat(nuevos);
@@ -14035,7 +14116,7 @@ setTimeout(function(){
           if(r.moneda) F.moneda = r.moneda;
           if(r.total) F.totalFactura = r.total;
           if(r.ivaFactura) F.ivaFactura = r.ivaFactura;
-          const sinPrecio = nuevos.filter(x=>!(fnum(x.monto) > 0)).length;
+          const sinPrecio = nuevos.filter(x=>!(numPrecio(x.monto) > 0)).length;
           let metodo = '';
           if(r.metodoTxt){ const tmp = document.createElement('select'); tmp.innerHTML = finMetodoSelect('', '').replace(/^<select[^>]*>|<\/select>$/g, ''); let mt = r.metodoTxt; if(/^efectivo$/i.test(mt.trim())) mt = F.moneda === 'VES' ? 'efectivo bolivares bs' : 'efectivo dolares'; metodo = invElegirOpcion(tmp, mt, false) ? tmp.value : ''; if(metodo) F.metodo = metodo; }
           const partes = ['✓ Pasé ' + nuevos.length + ' producto' + (nuevos.length === 1 ? '' : 's') + ' al paso 3'];
@@ -14119,14 +14200,14 @@ setTimeout(function(){
       const conCuantoEnv = x=>{ const c = x.concepto.trim(); if(!(fnum(x.cont) > 0) || /\(\s*\d+(?:[.,]\d+)?\s*[^)]*\)\s*$/.test(c)) return conCuanto(x);
         const und = glPxCant(x) || (dst && x.inv !== false ? fnum(invDe(x).cant) : fnum((String(x.cuanto || '').match(/[\d.,]+/) || ['1'])[0])) || 1, tot = glContTotal(x, und);
         return tot ? c + ' (' + String(tot).replace('.', ',') + ' ' + (x.contu || 'ml') + ')' : conCuanto(x); };
-      const items = F.items.filter(x=>String(x.concepto||'').trim() && fnum(x.monto) > 0).map(x=>({ concepto:conCuantoEnv(x), categoria:(x.categoria||'').trim() || (F.categoria||'').trim() || 'Otros', monto:fnum(x.monto), conIva:!!x.conIva,
+      const items = F.items.filter(x=>String(x.concepto||'').trim() && numPrecio(x.monto) > 0).map(x=>({ concepto:conCuantoEnv(x), categoria:(x.categoria||'').trim() || (F.categoria||'').trim() || 'Otros', monto:numPrecio(x.monto), conIva:!!x.conIva,
         cargoA:x.cargoA || '', cargoNombre:x.cargoA ? ((gentes.find(p=>String(p.id) === String(x.cargoA)) || {}).nombre || x.cargoNombre || '') : '' }));
       if(!items.length){ alert('Agrega al menos un renglón con concepto y monto.'); return; }
       if(gastoEnBs(F) && !(fnum(F.tasa) > 0)){ alert('Indica la tasa BCV (Bs por dólar) de la factura.'); return; }
       if(gastoEnBs(F) && F.bsOrigen === 'binance' && !(fnum(F.tasaPago) > 0)){ alert('Indica la tasa a la que cambiaste los dólares (Bs por cada $).'); return; }
       if(!F.metodo){ alert('Elige con qué se pagó (efectivo $, efectivo Bs, pago móvil, transferencia, Binance…).'); const s = cont.querySelector('[data-gf="metodo"]'); if(s) s.focus(); return; }
       if(conDest && F.destino === undefined){ alert('Paso 1: elige a dónde va esta compra (solo egreso, comida del personal, Rosita, spa u operaciones).'); const p1 = cont.querySelector('[data-gf-dest]'); if(p1) p1.scrollIntoView({ block:'center' }); return; }
-      const paraInv = conDest && dst ? F.items.filter(x=>String(x.concepto||'').trim() && fnum(x.monto) > 0 && x.inv !== false).map(x=>{ const v = invDe(x); return { nombre:v.nombre, cantidad:fnum(v.cant) || 1, unidad:v.uni, equipo:!!v.equipo }; }).filter(x=>x.nombre) : [];
+      const paraInv = conDest && dst ? F.items.filter(x=>String(x.concepto||'').trim() && numPrecio(x.monto) > 0 && x.inv !== false).map(x=>{ const v = invDe(x); return { nombre:v.nombre, cantidad:fnum(v.cant) || 1, unidad:v.uni, equipo:!!v.equipo }; }).filter(x=>x.nombre) : [];
       // Resumen antes de sumar al inventario: así se ve si alguna cantidad quedó mal (ej. el precio leído como cantidad).
       if(paraInv.length){
         const rara = x=>x.cantidad > (/^(g|ml)$/.test(x.unidad) ? 5000 : 100);
@@ -14346,17 +14427,17 @@ setTimeout(function(){
       const mon = panel.querySelector('[data-cp-mon]'), eq = panel.querySelector('[data-cp-eq]');
       // Bs de Binance: los Bs salieron de vender USDT, así que el gasto real en $ es Bs ÷ tasa Binance.
       const tasaMon = ()=>mon && mon.value === 'VESB' ? ((state.tasas && state.tasas.usdt) || 0) : tasaBcv(), nomMon = ()=>mon && mon.value === 'VESB' ? 'Binance' : 'BCV';
-      const verEq = ()=>{ if(!eq) return; const v = fnum(m.value || ''), t = tasaMon();
+      const verEq = ()=>{ if(!eq) return; const v = numPrecio(m.value || ''), t = tasaMon();
         eq.textContent = mon.value !== 'USD' ? (t > 0 ? (v > 0 ? '≈ ' + dinero(Math.round(v / t * 100) / 100) + ' a tasa ' + nomMon() + ' ' + t : 'Tasa ' + nomMon() + ' de hoy: ' + t + ' Bs/$') : '⚠️ No hay tasa ' + nomMon() + ' cargada') : ''; };
       if(m){ m.oninput = verEq; mon.onchange = verEq; }
       const listo = async ()=>{
         let monto = m ? String(m.value || '').trim() : ''; const inv = !!(panel.querySelector('[data-cp-inv]') || {}).checked;
         const lugarEl = panel.querySelector('[data-cp-lugar]'), lugar = lugarEl ? String(lugarEl.value || '').trim() : '';   // se lee antes de vaciar el panel
-        if(monto && !(Number(monto.replace(',', '.')) >= 0)){ alert('Escribe el costo solo con números (ej: 12,50).'); return; }
+        if(monto && !(numPrecio(monto) >= 0)){ alert('Escribe el costo solo con números (ej: 12,50).'); return; }
         // 🔁 Ya está en una factura de Egresos: con costo se contaría dos veces.
-        if(x.enFactura && !(C.otraVez || {})[id] && Number(monto.replace(',', '.')) > 0 && !confirm('⚠️ «' + x.nombre + '» ya está en la factura de ' + (x.enFactura.proveedor || 'Egresos') + ' del ' + isoToDMY(x.enFactura.fecha) + '.\n\nSi es la misma compra, el gasto se contaría DOS veces.\n\n«Aceptar» = es otra compra, súmalo igual.\n«Cancelar» = no; borra el costo o usa «Ya se pagó en esa factura».')) return;
+        if(x.enFactura && !(C.otraVez || {})[id] && numPrecio(monto) > 0 && !confirm('⚠️ «' + x.nombre + '» ya está en la factura de ' + (x.enFactura.proveedor || 'Egresos') + ' del ' + isoToDMY(x.enFactura.fecha) + '.\n\nSi es la misma compra, el gasto se contaría DOS veces.\n\n«Aceptar» = es otra compra, súmalo igual.\n«Cancelar» = no; borra el costo o usa «Ya se pagó en esa factura».')) return;
         if(monto && mon && mon.value !== 'USD'){ const t = tasaMon(); if(!(t > 0)){ alert('No hay tasa ' + nomMon() + ' cargada para convertir los bolívares. Escribe el costo en $ o actualiza las tasas en Finanzas.'); return; }
-          monto = String(Math.round(Number(monto.replace(',', '.')) / t * 100) / 100); }
+          monto = String(Math.round(numPrecio(monto) / t * 100) / 100); }
         panel.innerHTML = '';
         const fila = caja.querySelector('.cp-fila'); fila.classList.add('cp-ok'); b.disabled = true; b.textContent = '✓ Comprado';
         const pedido = gs('marcarCompra', id, true, inv, auth(), monto, lugar);
@@ -15185,14 +15266,16 @@ setTimeout(function(){
       if(!P.error) gs('getPapelera', auth()).then(d=>{ P.datos = d; if(state.pp === P) render(); }).catch(e=>{ P.error = String(e && e.message ? e.message : e); if(state.pp === P) render(); });
       return;
     }
+    const PAP_TIPO = { reserva:'📅 Reserva', ficha:'📋 Ficha', presupuesto:'🧾 Presupuesto', cliente:'👤 Cliente', informe:'📄 Informe', menu:'🍽️ Plato', pedido:'🧾 Orden de Rosita', paquete:'📦 Paquete', propina:'💝 Propina', operacion:'🛠️ Operación', inventario:'📦 Inventario', compra:'🛒 Compra', gasto:'💸 Gasto', ingreso:'💵 Ingreso' };
+    const PAP_PLURAL = { reserva:'📅 reservas', ficha:'📋 fichas', presupuesto:'🧾 presupuestos', cliente:'👤 clientes', informe:'📄 informes', menu:'🍽️ platos', pedido:'🧾 órdenes', paquete:'📦 paquetes', propina:'💝 propinas', operacion:'🛠️ operaciones', inventario:'📦 productos', compra:'🛒 compras', gasto:'💸 gastos', ingreso:'💵 ingresos' };
     const diasQue = iso=>{ const n = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000); return n <= 0 ? 'se borra hoy' : 'se borra en ' + n + (n===1 ? ' día' : ' días'); };
     cont.innerHTML = `<div class="ag-card"><h3>🗑️ Papelera</h3>
-      <p class="ag-muted" style="font-size:12.5px;margin:0">Los presupuestos, las reservas y las fichas que eliminas se quedan aquí <strong>10 días</strong>. Puedes restaurarlos; pasado ese tiempo se borran solos. Las reservas restauradas vuelven también al calendario.</p>
-      ${P.datos.length ? (()=>{ const TIPOS = { reserva:'📅 reservas', ficha:'📋 fichas', presupuesto:'🧾 presupuestos' }, cuenta = {}; P.datos.forEach(x=>{ cuenta[x.tipo] = (cuenta[x.tipo] || 0) + 1; });
+      <p class="ag-muted" style="font-size:12.5px;margin:0">Todo lo que eliminas (clientes con sus fichas, reservas, presupuestos, gastos, ingresos, menú, inventario, compras…) se queda aquí <strong>10 días</strong>. Puedes restaurarlos; pasado ese tiempo se borran solos. Las reservas restauradas vuelven también al calendario.</p>
+      ${P.datos.length ? (()=>{ const TIPOS = PAP_PLURAL, cuenta = {}; P.datos.forEach(x=>{ cuenta[x.tipo] = (cuenta[x.tipo] || 0) + 1; });
         const tipos = Object.keys(cuenta);
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="ag-btn sm danger" data-pp-vaciar="">🗑️ Vaciar papelera (${P.datos.length})</button>${tipos.length > 1 ? tipos.map(t=>`<button class="ag-btn sm ghost" data-pp-vaciar="${esc(t)}" style="border-color:#e0b4b4;color:#a32b2b">Vaciar solo ${esc(TIPOS[t] || t)} (${cuenta[t]})</button>`).join('') : ''}</div>`; })() : ''}</div>` +
       (P.datos.length ? P.datos.map(x=>`<div class="ag-card" style="margin-top:10px">
-        <div style="display:flex;justify-content:space-between;gap:8px"><div><strong>${x.tipo==='reserva' ? '📅 Reserva' : (x.tipo==='ficha' ? '📋 Ficha' : '🧾 Presupuesto')}</strong> · ${esc(x.titulo)}<div class="ag-muted" style="font-size:12px">${esc(x.detalle)}</div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><div><strong>${esc(PAP_TIPO[x.tipo] || '🗑️ ' + x.tipo)}</strong> · ${esc(x.titulo)}<div class="ag-muted" style="font-size:12px">${esc(x.detalle)}</div>
         <div class="ag-muted" style="font-size:11.5px">Eliminado por ${esc(x.eliminadoPor || '—')} el ${esc(x.eliminadoAt ? isoToDMY(x.eliminadoAt.slice(0, 10)) : '')} · ${esc(diasQue(x.expira))}</div></div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="ag-btn sm" data-pp-rest="${esc(x.id)}">♻️ Restaurar</button><button class="ag-btn sm danger" data-pp-del="${esc(x.id)}">Borrar ya</button></div></div>`).join('') : '<p class="ag-empty" style="margin-top:10px">La papelera está vacía.</p>');
     cont.querySelectorAll('[data-pp-rest]').forEach(b=>b.onclick = async ()=>{
@@ -15201,7 +15284,7 @@ setTimeout(function(){
       catch(e){ b.disabled = false; alert(e && e.message ? e.message : 'No se pudo restaurar.'); }
     });
     cont.querySelectorAll('[data-pp-vaciar]').forEach(b=>b.onclick = async ()=>{
-      const t = b.dataset.ppVaciar, n = P.datos.filter(x=>!t || x.tipo === t).length, que = t ? ({ reserva:'reservas', ficha:'fichas', presupuesto:'presupuestos' }[t] || t) : 'elementos';
+      const t = b.dataset.ppVaciar, n = P.datos.filter(x=>!t || x.tipo === t).length, que = t ? (PAP_PLURAL[t] || t) : 'elementos';
       if(!confirm('¿Vaciar la papelera' + (t ? ' (solo ' + que + ')' : '') + '?\n\nSe borran para siempre ' + n + ' ' + que + '. Esto no se puede deshacer.')) return;
       b.disabled = true; b.textContent = '⏳ Vaciando…';
       try{ const r = await gsEspera(60000, 'vaciarPapelera', t, auth()); P.datos = null; render(); toast('🗑️ Papelera vaciada: ' + r.borrados + ' borrado' + (r.borrados === 1 ? '' : 's') + '.'); }

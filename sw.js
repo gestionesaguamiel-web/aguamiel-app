@@ -1,8 +1,8 @@
-// Generado para la v344. Pantallas guardadas en el teléfono para abrir sin señal.
+// Generado para la v346. Pantallas guardadas en el teléfono para abrir sin señal.
 // v342: con señal débil la app ya no espera a la red para abrir: a los 3 s usa lo guardado (y lo nuevo queda listo para la próxima vez).
 // v344: al instalar una versión nueva y al pedir las pantallas se salta la copia del navegador (antes podía guardar la versión anterior hasta 10 min).
 // Las letras de Google se guardan también, para que sin señal la app se vea igual.
-const CACHE = 'aguamiel-v344', BASE = ['./', 'index.html', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png'];
+const CACHE = 'aguamiel-v346', BASE = ['./', 'index.html', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png'];
 const FUENTES = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 self.addEventListener('install', e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(BASE.map(u=>new Request(u, { cache:'reload' })))).then(()=>self.skipWaiting())); });
 self.addEventListener('activate', e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k !== CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
