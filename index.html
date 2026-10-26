@@ -204,6 +204,11 @@
   .iv-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;margin-top:8px}
   .iv-card.bajo{border-color:#f0d9a8}
   .iv-card.mal{border-color:#f2b8b5}
+  .iv-card.bajo{border-left:5px solid #f0a030}.iv-card.mal{border-left:5px solid #c0392b}.iv-card.sem-ok{border-left:5px solid #3fae6a}
+  .iv-barra{height:6px;border-radius:999px;background:#eef1ee;overflow:hidden;margin-top:8px}.iv-barra span{display:block;height:100%;border-radius:999px}
+  .iv-sem{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+  .iv-sem button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px 10px;text-align:left;font-family:inherit;cursor:pointer;color:var(--ink);min-height:56px}
+  .iv-sem button b{display:block;font-size:19px}.iv-sem button span{font-size:11.5px;color:var(--sub)}
   .iv-c1{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
   .iv-nom{font-size:16px;font-weight:700;color:var(--ink);line-height:1.25}
   .iv-cat{font-size:12px;color:var(--sub);margin-top:1px}
@@ -237,6 +242,28 @@
   #ag-fullscreen .ag-fs-top{background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
   #ag-fs-close{background:linear-gradient(135deg,#13adc6,var(--teal-d));border-radius:12px;box-shadow:0 2px 8px rgba(10,88,102,.2)}
   #ag-toast{border-radius:14px;background:rgba(29,37,39,.94);box-shadow:0 8px 24px rgba(0,0,0,.22)}
+  .ag-nav.abajo{position:fixed;top:auto;left:0;right:0;bottom:0;margin:0 auto;max-width:480px;z-index:60;border-bottom:none;border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(16,40,46,.07)}
+  .ag-nav.abajo button{min-height:52px}
+  .ag-body.con-barra{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  .ag-fab{position:fixed;right:max(16px, calc((100vw - 480px) / 2 + 16px));bottom:calc(86px + env(safe-area-inset-bottom));z-index:61;height:54px;padding:0 20px;border:none;border-radius:999px;background:linear-gradient(135deg,#14b0c9,var(--teal-d));color:#fff;font-size:15px;font-weight:700;box-shadow:0 6px 18px rgba(10,88,102,.35)}
+  .ag-fab:active{transform:scale(.97)}
+  .ag-mas-fondo{position:fixed;inset:0;z-index:9000;background:rgba(16,30,34,.35);display:flex;align-items:flex-end;justify-content:center}
+  .ag-mas-hoja{width:100%;max-width:480px;background:#fff;border-radius:22px 22px 0 0;padding:8px 12px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;font-family:'Inter',-apple-system,"Segoe UI",Roboto,sans-serif}
+  .ag-mas-asa{width:40px;height:4px;border-radius:999px;background:#d5dcdd;margin:4px auto 8px}
+  .ag-mas-hoja button{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font:inherit;font-size:16px;font-weight:600;cursor:pointer}
+  .ag-mas-hoja button.activo{background:var(--teal-l);border-color:var(--teal)}
+  #ag-toast{bottom:calc(150px + env(safe-area-inset-bottom))}
+  .ag-franja{position:fixed;top:0;left:0;right:0;margin:0 auto;max-width:480px;z-index:99990;min-height:36px;padding:6px 12px calc(6px);padding-top:calc(6px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;gap:8px;font:700 13px/1.3 'Inter',-apple-system,"Segoe UI",Roboto,sans-serif;box-sizing:border-box}
+  .ag-franja.sin,.ag-franja.pend{background:#fff7e6;color:#6b4a00;border-bottom:2px solid #f0a030}
+  .ag-franja.sube{background:var(--teal-l);color:var(--teal-d);border-bottom:2px solid var(--teal)}
+  .ag-franja.ok{background:#f3faf5;color:#1d6b35;border-bottom:2px solid #1d6b35}
+  .ag-franja.mal{background:var(--danger-l);color:var(--danger);border-bottom:2px solid var(--danger)}
+  .ag-franja button{border:none;background:#fff;color:var(--teal-d);font:inherit;font-size:12.5px;border-radius:999px;padding:6px 12px;min-height:30px;cursor:pointer;flex:0 0 auto}
+  body.ag-con-franja{padding-top:calc(38px + env(safe-area-inset-top))}
+  @media (min-width:768px){ .ag-franja{max-width:720px} }
+  @media (min-width:1100px){ .ag-franja{max-width:960px} }
+  @media (min-width:768px){ .ag-nav.abajo,.ag-mas-hoja{max-width:720px} .ag-fab{right:max(16px, calc((100vw - 720px) / 2 + 16px))} }
+  @media (min-width:1100px){ .ag-nav.abajo,.ag-mas-hoja{max-width:960px} .ag-fab{right:max(16px, calc((100vw - 960px) / 2 + 16px))} }
   #ag-app ::-webkit-scrollbar,#ag-fullscreen::-webkit-scrollbar{width:8px;height:8px}
   #ag-app ::-webkit-scrollbar-thumb,#ag-fullscreen::-webkit-scrollbar-thumb{background:#cfdfe2;border-radius:8px}
   @media (prefers-reduced-motion:reduce){ .ag-btn,.ag-nav button,.ag-list-item{transition:none} }
@@ -1162,7 +1189,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v342' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v343' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1191,7 +1218,7 @@ setTimeout(function(){
   // dirección /exec y se llama a las mismas funciones por internet (doPost en JSON). Dentro de Google se sigue usando google.script.run.
   function agApi(fn, args, rid, ms){
     if(!window.AG_API) return Promise.reject(new Error('Sin conexión con el servidor de Aguamiel.'));
-    const sinRed = ()=>{ const e = new Error('Failed to fetch'); e.sinRed = true; return e; };
+    const sinRed = ()=>{ const e = new Error('📴 Esta parte necesita internet. Se abrirá sola cuando vuelva la señal.'); e.sinRed = true; return e; };   // v343: texto claro e igual en todas las pantallas
     if(navigator.onLine === false) return Promise.reject(sinRed());
     // ⏱️ ms: tiempo máximo (los cambios que van a la cola sin señal no esperan para siempre con una señal muy débil).
     const ctl = ms && window.AbortController ? new AbortController() : null, tCorte = ctl ? setTimeout(()=>ctl.abort(), ms) : null;
@@ -1204,12 +1231,14 @@ setTimeout(function(){
   let precargaAt = 0;
   function precargarSinRed(){
     if(!window.AG_WEB || !state.user || state.prueba || navigator.onLine === false || document.hidden || Date.now() - precargaAt < 900000) return;
-    precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7), L = [['getAgenda', a], ['getPropinas', a], ['getMisSolicitudesCobertura', a]];
-    if(elegibleDisp()) L.push(['getMiDisponibilidad', a, 0]);
+    // Primero las pestañas principales (Agenda, Disponible, Operaciones, Inicio); luego Admin. La pestaña Disponible siempre pide getMiDisponibilidad
+    // (también a administración, para saber la semana): por eso va para todos (v342b).
+    precargaAt = Date.now(); const a = auth(), mes = hoyISO().slice(0, 7), L = [['getAgenda', a], ['getMiDisponibilidad', a, 0]];
+    if(state.user.admin) L.push(['getDisponibilidadEquipo', semanasEquipo(), a], ['getOperaciones', a], ['getOpAreas', a]);
+    L.push(['getAtencionHoy', false, a], ['getMisSolicitudesCobertura', a], ['getPropinas', a]);
     if(state.user.admin) L.push(['getInventario', a], ['getCompras', a], ['getGastos', mes, a], ['getFinanzas', mes, a], ['getTarifas', a], ['getPresupuestos', a],
-      ['getOperaciones', a], ['getOpAreas', a], ['getCostosCocina', a], ['getDondeComprar', a], ['getPagosPorVerificar', a], ['getCoberturaAdmin', a],
-      ['getCuentasPorCobrar', a], ['getDisponibilidadEquipo', semanasEquipo(), a]);
-    L.forEach((x, i)=>setTimeout(()=>{ if(state.user && navigator.onLine !== false) gs(...x).catch(()=>{}); }, i * 1500));
+      ['getCostosCocina', a], ['getDondeComprar', a], ['getPagosPorVerificar', a], ['getCoberturaAdmin', a], ['getCuentasPorCobrar', a]);
+    L.forEach((x, i)=>setTimeout(()=>{ if(state.user && navigator.onLine !== false) gs(...x).catch(()=>{}); }, i * 1000));
   }
   // 💝 Propinas: las paga el cliente DIRECTO al profesional; aquí solo se registran (sin efecto en las finanzas).
   // Cada profesional ve las suyas y sus datos para recibirlas; la administración ve todas y el resumen por persona.
@@ -1520,19 +1549,40 @@ setTimeout(function(){
     if(ok){ try{ toast('📶 Volvió la señal: se enviaron ' + ok + ' cambio' + (ok === 1 ? '' : 's') + ' guardados sin conexión.'); precargaAt = 0; refrescarDatos(true); if(state.op) state.op.datos = null; }catch(e){} }
     if(choques){ try{ setTimeout(()=>toast('⚖️ ' + choques + ' cambio' + (choques === 1 ? '' : 's') + ' hecho' + (choques === 1 ? '' : 's') + ' sin señal chocó con cambios de otra persona. No se pisó nada: César decidirá cuál queda.'), ok ? 3500 : 0); }catch(e){} }
   }
-  // Aviso fijo abajo: cuántos cambios esperan señal y cuáles no se pudieron enviar (con su motivo, para revisarlos).
+  // 📶 v343: franja única ARRIBA, igual en todas las pantallas: sin conexión (con la hora de lo guardado y cuántos cambios esperan),
+  // subiendo, todo al día (3 s) o cambios que no se pudieron subir (con «Ver» y su motivo). Se redibuja con cada evento «ag-sinred».
+  let franjaPrev = '';
+  function horaCorta(t){
+    const d = new Date(t); if(isNaN(d.getTime())) return '';
+    const h = d.toLocaleTimeString('es-VE', { hour:'numeric', minute:'2-digit' }).replace(/\s*a\.?\s*m\.?/i, ' am').replace(/\s*p\.?\s*m\.?/i, ' pm');
+    const hoy = new Date(), ayer = new Date(Date.now() - 86400000);
+    if(d.toDateString() === hoy.toDateString()) return 'de las ' + h;
+    if(d.toDateString() === ayer.toDateString()) return 'de ayer ' + h;
+    return 'del ' + d.toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit' }) + ' ' + h;
+  }
   function colaAviso(){
     if(!window.AG_WEB || !document.body) return;
-    const n = colaLeer(COLA_K).length, mal = colaLeer(COLA_MAL);
+    const n = colaLeer(COLA_K).length, mal = colaLeer(COLA_MAL), S = window.agSinRed, est = S ? S.estado() : 'ok', t = S ? S.ultimaCopia() : null;
+    const cambios = k=>k + ' cambio' + (k === 1 ? '' : 's');
+    let tipo = '', txt = '', accion = '';
+    if(mal.length){ tipo = 'mal'; txt = '⚠️ ' + cambios(mal.length) + ' no se pudo subir'; accion = 'Ver'; }
+    else if(est === 'subiendo'){ tipo = 'sube'; txt = '🔄 Subiendo' + (n ? ' ' + cambios(n) : '') + '…'; }
+    else if(est === 'sin'){ tipo = 'sin'; txt = '📴 Sin conexión' + (t ? ' · datos ' + horaCorta(t) : '') + ' · ' + (n ? cambios(n) + ' por subir' : 'todo guardado'); }
+    else if(n){ tipo = 'pend'; txt = '⏳ ' + cambios(n) + ' por subir'; accion = 'Subir ahora'; }
+    else if(franjaPrev === 'sube' || franjaPrev === 'sin' || franjaPrev === 'pend'){ tipo = 'ok'; txt = '✅ Todo al día'; }
     let b = document.getElementById('ag-cola-aviso');
-    if(!n && !mal.length){ if(b) b.remove(); return; }
-    if(!b){ b = document.createElement('div'); b.id = 'ag-cola-aviso'; b.style.cssText = 'position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:99990;background:#fff8e6;border:1px solid #f0d9a8;color:#6b4a00;border-radius:12px;padding:8px 12px;font:600 13px/1.35 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.12)'; document.body.appendChild(b); }
-    b.innerHTML = (n ? '📴 ' + n + ' cambio' + (n === 1 ? '' : 's') + ' guardado' + (n === 1 ? '' : 's') + ' en el teléfono: se envían solos al volver la señal.' : '') +
-      (mal.length ? '<div style="margin-top:4px;color:#a32b2b">⚠️ ' + mal.length + ' no se pudo enviar. <button type="button" id="ag-cola-ver" style="border:0;background:none;color:#0a5a68;font-weight:700;text-decoration:underline;cursor:pointer;font:inherit">Ver</button></div>' : '');
-    const v = document.getElementById('ag-cola-ver');
-    if(v) v.onclick = ()=>{ const l = colaLeer(COLA_MAL);
+    if(!tipo){ if(b && b.dataset.tipo !== 'ok') b.remove(); franjaPrev = ''; document.body.classList.remove('ag-con-franja'); return; }
+    franjaPrev = tipo;
+    if(!b){ b = document.createElement('div'); b.id = 'ag-cola-aviso'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
+    b.dataset.tipo = tipo; b.className = 'ag-franja ' + tipo;
+    b.innerHTML = '<span>' + esc(txt) + '</span>' + (accion ? '<button type="button" id="ag-franja-btn">' + accion + '</button>' : '');
+    document.body.classList.add('ag-con-franja');
+    const bt = document.getElementById('ag-franja-btn');
+    if(bt && tipo === 'pend') bt.onclick = ()=>{ bt.disabled = true; colaEnviar(); };
+    if(bt && tipo === 'mal') bt.onclick = ()=>{ const l = colaLeer(COLA_MAL);
       alert('Estos cambios hechos sin conexión no se guardaron (revísalos y vuelve a registrarlos si hace falta):\n\n' + l.map(x=>'• ' + new Date(x.at).toLocaleString('es-VE') + ' · ' + x.fn + ' → ' + x.error).join('\n'));
-      if(confirm('¿Quitar este aviso?')) colaPoner(COLA_MAL, []); };
+      if(confirm('¿Quitar este aviso?')){ colaPoner(COLA_MAL, []); colaAviso(); } };
+    if(tipo === 'ok') setTimeout(()=>{ const x = document.getElementById('ag-cola-aviso'); if(x && x.dataset.tipo === 'ok'){ x.remove(); document.body.classList.remove('ag-con-franja'); franjaPrev = ''; } }, 3000);
   }
   // 🔌 Para la franja de estado (y cualquier pantalla): cuántos cambios esperan, de qué hora es lo guardado y si se está subiendo.
   // Cada cambio dispara el evento «ag-sinred» en window.
@@ -1544,6 +1594,7 @@ setTimeout(function(){
   }
   window.agSinRed = { pendientes:()=>COLA.l.length, fallas:()=>COLA.mal.length, ultimaCopia:()=>copiaVistaT || state.desdeCopia || null,
     estado:()=>colaEnviando ? 'subiendo' : (navigator.onLine === false || state.copiaSinRed) ? 'sin' : 'ok', subirAhora:()=>colaEnviar(), lista:()=>colaLeer(COLA_K).map(c=>({ fn:c.fn, at:c.at, quien:c.quien })) };
+  window.addEventListener('ag-sinred', ()=>colaAviso());   // v343: la franja sigue cada cambio de estado
   // 🔑 Volvió la señal y la persona había entrado sin señal con su PIN: se pide una llave de sesión nueva (el PIN no se guarda en el teléfono).
   async function sesionTrasSinRed(){
     const u = state.user; if(!u || state.prueba || esLlaveLocal(u.pin) || !/^\d{4,6}$/.test(String(u.pin || ''))) return;
@@ -1556,7 +1607,7 @@ setTimeout(function(){
     window.addEventListener('online', ()=>{ sinRedEstado(); sesionTrasSinRed().then(()=>colaEnviar()).then(()=>{ precargaAt = 0; precargarSinRed(); }); });
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ colaEnviar(); precargarSinRed(); } });
     setInterval(()=>precargarSinRed(), 300000);
-    window.addEventListener('offline', ()=>{ sinRedEstado(); try{ toast('📴 Sin señal: puedes seguir trabajando con lo guardado en este teléfono. Lo que registres se envía solo al volver la conexión.'); }catch(e){} });
+    window.addEventListener('offline', ()=>{ sinRedEstado(); });   // v343: lo avisa la franja de arriba (antes también un toast)
     setInterval(colaEnviar, 60000);
     setTimeout(()=>{ colaAviso(); colaEnviar(); }, 4000);
     // 📲 Instalable: guarda la app en el teléfono para abrirla aunque no haya señal (las pantallas; los datos van en lo guardado de cada persona).
@@ -1646,7 +1697,7 @@ setTimeout(function(){
           listo = true; clearInterval(timeoutId);
           const txt = String(err && err.message ? err.message : err);
           if(/NetworkError|HTTP 0|Failed to fetch/i.test(txt)){
-            const eR = new Error(window.AG_WEB ? (err && err.message && /^📴/.test(err.message) ? err.message : '📴 Sin señal: esto necesita internet. Inténtalo cuando vuelva la conexión (lo que ya ves en pantalla sigue guardado en el teléfono).')
+            const eR = new Error(window.AG_WEB ? (err && err.message && /^📴/.test(err.message) ? err.message : LECT_FN.test(fn) ? '📴 Sin señal: esta pantalla todavía no está guardada en este teléfono. Ábrela una vez con señal (o deja la app abierta 1 minuto con señal) y luego funcionará sin conexión.' : '📴 Sin señal: esto necesita internet. Inténtalo cuando vuelva la conexión (lo que ya ves en pantalla sigue guardado en el teléfono).')
               : 'Se perdió la conexión con Google. Recarga la página (F5) y vuelve a entrar. Antes de repetir, revisa si el registro ya quedó guardado para no duplicarlo.'); eR.sinRed = true; reject(eR);
           } else reject(err);
         };
@@ -1722,7 +1773,7 @@ setTimeout(function(){
       state.view = 'app';
       ultimaCarga = Date.now(); huellaDatos = huella(data);
       copiaGuardar(data);
-      if(window.AG_WEB){ setTimeout(precargarSinRed, 4000); setTimeout(colaEnviar, 2500); }   // lo que quedó pendiente (p. ej. antes de salir) se envía al entrar
+      if(window.AG_WEB){ setTimeout(precargarSinRed, 2500); setTimeout(colaEnviar, 2500); }   // lo que quedó pendiente (p. ej. antes de salir) se envía al entrar
       setTimeout(avisoChoques, 7000);
       // 📋 Si se estaba mostrando la copia del teléfono, ya llegó lo nuevo: se quita el aviso. Si la persona empezó a llenar algo, no se le redibuja encima.
       if(state.desdeCopia){ terminarCopia(); if(vistaEsFormulario()) return; }
@@ -2076,6 +2127,12 @@ setTimeout(function(){
     const tabsNav = [['home','🏠','Inicio'],['clientes','👥','Clientes'],['nueva','📝','Nueva ficha'],['agenda','📅','Agenda'],['rosita','🍽️','Rosita']];
     if(elegibleDisp() || state.user.admin) tabsNav.push(['disp','🕒','Disponible']);
     if(state.user.admin){ tabsNav.push(['operaciones','🛠️','Operaciones']); tabsNav.push(['adminpanel','⚙️','Admin']); }
+    // 📱 v343: barra de abajo con 5 botones como máximo (Inicio, Agenda, Clientes, Rosita y «☰ Más» con el resto). «Nueva ficha» es el botón flotante.
+    const NAV_FIJAS = ['home','agenda','clientes','rosita'];
+    const tabsMas = tabsNav.filter(t=>NAV_FIJAS.indexOf(t[0]) < 0 && t[0] !== 'nueva');
+    const navAbajo = NAV_FIJAS.map(k=>tabsNav.find(t=>t[0] === k)).filter(Boolean).concat(tabsMas.length === 1 ? tabsMas : (tabsMas.length ? [['mas','☰','Más']] : []));
+    const enMas = tabsMas.length > 1 && tabsMas.some(t=>t[0] === state.tab);
+    const puntoMas = tabsMas.length > 1 && ((tabsMas.some(t=>t[0] === 'disp') && dispRecordar()) || (tabsMas.some(t=>t[0] === 'adminpanel') && (state.pagosPend||[]).length));
     app.innerHTML = `
       <div class="ag-top">
         <div style="display:flex;align-items:center;gap:10px">
@@ -2093,10 +2150,11 @@ setTimeout(function(){
       ${state.prueba ? `<div role="status" style="background:#5b2a86;color:#fff;padding:9px 14px;font-size:13.5px;display:flex;gap:10px;align-items:center;justify-content:space-between"><span>🧪 <strong>Modo prueba</strong> · ves la app como una fisioterapeuta. Nada se guarda ni se envía.</span><button class="ag-btn sm" id="ag-prueba-salir" style="flex:0 0 auto;background:#fff;color:#5b2a86;border-color:#fff">Salir del modo prueba</button></div>` : ''}
       <div class="ag-summary">${esCocina() ? '👩‍🍳 Cocina · El Rincón de Rosita' : (state.user.admin ? state.clientes.length + ' clientes registrados · ' + state.fichas.length + ' fichas en total' : '🌿 Aguamiel · Centro de Bienestar')}</div>
       ${state.user.admin && (state.pagosPend||[]).length ? (()=>{ const n = state.pagosPend.length; return `<div id="ag-pagos-alerta" role="alert" style="background:#fff3cd;border-bottom:2px solid #e0a800;padding:10px 14px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;cursor:pointer"><span>💳 <strong>${n} pago${n>1?'s':''} reportado${n>1?'s':''}</strong> por verificar: ${state.pagosPend.slice(0,3).map(x=>esc(x.clienteNombre)).join(', ')}${n>3?' y '+(n-3)+' más':''}</span><span class="ag-badge" style="background:#e0a800;color:#fff;flex:0 0 auto">Ver</span></div>`; })() : ''}
-      <div class="ag-nav" style="grid-template-columns:repeat(${tabsNav.length<=5 ? tabsNav.length : (tabsNav.length===6 ? 3 : 4)},minmax(0,1fr));${esCocina()?'display:none':''}">
-        ${tabsNav.map(([k,ic,tx])=>`<button data-tab="${k}" class="${state.tab===k?'active':''}"><span class="ic">${ic}</span><span class="tx">${tx}${k==='disp' ? '<span id="disp-punto" style="color:#d33;'+(dispRecordar()?'':'display:none')+'"> ●</span>' : ''}${k==='adminpanel' && (state.pagosPend||[]).length ? '<span style="color:#d33"> ●</span>' : ''}</span></button>`).join('')}
-      </div>
-      <div class="ag-body" id="ag-body"></div>`;
+      <div class="ag-body con-barra" id="ag-body"></div>
+      ${esCocina() ? '' : `<nav class="ag-nav abajo" aria-label="Secciones" style="grid-template-columns:repeat(${navAbajo.length},minmax(0,1fr))">
+        ${navAbajo.map(([k,ic,tx])=>`<button type="button" data-tab="${k}" class="${(k==='mas' ? enMas : state.tab===k)?'active':''}"><span class="ic">${ic}</span><span class="tx">${tx}${k==='mas' && puntoMas ? '<span style="color:#d33"> ●</span>' : ''}${k==='disp' ? '<span id="disp-punto" style="color:#d33;'+(dispRecordar()?'':'display:none')+'"> ●</span>' : ''}</span></button>`).join('')}
+      </nav>
+      ${['home','clientes','agenda'].includes(state.tab) ? '<button type="button" id="ag-fab-nueva" class="ag-fab" aria-label="Nueva ficha">📝 Nueva ficha</button>' : ''}`}`;
     const alertaPagos = app.querySelector('#ag-pagos-alerta');
     if(alertaPagos) alertaPagos.onclick = ()=>{
       // Lleva directo al presupuesto (o a la lista, si son varios) y fuerza a pedirlos de nuevo al servidor.
@@ -2115,7 +2173,9 @@ setTimeout(function(){
       const sesS = lsGet(CLAVE_SESION);
       if(sesS && huellaDe(state.user.id) && esLlaveLocal(sesS.pin)){ sesS.t = 0; sesS.nav = null; lsSet(CLAVE_SESION, sesS); ckQuitar(state.user.id); state.loginUserId = String(state.user.id); }
       else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); if(window.AG_WEB) colaSoltar(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
-    app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ state.tab=b.dataset.tab; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); });
+    const irTab = k=>{ state.tab=k; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); try{ window.scrollTo(0, 0); }catch(e){} };
+    app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ if(b.dataset.tab === 'mas') return abrirMenuMas(tabsMas, irTab); irTab(b.dataset.tab); });
+    const fab = app.querySelector('#ag-fab-nueva'); if(fab) fab.onclick = ()=>irTab('nueva');
     const body = app.querySelector('#ag-body');
     if(state.tab==='home') renderHome(body);
     else if(state.tab==='clientes') renderClientes(body);
@@ -2684,7 +2744,10 @@ setTimeout(function(){
     D.cargando = true;
     D.prom = gs('getMiDisponibilidad', auth(), D.mas || 0)
       .then(d=>{ D.datos = d; D.error = ''; })
-      .catch(e=>{ D.error = String(e && e.message ? e.message : e); })
+      .catch(e=>{
+        // 📴 Sin señal y sin copia: quien no indica disponibilidad (administración) solo necesita la fecha para ver al equipo; no se bloquea la pantalla.
+        if(e && e.sinRed && !elegibleDisp()){ D.datos = { hoy:hoyISO(), diaSemana:new Date().getDay(), elegible:false, semanas:[], maxSemanas:0 }; D.error = ''; return; }
+        D.error = String(e && e.message ? e.message : e); })
       .then(()=>{ D.cargando = false; D.prom = null; dispPostCarga(); });
     return D.prom;
   }
@@ -6460,6 +6523,13 @@ setTimeout(function(){
             <span style="display:flex;gap:12px;margin-top:3px"><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-dq-inv="${i}" ${x.inv !== false ? 'checked' : ''} style="width:auto"/> 📦 Inventario</label><label style="display:flex;gap:4px;align-items:center;${x.precio > 0 ? '' : 'opacity:.5'}"><input type="checkbox" data-dq-pre="${i}" ${x.precio > 0 && x.precioSi !== false ? 'checked' : ''} ${x.precio > 0 ? '' : 'disabled'} style="width:auto"/> 💲 Precio</label></span></div>`; }).join('')}
         <button type="button" class="ag-btn sm" id="iv-dq-ok" style="width:100%;margin-top:6px;background:#1d6b35;border-color:#1d6b35">💾 Guardar</button></div>` : ''}
     </details>`;
+    // 🚦 v343: semáforo de los productos que se cuentan: agotados, por reponer y bien (con mínimo). Lo que falta pasa a 🛒 Compras de un toque.
+    const contables = activos.filter(i=>!i.equipo), nAgot = contables.filter(i=>i.stock <= 0).length, nRep = contables.filter(i=>invBajo(i) && i.stock > 0).length, nBien = contables.filter(i=>i.minimo > 0 && !invBajo(i)).length;
+    const semHTML = I.vista === 'equipos' || !contables.length ? '' : `<div class="iv-sem">
+        <button type="button" data-iv-sem="atender" style="${nAgot ? 'border:2px solid #c0392b;background:#fdecea' : ''}"><b style="color:#c0392b">${nAgot}</b><span>🔴 Agotado${nAgot === 1 ? '' : 's'}</span></button>
+        <button type="button" data-iv-sem="atender" style="${nRep ? 'border-color:#f0a030;background:#fff7e6' : ''}"><b style="color:#8a5a00">${nRep}</b><span>🟠 Por reponer</span></button>
+        <button type="button" data-iv-sem="productos"><b style="color:#1d6b35">${nBien}</b><span>🟢 Bien</span></button></div>
+      ${admin && nAgot + nRep ? `<button type="button" class="ag-btn sm" id="iv-a-compras" style="width:100%;margin-top:8px">🛒 Pasar lo que falta a la lista de compras</button>` : ''}`;
     const atnTxt = [bajos.length ? bajos.length + ' se agota' + (bajos.length===1?'':'n') : '', nMal ? nMal + ' por reparar o reemplazar' : '', nSinU ? nSinU + ' sin ubicación' : ''].filter(Boolean).join(' · ');
     body.innerHTML = `
       ${enAdmin ? '' : '<button class="ag-btn ghost sm" id="iv-volver" style="margin-bottom:8px">← Volver a las órdenes</button>'}
@@ -6475,6 +6545,7 @@ setTimeout(function(){
           ${conPers && nPers ? `<button class="iv-tile atn" id="iv-pasar-pers" style="grid-column:1/-1"><div><b>🤲 ${nPers} producto${nPers === 1 ? '' : 's'} del personal siguen aquí</b><span>Tócalo para pasarlos al Stock del personal (así no se mezclan con la cocina)</span></div><span style="font-size:22px;color:#8a5a00">›</span></button>` : ''}
           ${nAtn ? `<button class="iv-tile atn ${I.vista==='atender'?'on':''}" data-iv-vista="atender"><div><b>⚠️ ${nAtn} por atender</b><span>${esc(atnTxt)}</span></div><span style="font-size:22px;color:#8a5a00">›</span></button>` : ''}
         </div>
+        ${semHTML}
         ${(conPers || modoPers) && admin && I.vista === 'productos' ? `<button type="button" class="ag-btn sm ghost" id="iv-ordpers" style="width:100%;margin-top:8px">${I.panel === 'ordpers' ? '✕ Cerrar' : (modoPers ? '🔀 Devolver productos a Rosita' : '🔀 Pasar productos al Stock del personal')}</button>${ordPersHTML}` : ''}
         ${catsVista.length > 1 ? `<div class="iv-chips"><button class="${I.cat?'':'on'}" data-iv-cat="">Todo</button>${catsVista.map(c=>`<button class="${I.cat===c?'on':''}" data-iv-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
         ${ubisUsadas.length ? `<select id="iv-ubi-f" style="margin-top:8px"><option value="">📍 Todas las ubicaciones</option>${ubisUsadas.map(u=>`<option value="${esc(u)}" ${I.ubi===u?'selected':''}>📍 ${esc(u)}</option>`).join('')}</select>` : ''}
@@ -6545,6 +6616,12 @@ setTimeout(function(){
     };
     const bnu = body.querySelector('#iv-nuevo'); if(bnu) bnu.onclick = ()=>{ I.panel = I.panel === 'nuevo' ? '' : 'nuevo'; rehacer(); if(I.panel === 'nuevo'){ const n = body.querySelector('#iv-n-nombre'); if(n) n.focus(); } };
     body.querySelectorAll('[data-iv-vista]').forEach(b=>b.onclick = ()=>{ I.vista = b.dataset.ivVista; I.cat = ''; rehacer(); });
+    body.querySelectorAll('[data-iv-sem]').forEach(b=>b.onclick = ()=>{ I.vista = b.dataset.ivSem === 'atender' && nAtn ? 'atender' : 'productos'; I.cat = ''; rehacer(); });
+    const aCompras = body.querySelector('#iv-a-compras');
+    if(aCompras) aCompras.onclick = async ()=>{ aCompras.disabled = true; aCompras.textContent = '⏳ Revisando…';
+      try{ const d = await gs('revisarInventarioCompras', auth()); toast(d.agregados ? '🛒 Se pasaron ' + d.agregados + ' producto(s) a la lista de compras.' : '🛒 Ya estaban todos en la lista de compras.'); aCompras.textContent = '✅ Listo · ver la lista de compras'; aCompras.disabled = false;
+        aCompras.onclick = ()=>body.querySelector('#iv-compras').click(); }
+      catch(e){ aCompras.disabled = false; aCompras.textContent = '🛒 Pasar lo que falta a la lista de compras'; alert('No se pudo pasar a compras: ' + (e && e.message ? e.message : e)); } };
     body.querySelectorAll('[data-iv-cat]').forEach(b=>b.onclick = ()=>{ I.cat = b.dataset.ivCat; rehacer(); });
     const uf = body.querySelector('#iv-ubi-f'); if(uf) uf.onchange = ()=>{ I.ubi = uf.value; rehacer(); };
     const btg = body.querySelector('#iv-tg');
@@ -6687,7 +6764,10 @@ setTimeout(function(){
     const pend = I.pend;
     const tarjeta = it=>{
       const e = it.equipo ? (INV_ESTADOS[it.estado] || INV_ESTADOS.bueno) : null, bajo = invBajo(it);
-      const cls = it.equipo ? (it.estado === 'reemplazo' ? 'mal' : it.estado === 'reparar' ? 'bajo' : '') : (bajo ? (it.stock <= 0 ? 'mal' : 'bajo') : '');
+      const cls = it.equipo ? (it.estado === 'reemplazo' ? 'mal' : it.estado === 'reparar' ? 'bajo' : '') : (bajo ? (it.stock <= 0 ? 'mal' : 'bajo') : (it.minimo > 0 ? 'sem-ok' : ''));
+      // 🚦 v343: barra de cuánto queda frente a «reponer hasta» (o el doble del mínimo si no tiene).
+      const ref = !it.equipo && it.minimo > 0 ? (it.objetivo > it.minimo ? it.objetivo : it.minimo * 2) : 0;
+      const barra = ref ? `<div class="iv-barra" title="Quedan ${esc(fmtInv(it.stock))} de ${esc(fmtInv(ref))} ${esc(it.unidad)}"><span style="width:${Math.max(it.stock > 0 ? 4 : 0, Math.min(100, Math.round(it.stock / ref * 100)))}%;background:${it.stock <= 0 ? '#c0392b' : bajo ? '#f0a030' : '#3fae6a'}"></span></div>` : '';
       const chip = it.equipo ? `<button type="button" class="iv-est" data-iv-estado="${esc(it.id)}" title="Cambiar estado" style="background:${e[3]};color:${e[2]}">${e[0]} ${ESTADO_CORTO[it.estado||'bueno']} ▾</button>`
         : bajo ? `<span class="iv-est" style="cursor:default;background:${it.stock<=0?'#fde8e8':'#fff3d6'};color:${it.stock<=0?'#b3261e':'#8a5a00'}">${it.stock<=0?'Agotado':'Se agota'}</span>` : '';
       const nota = it.equipo ? [it.estadoNota, it.nota].filter(Boolean).join(' · ') : it.nota;
@@ -6704,7 +6784,7 @@ setTimeout(function(){
         ${admin && puedeEntregar(it) ? (invEsPersonal(it) ? `<button type="button" data-iv-entregar="${esc(it.id)}" style="width:100%;margin-top:6px;padding:7px 10px;border-radius:10px;border:1px dashed #d9b46a;background:#fff8e6;color:#8a5a00;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🤲 Entregar al personal</button>`
           : `<button type="button" data-iv-entregar="${esc(it.id)}" title="Solo si se le dio algo de Rosita al equipo" style="margin-top:4px;padding:2px 4px;border:0;background:none;color:var(--muted,#888);font-size:11.5px;cursor:pointer;font-family:inherit;text-decoration:underline">🤲 dar al personal (no es comida del personal)</button>`) : ''}
         ${admin && invEsPrep(it) ? `<button type="button" data-iv-tanda="${esc(it.id)}" style="width:100%;margin-top:6px;padding:7px 10px;border-radius:10px;border:1px dashed #7aa874;background:#f1f8ee;color:#2f6b2a;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🍳 Preparar tanda</button>` : ''}
-        <div data-iv-panel></div></div>`;
+        ${barra}<div data-iv-panel></div></div>`;
     };
     const pintarLista = ()=>{
       const q = norm(I.q).trim(), pal = q.split(/\s+/).filter(Boolean);
@@ -7643,6 +7723,41 @@ setTimeout(function(){
   }
   function nombreStaff(id){ const s = state.staff.find(x=>String(x.id)===String(id)); return s ? s.nombre : '—'; }
   function saldoReserva(r){ const pag = (r.pagos||[]).reduce((t,p)=>t+(Number(p.monto)||0),0); const cub = (r.pagos||[]).reduce((t,p)=>t+((p.cubre !== undefined && p.cubre !== null && p.cubre !== '') ? (Number(p.cubre)||0) : (Number(p.monto)||0)),0); const extra = (r.cargos||[]).reduce((t,c)=>t+(Number(c.monto)||0),0); const total = Math.round(((Number(r.montoTotal)||0) + extra)*100)/100; return { pagado: pag, cubierto: cub, extra, total, saldo: Math.round((total - cub)*100)/100 }; }
+  // 🕒 v343: el día en línea de tiempo: una columna por profesional (y «Sin asignar»), los huecos libres a la vista y una línea roja en la hora actual.
+  function lineaTiempoHTML(A){
+    const hoy = hoyISO(), dia = /^\d{4}-\d{2}-\d{2}$/.test(String(A.diaLinea || '')) ? A.diaLinea : hoy;
+    const mover = n=>{ const d = new Date(dia + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    const min = h=>{ const p = String(h || '').split(':').map(Number); return (p[0] || 0) * 60 + (p[1] || 0); };
+    const rs = (state.agenda.reservas || []).filter(r=>r.fecha === dia && r.estado !== 'Cancelada');
+    const cols = []; const col = (id, nombre)=>{ let c = cols.find(x=>x.id === id); if(!c){ c = { id, nombre, items:[] }; cols.push(c); } return c; };
+    rs.forEach(r=>{ const ps = (r.profesionales || []).map(String); if(!ps.length) col('', 'Sin asignar').items.push(r); else ps.forEach(id=>col(id, nombreStaff(id).split(' ')[0]).items.push(r)); });
+    cols.sort((a, b)=>(a.id === '' ? 1 : 0) - (b.id === '' ? 1 : 0) || a.nombre.localeCompare(b.nombre));
+    let ini = 9 * 60, fin = 18 * 60;
+    rs.forEach(r=>{ const m = min(r.hora); ini = Math.min(ini, Math.floor(m / 60) * 60); fin = Math.max(fin, Math.ceil((m + (Number(r.duracionMin) || 60)) / 60) * 60); });
+    const PX = 1.1, alto = (fin - ini) * PX, horas = [];
+    for(let m = ini; m < fin; m += 60){ const h = m / 60; horas.push({ y:(m - ini) * PX, t:h === 12 ? '12 m' : (h > 12 ? (h - 12) + ' pm' : h + ' am') }); }
+    const ahora = new Date(), mAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    const color = r=>r.estado === 'Completada' ? ['#f3faf5', '#1d6b35'] : (r.estado === 'Confirmada' && (r.profesionales || []).some(id=>!(r.confirmaciones || {})[String(id)])) || !(r.profesionales || []).length ? ['#fff7e6', '#f0a030'] : ['var(--teal-l)', 'var(--teal)'];
+    const fechaTxt = new Date(dia + 'T12:00:00').toLocaleDateString('es-VE', { weekday:'short', day:'numeric', month:'short' });
+    const cab = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 10px">
+      <button type="button" class="ag-btn sm ghost" data-lt-dia="${mover(-1)}" aria-label="Día anterior" style="min-width:44px;min-height:44px">‹</button>
+      <button type="button" class="ag-btn sm ${dia === hoy ? '' : 'ghost'}" data-lt-dia="${hoy}" style="flex:1;min-height:44px">${dia === hoy ? 'Hoy · ' : ''}${esc(fechaTxt)}</button>
+      <button type="button" class="ag-btn sm ghost" data-lt-dia="${mover(1)}" aria-label="Día siguiente" style="min-width:44px;min-height:44px">›</button></div>`;
+    if(!cols.length) return cab + '<p class="ag-empty">No hay citas este día.</p>';
+    const anchoCol = cols.length > 3 ? 'minmax(96px,1fr)' : 'minmax(0,1fr)';
+    return cab + `<div class="ag-card" style="padding:10px 8px 10px 0;overflow-x:auto">
+      <div style="display:grid;grid-template-columns:44px repeat(${cols.length},${anchoCol});gap:6px;min-width:${cols.length > 3 ? 44 + cols.length * 102 : 0}px">
+        <div></div>${cols.map(c=>`<div style="font-size:12px;font-weight:700;text-align:center;color:${c.id === '' ? 'var(--danger)' : 'var(--sub)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.nombre)}</div>`).join('')}
+        <div style="position:relative;height:${alto}px">${horas.map(h=>`<div style="position:absolute;top:${h.y}px;left:6px;font-size:11px;color:var(--sub)">${h.t}</div>`).join('')}</div>
+        ${cols.map(c=>`<div style="position:relative;height:${alto}px;background:repeating-linear-gradient(180deg,#eef1ee 0 1px,transparent 1px ${60 * PX}px)">
+          ${c.items.map(r=>{ const y = (min(r.hora) - ini) * PX, h = Math.max(34, (Number(r.duracionMin) || 60) * PX - 3), k = color(r);
+            return `<button type="button" data-lt-res="${esc(r.id)}" style="position:absolute;top:${y}px;left:0;right:0;height:${h}px;border-radius:10px;background:${k[0]};border:1px solid ${k[1]};padding:4px 6px;text-align:left;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;font:inherit;font-size:11.5px;line-height:1.25;color:var(--ink);overflow:hidden;cursor:pointer"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.hora)} ${esc(r.clienteNombre)}</strong><span style="color:var(--sub)">${esc(r.paqueteNombre || durTxt(r.duracionMin || 60))}</span></button>`; }).join('')}
+        </div>`).join('')}
+      </div>
+      ${dia === hoy && mAhora >= ini && mAhora <= fin ? `<div aria-hidden="true" style="position:relative;height:0"><div style="position:absolute;left:44px;right:0;top:${-alto - 10 + (mAhora - ini) * PX}px;height:2px;background:var(--danger)"></div></div>` : ''}
+    </div>
+    <div class="ag-muted" style="font-size:11.5px;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap"><span>🟦 confirmada</span><span>🟧 sin confirmar o sin profesional</span><span>🟩 atendida</span>${dia === hoy ? '<span>Línea roja: ahora</span>' : ''}</div>`;
+  }
   function colorReserva(e){ return e==='Completada' ? 'background:#e2f4e6;color:#1d6b35' : e==='Cancelada' ? 'background:#eee;color:#777' : 'background:var(--teal-l);color:var(--teal-d)'; }
   // Selector de platos con + / − (para paquetes y reservas).
   // Menú de Rosita en categorías desplegables (se abre la que tenga algo elegido).
@@ -8204,6 +8319,7 @@ setTimeout(function(){
     else if(A.filtro==='proximas') lista = lista.filter(r=>r.fecha>=hoy && r.estado==='Confirmada');
     else if(A.filtro==='pasadas') lista = lista.filter(r=>r.fecha<hoy || r.estado==='Completada');
     else if(A.filtro==='canceladas') lista = lista.filter(r=>r.estado==='Cancelada');
+    else if(A.filtro==='linea') lista = [];   // 🕒 v343: el día en línea de tiempo (lineaTiempoHTML)
     const clave = r=>r.fecha+' '+r.hora;
     lista.sort((a,b)=> (A.filtro==='pasadas'||A.filtro==='canceladas') ? clave(b).localeCompare(clave(a)) : clave(a).localeCompare(clave(b)));
     const admin = state.user.admin;
@@ -8220,7 +8336,7 @@ setTimeout(function(){
       </div>
       ${!admin ? avisoCitaHTML() : ''}
       <div class="ag-row" style="margin:12px 0 8px;flex-wrap:wrap;gap:6px">
-        ${[['hoy','Hoy'],['semana','7 días'],['proximas','Próximas'],['pasadas','Pasadas'],['canceladas','Canceladas']].map(([k,t])=>`<button class="ag-btn sm ${A.filtro===k?'':'ghost'}" data-ag-filtro="${k}" style="flex:1 1 auto;min-width:0;padding:6px 6px;font-size:12px">${t}</button>`).join('')}
+        ${[['linea','🕒 Día'],['hoy','Hoy'],['semana','7 días'],['proximas','Próximas'],['pasadas','Pasadas'],['canceladas','Canceladas']].map(([k,t])=>`<button class="ag-btn sm ${A.filtro===k?'':'ghost'}" data-ag-filtro="${k}" style="flex:1 1 auto;min-width:0;padding:6px 6px;font-size:12px">${t}</button>`).join('')}
       </div>
       ${lista.map(r=>{
         const cab = r.fecha!==fechaPrev ? `<div class="ag-sec-h" style="margin-top:10px">${r.fecha===hoy?'HOY · ':''}${esc(isoToDMY(r.fecha))}</div>` : ''; fechaPrev = r.fecha;
@@ -8277,9 +8393,13 @@ setTimeout(function(){
             ${admin ? `<button class="ag-btn sm danger" data-ag-borrar="${r.id}">🗑️ Eliminar</button>` : ''}
           </div>
           ${admin && (r.historial||[]).length>1 ? '<details style="font-size:12px"><summary class="ag-muted">Historial</summary>'+r.historial.map(h=>'<div class="ag-muted">'+esc(formatDT(h.fecha))+' · '+esc(h.texto)+'</div>').join('')+'</details>' : ''}
-        </div>`; }).join('') || '<p class="ag-empty">No hay reservas en esta vista.</p>'}
+        </div>`; }).join('') || (A.filtro==='linea' ? lineaTiempoHTML(A) : '<p class="ag-empty">No hay reservas en esta vista.</p>')}
     `;
     const buscar = id=> state.agenda.reservas.find(x=>x.id===id);
+    body.querySelectorAll('[data-lt-dia]').forEach(b=>b.onclick=()=>{ A.diaLinea = b.dataset.ltDia; render(); });
+    body.querySelectorAll('[data-lt-res]').forEach(b=>b.onclick=()=>{ const r = buscar(b.dataset.ltRes); if(!r) return;
+      if(admin && r.estado!=='Cancelada' && r.estado!=='Completada'){ A.vista='form'; A.editId=r.id; render(); return; }
+      if(r.fecha===hoy){ A.filtro='hoy'; render(); } });
     const bn = body.querySelector('#ag-nueva-res'); if(bn) bn.onclick = ()=>{ A.vista='form'; A.editId=null; render(); };
     const bp = body.querySelector('#ag-paquetes'); if(bp) bp.onclick = ()=>{ A.vista='paquetes'; A.editId=null; render(); };
     const bpg = body.querySelector('#ag-programas'); if(bpg) bpg.onclick = ()=>{ A.vista='programas'; A.pgAbierto=''; render(); };
@@ -9261,7 +9381,15 @@ setTimeout(function(){
       '📥 En la app instalada, cada teléfono guarda solo (cada 15 min con señal) <strong>todas las pantallas</strong> que esa persona puede ver: Agenda, Disponible, Operaciones, Inventarios, Compras, Finanzas y más.',
       '🐢 Con señal muy débil ya no se queda en «Cargando…»: a los 8 s muestra lo guardado y se pone al día solo cuando llega lo nuevo. La app también abre más rápido sin señal.',
       '📴 Sin señal ahora también se puede anotar <strong>Disponibilidad</strong>, <strong>Operaciones</strong> (tareas, revisiones y estado de equipos), <strong>órdenes de Rosita</strong> y <strong>reservas nuevas</strong> (quedan ⏳ por confirmar). Todo se sube solo al volver la señal, sin duplicar; si chocó con otra persona, decide César en Admin → ⚙️ Sistema → ⚖️ Choques de datos.',
-      '🔒 Lo guardado en el teléfono, incluidos los cambios por subir, va cifrado. El PIN es más difícil de adivinar y con 5 PIN incorrectos sin señal se borran los datos de ese teléfono.' ] }
+      '🔒 Lo guardado en el teléfono, incluidos los cambios por subir, va cifrado. El PIN es más difícil de adivinar y con 5 PIN incorrectos sin señal se borran los datos de ese teléfono.' ] },
+    { v:343, fecha:'26 oct', titulo:'Diseño nuevo: barra de abajo, agenda por horas y gráficas', puntos:[
+      '📱 <strong>Barra fija abajo</strong> con Inicio, Agenda, Clientes, Rosita y ☰ Más (lo demás está ahí). El botón <strong>📝 Nueva ficha</strong> queda flotando a mano.',
+      '📶 Arriba, una franja dice si estás <strong>sin señal</strong> (con la hora de tus datos), cuántos cambios faltan por subir y cuando todo quedó al día.',
+      '⭐ Admin: <strong>Lo que más uso</strong> pone primero las secciones que más abres.',
+      '🕒 Agenda → <strong>Día</strong>: las citas en línea de tiempo, una columna por profesional, con los huecos libres a la vista y una línea roja en la hora actual.',
+      '📊 Balance: los últimos 6 meses arriba y <strong>en qué se va el dinero</strong>, con las categorías que más gastaron.',
+      '🚦 Inventario con <strong>semáforo</strong> (agotado, por reponer, bien), una barra de cuánto queda y un botón para <strong>pasar lo que falta a la lista de compras</strong>.',
+      '📴 <strong>Disponible</strong> ya funciona sin señal también para administración.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9371,6 +9499,17 @@ setTimeout(function(){
         ${inv}
       </div></div></div>`;
   }
+  // ☰ «Más» de la barra de abajo: las secciones que no caben (Disponible, Operaciones, Admin), en una hoja que sube desde abajo.
+  function abrirMenuMas(tabs, ir){
+    cerrarMenuMas();
+    const fondo = document.createElement('div'); fondo.id = 'ag-mas'; fondo.className = 'ag-mas-fondo';
+    fondo.innerHTML = `<div class="ag-mas-hoja" role="dialog" aria-label="Más secciones"><div class="ag-mas-asa"></div>
+      ${tabs.map(([k,ic,tx])=>`<button type="button" data-mas="${k}" class="${state.tab===k?'activo':''}"><span style="font-size:22px">${ic}</span><span style="flex:1;text-align:left">${tx}</span>${(k==='disp' && dispRecordar()) || (k==='adminpanel' && (state.pagosPend||[]).length) ? '<span style="color:#d33">●</span>' : ''}<span style="color:var(--sub)">›</span></button>`).join('')}</div>`;
+    fondo.onclick = e=>{ if(e.target === fondo) cerrarMenuMas(); };
+    document.body.appendChild(fondo);
+    fondo.querySelectorAll('[data-mas]').forEach(b=>b.onclick = ()=>{ cerrarMenuMas(); ir(b.dataset.mas); });
+  }
+  function cerrarMenuMas(){ const m = document.getElementById('ag-mas'); if(m) m.remove(); }
   function isoMasDias(iso, d){ const p = String(iso).split('-').map(Number); const x = new Date(Date.UTC(p[0], p[1] - 1, p[2] + d)); return x.toISOString().slice(0, 10); }
   // ⏳ Plazos de los enlaces de catálogo (el servidor acepta de 1 día a 6 meses). Un plazo guardado que no esté en la lista se agrega.
   const PLAZOS_ENLACE = [[1,'1 día'],[3,'3 días'],[7,'7 días'],[30,'1 mes'],[91,'3 meses'],[183,'6 meses']];
@@ -13594,6 +13733,10 @@ setTimeout(function(){
     const barra = (t, v, color)=>`<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${t}</span><span><strong>${dinero(v)}</strong> <span class="ag-muted">${finPct(v, R.ing)} de los ingresos</span></span></div><div style="height:8px;background:#e8ecea;border-radius:6px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${R.ing > 0 ? Math.min(100, v / R.ing * 100) : (v > 0 ? 100 : 0)}%;background:${color}"></div></div></div>`;
     const maxM = Math.max(1, ...D.meses.map(m=>Math.max(m.ingresos, m.egresos)));
     const cortoMes = m=>MESES_ES[Number(m.slice(5, 7)) - 1].slice(0, 3);
+    // 📊 v343: las 5 categorías de egreso que más gastaron en el mes (el resto se suma en «Otras»).
+    const porCat = {}; D.egresos.forEach(x=>{ const c = String(x.categoria || 'Sin categoría'); porCat[c] = Math.round(((porCat[c] || 0) + (Number(x.monto) || 0)) * 100) / 100; });
+    let topCat = Object.keys(porCat).map(c=>[c, porCat[c]]).filter(c=>c[1] > 0).sort((a, b)=>b[1] - a[1]);
+    if(topCat.length > 6) topCat = topCat.slice(0, 5).concat([['Otras', Math.round(topCat.slice(5).reduce((a, c)=>a + c[1], 0) * 100) / 100]]);
     const indice = (t, v, ayuda)=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--line)"><span>${t}${ayuda ? `<span class="ag-muted" style="display:block;font-size:11px">${ayuda}</span>` : ''}</span><strong style="flex:0 0 auto">${v}</strong></div>`;
     cont.innerHTML = `
       <div class="ag-card">${finMesNav(F.mes, 'fin-prev', 'fin-next', '📊 Balance')}
@@ -13606,8 +13749,16 @@ setTimeout(function(){
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px"><button type="button" class="ag-btn" id="bl-tg" style="flex:1">✈️ Enviar a la administración</button><button type="button" class="ag-btn ghost" id="bl-print" style="flex:1">🖨️ Imprimir / PDF</button></div>
         <div id="bl-tg-panel"></div>
       </div>
+      <div class="ag-card" style="margin-top:10px"><strong>📅 Últimos 6 meses</strong>
+        <div style="display:flex;gap:6px;align-items:flex-end;height:140px;margin-top:10px">
+          ${D.meses.map(m=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0"><div style="display:flex;gap:2px;align-items:flex-end;height:110px;width:100%;justify-content:center"><div title="Ingresos ${dinero(m.ingresos)}" style="width:40%;height:${Math.round(m.ingresos / maxM * 100)}%;min-height:2px;background:#3fae6a;border-radius:4px 4px 0 0"></div><div title="Egresos ${dinero(m.egresos)}" style="width:40%;height:${Math.round(m.egresos / maxM * 100)}%;min-height:2px;background:#e06060;border-radius:4px 4px 0 0"></div></div><span style="font-size:11px;${m.mes === F.mes ? 'font-weight:800' : ''}">${cortoMes(m.mes)}</span><span style="font-size:10.5px;color:${m.ingresos - m.egresos >= 0 ? '#1d6b35' : 'var(--danger)'}">${dinero(m.ingresos - m.egresos)}</span></div>`).join('')}
+        </div>
+        <div class="ag-muted" style="font-size:11.5px;margin-top:4px"><span style="color:#3fae6a">■</span> Ingresos · <span style="color:#e06060">■</span> Egresos · debajo, la utilidad de cada mes</div>
+      </div>
       <div class="ag-card" style="margin-top:10px"><strong>💸 ¿En qué se va el dinero?</strong>
+        ${R.egr > 0 ? `<div style="display:flex;height:16px;border-radius:999px;overflow:hidden;margin-top:10px">${[[R.oper, '#d99a00'], [R.pers, 'var(--teal)'], [R.even, '#7a6ff0'], [R.hon, '#e0607e']].filter(x=>x[0] > 0).map(x=>`<span style="width:${x[0] / R.egr * 100}%;background:${x[1]}"></span>`).join('')}</div>` : ''}
         ${barra('Gastos operativos (compras, servicios…)', R.oper, '#d99a00')}${barra('Personal fijo', R.pers, 'var(--teal)')}${barra('Trabajos eventuales', R.even, '#7a6ff0')}${barra('Honorarios profesionales', R.hon, '#e0607e')}
+        ${topCat.length ? `<div style="margin-top:12px;font-size:12.5px;font-weight:700">Las categorías que más gastaron</div>${topCat.map((c, i)=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:5px 0;border-top:1px solid var(--line)"><span style="min-width:0">${i + 1}. ${esc(c[0])}</span><span style="flex:0 0 auto"><strong>${dinero(c[1])}</strong> <span class="ag-muted">${finPct(c[1], R.egr)}</span></span></div>`).join('')}` : ''}
       </div>
       <div class="ag-card" style="margin-top:10px"><strong>📐 Índices del mes</strong>
         ${indice('Reservas concretadas', R.n + (D.ventasAnt ? ' <span class="ag-muted" style="font-weight:400">(antes ' + D.ventasAnt + ')</span>' : ''))}
@@ -13618,12 +13769,6 @@ setTimeout(function(){
         ${indice('Peso del personal', finPct(R.pers + R.even + R.hon, R.ing), 'personal + eventuales + honorarios ÷ ingresos')}
         ${indice('Gasto operativo', finPct(R.oper, R.ing), 'gastos operativos ÷ ingresos')}
         ${indice('Cobertura de egresos', R.egr > 0 ? (Math.round(R.ing / R.egr * 100) / 100) + ' veces' : '—', 'ingresos ÷ egresos (más de 1 = alcanza)')}
-      </div>
-      <div class="ag-card" style="margin-top:10px"><strong>📅 Últimos 6 meses</strong>
-        <div style="display:flex;gap:6px;align-items:flex-end;height:140px;margin-top:10px">
-          ${D.meses.map(m=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0"><div style="display:flex;gap:2px;align-items:flex-end;height:110px;width:100%;justify-content:center"><div title="Ingresos ${dinero(m.ingresos)}" style="width:40%;height:${Math.round(m.ingresos / maxM * 100)}%;min-height:2px;background:#3fae6a;border-radius:4px 4px 0 0"></div><div title="Egresos ${dinero(m.egresos)}" style="width:40%;height:${Math.round(m.egresos / maxM * 100)}%;min-height:2px;background:#e06060;border-radius:4px 4px 0 0"></div></div><span style="font-size:11px;${m.mes === F.mes ? 'font-weight:800' : ''}">${cortoMes(m.mes)}</span><span style="font-size:10.5px;color:${m.ingresos - m.egresos >= 0 ? '#1d6b35' : 'var(--danger)'}">${dinero(m.ingresos - m.egresos)}</span></div>`).join('')}
-        </div>
-        <div class="ag-muted" style="font-size:11.5px;margin-top:4px"><span style="color:#3fae6a">■</span> Ingresos · <span style="color:#e06060">■</span> Egresos · debajo, la utilidad de cada mes</div>
       </div>
       <div class="ag-card" style="margin-top:10px"><strong>🧮 Cotejo por forma de pago</strong><p class="ag-muted" style="font-size:12px;margin:2px 0 0">Compara con lo que hay en caja y en cada cuenta.</p>${finTablaMetodosHTML(D)}</div>
       <div class="ag-card" style="margin-top:10px"><strong>📋 Todos los movimientos del mes</strong>
@@ -15391,7 +15536,13 @@ setTimeout(function(){
     const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
     const hayPagos = (state.pagosPend||[]).length;
+    // ⭐ v343: «Lo que más uso»: las 6 secciones que esta persona abre más (se cuentan en este teléfono, nada se envía).
+    const kUso = 'ag_admuso_' + state.user.id; let uso = {};
+    try{ uso = JSON.parse(localStorage.getItem(kUso) || '{}') || {}; if(ADM_NOMBRES[sub]){ uso[sub] = (uso[sub] || 0) + 1; localStorage.setItem(kUso, JSON.stringify(uso)); } }catch(e){}
+    const masUsadas = Object.keys(uso).filter(k=>ADM_NOMBRES[k] && uso[k] >= 2).sort((a, b)=>uso[b] - uso[a]).slice(0, 6);
     body.innerHTML = `
+      ${masUsadas.length >= 3 ? `<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:var(--sub);margin:0 0 6px 2px">⭐ Lo que más uso</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">${masUsadas.map(k=>`<button type="button" data-adm-sub="${k}" style="min-height:52px;padding:6px;border-radius:14px;border:1px solid ${sub===k ? 'var(--teal)' : 'var(--line)'};background:${sub===k ? 'var(--teal-l)' : '#fff'};color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;line-height:1.25;min-width:0;cursor:pointer">${ADM_NOMBRES[k]}</button>`).join('')}</div></div>` : ''}
       <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:8px">
         ${ADM_GRUPOS.map(g=>`<button class="ag-btn sm ${grupoActual===g?'':'ghost'}" data-adm-grp="${g[0]}" style="padding:8px 2px;font-size:12.5px;line-height:1.25;min-width:0"><span style="display:block;font-size:18px">${g[1]}</span>${g[2]}${g[0]==='ventas' && hayPagos ? ' <span style="color:#ff8a80">●</span>' : ''}</button>`).join('')}
       </div>
