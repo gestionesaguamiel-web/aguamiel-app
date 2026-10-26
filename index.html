@@ -1162,7 +1162,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v337' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v338' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1213,7 +1213,7 @@ setTimeout(function(){
     const pintar = ()=>{
       const hoy = hoyISO(), mes = hoy.slice(0, 7), dPas = new Date(+mes.slice(0, 4), +mes.slice(5, 7) - 2, 1), mesPas = dPas.getFullYear() + '-' + String(dPas.getMonth() + 1).padStart(2, '0');
       const PER = { mes:['Este mes', x=>x.fecha.slice(0, 7) === mes], pasado:['Mes pasado', x=>x.fecha.slice(0, 7) === mesPas], total:['12 meses', ()=>true] };
-      const L = d.lista.filter(PER[P.per][1]), tot = Math.round(L.reduce((a, x)=>a + x.monto, 0) * 100) / 100;
+      const L = d.lista.filter(PER[P.per][1]), tot = Math.round(L.reduce((a, x)=>a + x.monto, 0) * 100) / 100, md = d.misDatos || {};
       const G = {}; L.forEach(x=>{ const o = G[x.profesionalId] || (G[x.profesionalId] = { nombre:x.profesional, monto:0, n:0 }); o.monto += x.monto; o.n++; });
       const porPers = Object.values(G).sort((a, b)=>b.monto - a.monto), maxP = Math.max(0.01, ...porPers.map(o=>o.monto));
       const mon = x=>x.moneda === 'VES' ? dinero(x.monto) + ' <span class="ag-muted" style="font-size:11px">(Bs ' + esc(fmtInv(x.montoOrig)) + ')</span>' : dinero(x.monto);
@@ -1230,8 +1230,13 @@ setTimeout(function(){
           <button type="button" class="ag-btn sm" data-pp-ok style="width:100%;margin-top:8px">💝 Guardar propina</button></div>
         <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">🕒 Propinas (${L.length})</h3>${L.length ? L.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="flex:1;min-width:0">${esc(isoToDMY(x.fecha))} · ${x.origen === 'cliente' ? '💌' : '✍️'} <strong>${esc(x.cliente || 'Sin nombre')}</strong>${d.admin ? ' → ' + esc(x.profesional.split(' ')[0]) : ''}${x.metodo ? ' · ' + esc(x.metodo) : ''}${x.conCapture ? ' 📎' : ''}${x.nota ? '<br/><span class="ag-muted">«' + esc(x.nota) + '»</span>' : ''}</span><span style="white-space:nowrap;text-align:right">${mon(x)}<br/><button type="button" data-pp-del="${esc(x.id)}" style="border:0;background:none;color:var(--sub);cursor:pointer;font-size:12px">🗑️</button></span></div>`).join('') : '<p class="ag-muted" style="font-size:13px">Sin propinas en este período.</p>'}
           <div class="ag-muted" style="font-size:11px;margin-top:6px">💌 la reportó el cliente desde su enlace · ✍️ anotada en la app</div></div>
-        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 4px">💳 Mis datos para recibir propinas</h3><p class="ag-muted" style="font-size:12px;margin:0 0 6px">Esto lo ve el cliente al final de su encuesta de satisfacción, en «💝 Dejar una propina» (pago móvil, Zelle, Binance…). Si lo dejas vacío, no apareces ahí.</p>
-          <textarea data-pp-datos rows="3" placeholder="Ej: Pago móvil 0412-1234567 · V-12345678 · Banco de Venezuela">${esc(d.misDatos || '')}</textarea><button type="button" class="ag-btn sm ghost" data-pp-gdatos style="width:100%;margin-top:6px">Guardar mis datos</button></div>`;
+        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 4px">💳 Mis datos para recibir propinas</h3>
+          ${md.pagoMovil || md.otros ? '<p style="font-size:12.5px;margin:0 0 6px;color:#1d6b35;font-weight:600">✅ Activo: tus clientes ya pueden dejarte propina al final de su encuesta.</p>' : '<p style="font-size:12.5px;margin:0 0 6px;color:#8a5a00;font-weight:600">⚠️ Aún no recibes propinas: completa tu pago móvil y guarda.</p>'}
+          <p class="ag-muted" style="font-size:12px;margin:0 0 6px">Esto lo ve el cliente al tocar «💝 Dejar una propina», con un botón para copiarlo. Solo tú puedes cambiarlo.</p>
+          <label class="f">🏦 Banco (pago móvil)</label><select data-pp-banco><option value="">Elige tu banco…</option>${Object.keys(d.bancos || {}).map(k=>`<option value="${k}" ${md.banco === k ? 'selected' : ''}>${k} · ${esc(d.bancos[k])}</option>`).join('')}</select>
+          <div class="ag-row"><div><label class="f">🪪 Cédula</label><input data-pp-ced placeholder="V12345678" value="${esc(String(md.cedula || '').replace('-', ''))}"/></div><div><label class="f">📱 Teléfono</label><input data-pp-tel inputmode="numeric" placeholder="04121234567" value="${esc(md.telefono || '')}"/></div></div>
+          <label class="f">Otro medio <span class="ag-muted" style="font-weight:400">(opcional: Zelle, Binance…)</span></label><input data-pp-otros placeholder="Ej: Zelle: correo@ejemplo.com" value="${esc(md.otros || '')}"/>
+          <button type="button" class="ag-btn sm" data-pp-gdatos style="width:100%;margin-top:8px">💾 Guardar mis datos</button></div>`;
       cont.querySelectorAll('[data-pp-per]').forEach(b=>b.onclick = ()=>{ P.per = b.dataset.ppPer; pintar(); });
       const q = sel=>cont.querySelector(sel);
       q('[data-pp-ok]').onclick = async ev=>{
@@ -1241,7 +1246,7 @@ setTimeout(function(){
         catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
       };
       q('[data-pp-gdatos]').onclick = async ev=>{ ev.target.disabled = true;
-        try{ d = P.d = await gs('guardarDatosPropina', q('[data-pp-datos]').value, auth()); toast(d.misDatos ? '✓ Tus datos ya aparecen en «💝 Dejar una propina» de la encuesta.' : 'Listo: ya no apareces en «💝 Dejar una propina».'); pintar(); }
+        try{ d = P.d = await gs('guardarDatosPropina', { banco:q('[data-pp-banco]').value, cedula:q('[data-pp-ced]').value, telefono:q('[data-pp-tel]').value, otros:q('[data-pp-otros]').value }, auth()); const m2 = d.misDatos || {}; toast(m2.pagoMovil || m2.otros ? '✅ Listo: tus clientes ya pueden dejarte propina.' : 'Listo: ya no apareces en «💝 Dejar una propina».'); pintar(); }
         catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); } };
       cont.querySelectorAll('[data-pp-del]').forEach(b=>b.onclick = async ()=>{ if(!confirm('¿Borrar esta propina? (por si se anotó mal)')) return; b.disabled = true;
         try{ d = P.d = await gs('borrarPropina', b.dataset.ppDel, auth()); pintar(); }catch(e){ b.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); } });
@@ -9016,7 +9021,11 @@ setTimeout(function(){
       '👆 <strong>Entrar con huella o cara</strong> en la app instalada: después de entrar con tu PIN, la app te ofrece activarla. Luego, al abrirla o tras «Salir», tocas «👆 Entrar con huella». Tu huella nunca sale del teléfono.',
       '🔑 <strong>El PIN sigue siendo siempre la otra opción</strong>: si la huella falla o cambias de teléfono, entras con tu PIN como siempre.',
       '🔒 El teléfono <strong>ya no guarda tu PIN</strong>: guarda una llave de sesión que vence sola si no se usa en 30 días y se anula al cambiar el PIN.',
-      '📵 Nuevo en Mi cuenta: <strong>«Cerrar sesión en mis otros teléfonos»</strong>, por si pierdes uno o entraste en uno prestado. Ahí también activas o desactivas la huella.' ] }
+      '📵 Nuevo en Mi cuenta: <strong>«Cerrar sesión en mis otros teléfonos»</strong>, por si pierdes uno o entraste en uno prestado. Ahí también activas o desactivas la huella.' ] },
+    { v:338, fecha:'26 oct', titulo:'Propinas con pago móvil y copiar datos', puntos:[
+      '💳 Cada profesional registra <strong>desde su sesión</strong> (Inicio → 💝 Mis propinas) su <strong>pago móvil</strong>: banco con su código (0102, 0105…), cédula y teléfono, y si quiere otro medio. <strong>Quien no los registre no aparece</strong> para recibir propinas.',
+      '💵 En la encuesta, el cliente elige el monto <strong>en dólares</strong> ($2, $5, $10 u otro) y ve al momento cuánto es <strong>en bolívares a la tasa BCV</strong> del día.',
+      '📋 Botones <strong>«Copiar datos del pago móvil»</strong> (banco, cédula y teléfono) y <strong>«Copiar monto en Bs»</strong> para pagar en segundos desde su banco.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
