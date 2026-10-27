@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v347' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v348' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2524,8 +2524,13 @@ setTimeout(function(){
       <p class="ag-muted" id="cp-nota" style="font-size:11.5px;margin:6px 0 0"></p></div>`;
     document.body.appendChild(el);
     const txt = el.querySelector('#cp-texto');
-    const poner = ()=>{ txt.value = MENSAJES_CUMPLE[idx].replace(/\{nombre\}/g, nombre); };
-    poner();
+    // 🎁 v348: el regalo de cumpleaños (Admin → 💧 Temporada y fidelización) va al final, con casilla para quitarlo.
+    let regalo = (state.fidelCfg && state.fidelCfg.cumple && state.fidelCfg.cumple.regalo) || '';
+    const poner = ()=>{ const conR = el.querySelector('#cp-regalo'); txt.value = MENSAJES_CUMPLE[idx].replace(/\{nombre\}/g, nombre) + (regalo && (!conR || conR.checked) ? '\n\n' + regalo : ''); };
+    const ponerCasilla = ()=>{ if(!regalo || el.querySelector('#cp-regalo')) return; const lb = document.createElement('label'); lb.style.cssText = 'display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:6px';
+      lb.innerHTML = '<input type="checkbox" id="cp-regalo" style="width:auto" checked/> 🎁 Incluir el regalo de cumpleaños'; txt.after(lb); lb.querySelector('input').onchange = poner; };
+    poner(); ponerCasilla();
+    if(!state.fidelCfg) gs('getFidelCfg', auth()).then(cf=>{ state.fidelCfg = cf; regalo = (cf.cumple && cf.cumple.regalo) || ''; if(el.isConnected && regalo){ ponerCasilla(); poner(); } }).catch(()=>{});
     if(cumpleEnviado(c)) el.querySelector('#cp-nota').textContent = '✅ Ya le enviaste una felicitación hoy desde este dispositivo.';
     el.querySelector('#cp-otro').onclick = ()=>{ idx = elegirMensajeCumple(MENSAJES_CUMPLE[idx]); poner(); };
     el.querySelector('#cp-cerrar').onclick = cerrarCumple;
@@ -3344,6 +3349,7 @@ setTimeout(function(){
           ${c.otrosAntecedentes?`<p class="ag-muted" style="font-size:13px">${esc(c.otrosAntecedentes)}</p>`:''}
         ` : (c.antecedentesOcultos ? '<p class="ag-muted" style="font-size:12.5px;margin-top:8px">🔒 Los antecedentes de salud solo los ve quien atiende a este cliente.</p>' : '')}
       </div>
+      <div id="cd-sellos"></div>
       ${(()=>{ const g = gruposDelCliente(c.id); return g.length ? `<div class="ag-sec-h" style="margin-top:14px">👥 Visitas en grupo</div>` + g.map(x=>`<div class="ag-muted" style="font-size:12.5px;padding:3px 0">${esc(isoToDMY(x.fecha))} · con ${esc(x.otros.join(', '))}${x.responsable?' · <strong>responsable:</strong> '+esc(x.responsable):''}</div>`).join('') : ''; })()}
       <div class="ag-sec-h" style="margin-top:14px">Historial de fichas (${fichas.length})</div>
       <button class="ag-btn sm" id="cd-new-ficha" style="margin-bottom:10px;width:100%">+ Nueva ficha para este cliente</button>
@@ -3367,6 +3373,7 @@ setTimeout(function(){
     };
     body.querySelector('#cd-back').onclick=()=>{ state.selClienteId=null; render(); };
     body.querySelector('#cd-edit').onclick=()=>{ state.editing=true; render(); };
+    pintarSellosCliente(body.querySelector('#cd-sellos'), c);
     body.querySelector('#cd-new-ficha').onclick=()=>{ state.preselectClienteId = c.id; state.tab='nueva'; render(); };
     body.querySelectorAll('[data-fid]').forEach(el=>el.onclick=()=>{ state.selFichaId=el.dataset.fid; state.informeMode=false; state.editFichaMeta=false; renderFichaDetalle(body); });
   }
@@ -9473,7 +9480,14 @@ setTimeout(function(){
       '🚫 Cancelar una orden abierta saca de la reserva los platos incluidos. Las órdenes abiertas olvidadas dejan de salir en cocina a los 2 días.',
       '📦 Facturas en kg o L se convierten a la unidad del inventario (g, ml…). Si un producto ya entró por la lista de compras, te avisa para no sumarlo dos veces.',
       '🗑️ Borrar una reserva devuelve los abonos a su presupuesto y deja las órdenes de Rosita para cobrar aparte. Una ficha restaurada vuelve con sus informes y su reserva.',
-      '⚠️ Posponer, transferir o cambiar profesionales avisa si hay choque de horario. Importar clientes ya no borra datos con casillas vacías.' ] }
+      '⚠️ Posponer, transferir o cambiar profesionales avisa si hay choque de horario. Importar clientes ya no borra datos con casillas vacías.' ] },
+    { v:348, fecha:'27 oct', titulo:'Destacados de Navidad, tarjeta de sellos y reseñas', puntos:[
+      '🎄 El catálogo de clientes muestra arriba los «Destacados de Navidad» (1 nov a 6 ene). Los eliges en Admin → Ventas → 💧 Temporada y fidelización.',
+      '💧 Tarjeta de sellos: cada visita atendida suma un sello; al 5.º hay premio. El cliente la ve en su catálogo y tú en su ficha, donde marcas el premio como entregado.',
+      '🎂 La felicitación de cumpleaños por WhatsApp ya trae el regalo del mes (puedes quitarlo con una casilla).',
+      '⭐ Si la encuesta sale buena, se invita al cliente a dejar su reseña en Google (falta poner el enlace en Admin). Si sale mala, le llega un aviso a César Zamora.',
+      '🔗 Inicio: en los enlaces por vencer o vencidos marcas los que quieres alargar y con un toque caducas y quitas los demás.',
+      '🧹 Ajustes internos: el fondo de reserva ya no pierde movimientos viejos, las órdenes de Rosita solo descuentan del inventario de Rosita y un solo resumen diario.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9546,8 +9560,11 @@ setTimeout(function(){
     if(A.fallidos.length){ n += A.fallidos.length; h += bloque('📭', 'Mensajes que no salieron (últimas 48 h)', lista(A.fallidos, g=>linea(`<strong>${esc(g.canal)} a ${esc(g.quien)}</strong>${g.n > 1 ? ' (' + g.n + ')' : ''}: ${esc(amigable(g.canal, g.error))}${g.texto ? `<div class="ag-muted" style="font-size:11.5px">«${esc(g.texto)}»</div>` : ''}`), 5) + '<button class="ag-btn sm ghost" data-at-visto style="margin-top:6px">✔️ Ya lo revisé</button>', '', 'var(--danger-l)'); }
     if(A.vencidas.n){ n++; h += bloque('💰', 'Cuentas vencidas: ' + A.vencidas.n + ' · ' + dinero(A.vencidas.total), '', 'cobrar'); }
     const EV = A.enlacesVencen || [];
-    if(EV.length){ n += EV.length; h += bloque('⏳', 'Enlaces de clientes por vencer (' + EV.length + ')', EV.map(x=>`<div style="margin-top:6px;font-size:12.5px"><strong>${esc(x.cliente)}</strong> · ${esc(x.tipo)} · ${x.vencido ? '<span style="color:#b3261e;font-weight:700">venció el ' + fd(x.vence.slice(0, 10)) + '</span>' : 'vence el ' + fd(x.vence.slice(0, 10))}${x.creadoPor ? ' · lo envió ' + esc(x.creadoPor) : ''}${x.recibido ? ' · ✅ ya envió su selección' : ''}
-      <div style="display:flex;gap:6px;align-items:center;margin-top:4px"><select data-at-plazo="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select><button type="button" class="ag-btn sm" data-at-alargar="${esc(x.token)}" data-at-nom="${esc(x.cliente)}">♻️ Alargar</button></div></div>`).join('') + linea('<span class="ag-muted">Si no lo renuevas, el enlace vencido se borra solo a los 15 días (lo que el cliente envió no se borra).</span>'), '', 'var(--teal-l)'); }
+    // 🧹 v348: marcas los que quieres alargar; los demás se caducan y salen de esta lista con un toque.
+    if(EV.length){ n += EV.length; h += bloque('⏳', 'Enlaces de clientes por vencer o vencidos (' + EV.length + ')', EV.map(x=>`<label style="display:flex;gap:8px;align-items:flex-start;margin-top:6px;font-size:12.5px;cursor:pointer"><input type="checkbox" data-at-ev="${esc(x.token)}" data-at-nom="${esc(x.cliente)}" style="width:auto;margin-top:2px"/><span><strong>${esc(x.cliente)}</strong> · ${esc(x.tipo)} · ${x.vencido ? '<span style="color:#b3261e;font-weight:700">venció el ' + fd(x.vence.slice(0, 10)) + '</span>' : 'vence el ' + fd(x.vence.slice(0, 10))}${x.creadoPor ? ' · lo envió ' + esc(x.creadoPor) : ''}${x.recibido ? ' · ✅ ya envió su selección' : ''}</span></label>`).join('') +
+      `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px"><select data-at-plazo-todos style="width:auto">${plazosOpciones(30)}</select><button type="button" class="ag-btn sm" data-at-alargar-sel>♻️ Alargar los marcados</button></div>
+      <button type="button" class="ag-btn sm ghost" data-at-descartar style="width:100%;margin-top:6px">🗑️ Caducar y quitar los que no marqué</button>` +
+      linea('<span class="ag-muted">Lo que el cliente ya envió no se borra.</span>'), '', 'var(--teal-l)'); }
     if(A.disp && A.disp.faltan.length){ n++; h += bloque('🕒', 'Disponibilidad de la semana del ' + esc(A.disp.rango), linea('Falta que indiquen: ' + esc(A.disp.faltan.join(', '))), 'disp'); }
     if(A.sugerencias){ n++; h += bloque('📮', 'Sugerencias nuevas del equipo: ' + A.sugerencias, '', 'buzon', '#eef3ff'); }
     // Respaldos: el diario debe ser de hoy (o de ayer antes de la 1:00); si falló o se atrasó, se marca en rojo.
@@ -9643,12 +9660,23 @@ setTimeout(function(){
   }
   function conectarAtencionHoy(el){
     el.querySelectorAll('[data-at-recargar]').forEach(b=>b.onclick = ()=>cargarAtencionHoy(el, true));
-    el.querySelectorAll('[data-at-alargar]').forEach(b=>b.onclick = async ()=>{
-      const tk = b.dataset.atAlargar, sel = el.querySelector('[data-at-plazo="' + tk + '"]'), dias = sel ? +sel.value : 30;
-      b.disabled = true;
-      try{ await gs('extenderEnlace', tk, dias, auth()); toast('♻️ El enlace de ' + b.dataset.atNom + ' dura ' + plazoNombre(dias) + ' más.'); state.ceEnv = null; cargarAtencionHoy(el, true); }
-      catch(e){ b.disabled = false; alert('No se pudo alargar: ' + (e && e.message ? e.message : e)); }
-    });
+    const evMarcados = (si)=>[...el.querySelectorAll('[data-at-ev]')].filter(c=>c.checked === si);
+    const bAl = el.querySelector('[data-at-alargar-sel]');
+    if(bAl) bAl.onclick = async ()=>{
+      const m = evMarcados(true); if(!m.length){ alert('Marca primero los enlaces que quieres alargar.'); return; }
+      const sel = el.querySelector('[data-at-plazo-todos]'), dias = sel ? +sel.value : 30;
+      bAl.disabled = true; let ok = 0;
+      for(const c of m){ try{ await gs('extenderEnlace', c.dataset.atEv, dias, auth()); ok++; }catch(e){ alert('No se pudo alargar el de ' + c.dataset.atNom + ': ' + (e && e.message ? e.message : e)); } }
+      toast('♻️ ' + ok + ' enlace' + (ok === 1 ? '' : 's') + ' alargado' + (ok === 1 ? '' : 's') + ' ' + plazoNombre(dias) + ' más.'); state.ceEnv = null; cargarAtencionHoy(el, true);
+    };
+    const bDe = el.querySelector('[data-at-descartar]');
+    if(bDe) bDe.onclick = async ()=>{
+      const m = evMarcados(false); if(!m.length){ alert('Todos están marcados para alargar: no hay nada que quitar.'); return; }
+      if(!confirm('¿Caducar y quitar de la lista ' + m.length + ' enlace' + (m.length === 1 ? '' : 's') + '?\n\n' + m.map(c=>'• ' + c.dataset.atNom).join('\n') + '\n\nEl cliente ya no podrá usarlo. Lo que ya envió no se borra.')) return;
+      bDe.disabled = true;
+      try{ const nq = await gs('descartarEnlaces', m.map(c=>c.dataset.atEv), auth()); toast('🗑️ ' + nq + ' enlace' + (nq === 1 ? '' : 's') + ' quitado' + (nq === 1 ? '' : 's') + '.'); state.ceEnv = null; cargarAtencionHoy(el, true); }
+      catch(e){ bDe.disabled = false; alert('No se pudo: ' + (e && e.message ? e.message : e)); }
+    };
     const bnv = el.querySelector('[data-at-nov]'); if(bnv) bnv.onclick = ()=>abrirNovedades((state.atencion && state.atencion.novLeida) || 0, ()=>cargarAtencionHoy(el, true));
     const bnt = el.querySelector('[data-at-novtodas]'); if(bnt) bnt.onclick = ()=>abrirNovedades(0, ()=>cargarAtencionHoy(el, true));
     const bhs = el.querySelector('[data-at-hist]'); if(bhs) bhs.onclick = ()=>{ state.hist = null; state.tab = 'adminpanel'; state.adminSub = 'historial'; render(); };
@@ -15670,8 +15698,8 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || 'staff';
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
     const hayPagos = (state.pagosPend||[]).length;
     // ⭐ v343: «Lo que más uso»: las 6 secciones que esta persona abre más (se cuentan en este teléfono, nada se envía).
@@ -15720,12 +15748,96 @@ setTimeout(function(){
     else if(sub==='accesos') renderRegistroAccesos(cont);
     else if(sub==='tarifas'){ renderTarifas(cont); volverAlPaqueteHTML(cont); }
     else if(sub==='paquetes') renderPaquetesVentas(cont);
+    else if(sub==='fidel') renderFidelAdmin(cont);
     else if(sub==='presupuestos') renderPresupuestos(cont);
     else if(sub==='solicitudes') renderSolicitudes(cont);
     else if(sub==='cobrar') renderPorCobrar(cont);
     else if(sub==='importar'){ cont.innerHTML = '<div id="adm-imp"></div><div id="adm-img" style="margin-top:14px"></div>'; renderImportar(cont.querySelector('#adm-imp')); renderImagenesAdmin(cont.querySelector('#adm-img')); }
     else if(sub==='exportar') renderExport(cont);
     else renderAdmin(cont);
+  }
+
+  // 💧 v348: Temporada y fidelización. Destacados que salen arriba en el catálogo de clientes, tarjeta de sellos,
+  // regalo de cumpleaños (se agrega al mensaje de WhatsApp) y enlace de reseñas de Google (se ofrece al final de una buena encuesta).
+  function renderFidelAdmin(cont){
+    cont.innerHTML = '<p class="ag-empty">Cargando…</p>';
+    gs('getFidelCfg', auth()).then(cfg=>{
+      const D = cfg.destacados, S = cfg.sellos;
+      const fila = (x, i)=>`<div class="fd-it" style="display:grid;grid-template-columns:44px 1fr;gap:6px;margin-top:8px;padding:8px;border:1px solid var(--line,#e3ecee);border-radius:10px">
+          <input data-fd-e="${i}" value="${esc(x.emoji||'')}" maxlength="4" style="text-align:center;font-size:18px" aria-label="Emoji"/>
+          <input data-fd-n="${i}" value="${esc(x.nombre||'')}" placeholder="Nombre exacto del paquete" aria-label="Paquete"/>
+          <input data-fd-f="${i}" value="${esc(x.frase||'')}" placeholder="Frase de venta (corta)" style="grid-column:1 / -1" aria-label="Frase"/>
+          <button class="ag-btn ghost sm" data-fd-x="${i}" style="grid-column:1 / -1">Quitar</button></div>`;
+      const pintar = ()=>{
+        cont.innerHTML = `
+        <div class="ag-card">
+          <h3 style="margin:0 0 4px">🎄 Destacados de temporada</h3>
+          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Salen arriba de los paquetes en el catálogo de clientes, solo entre estas fechas. El nombre debe ser igual al del paquete; el precio sale del paquete.</p>
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fd-act" style="width:auto" ${D.activo?'checked':''}/> Mostrar destacados</label>
+          <label class="f">Título de la franja</label><input id="fd-tit" value="${esc(D.titulo||'')}" maxlength="60"/>
+          <div style="display:flex;gap:8px"><div style="flex:1"><label class="f">Desde (día-mes)</label><input id="fd-de" value="${esc(mmddADM(D.desde))}" placeholder="01-11"/></div>
+            <div style="flex:1"><label class="f">Hasta (día-mes)</label><input id="fd-ha" value="${esc(mmddADM(D.hasta))}" placeholder="06-01"/></div></div>
+          <div id="fd-items">${(D.items||[]).map(fila).join('')}</div>
+          <button class="ag-btn ghost sm" id="fd-add" style="width:100%;margin-top:8px" ${(D.items||[]).length>=8?'disabled':''}>+ Agregar destacado</button>
+        </div>
+        <div class="ag-card" style="margin-top:12px">
+          <h3 style="margin:0 0 4px">💧 Tarjeta de sellos</h3>
+          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Cada visita atendida (reserva completada) desde la fecha de inicio suma un sello. El cliente lo ve en su catálogo y tú en su ficha, donde marcas el premio como entregado.</p>
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fd-s-act" style="width:auto" ${S.activo?'checked':''}/> Usar tarjeta de sellos</label>
+          <div style="display:flex;gap:8px"><div style="flex:1"><label class="f">Visitas para el premio</label><input id="fd-s-n" type="number" min="2" max="20" value="${S.n}"/></div>
+            <div style="flex:1"><label class="f">Cuentan desde</label><input id="fd-s-de" type="date" value="${esc(S.desde)}"/></div></div>
+          <label class="f">Premio</label><input id="fd-s-p" value="${esc(S.premio||'')}" maxlength="120"/>
+        </div>
+        <div class="ag-card" style="margin-top:12px">
+          <h3 style="margin:0 0 4px">🎂 Regalo de cumpleaños</h3>
+          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Se agrega al final de la felicitación por WhatsApp (puedes quitarlo antes de enviarla). Vacío = sin regalo.</p>
+          <textarea id="fd-c" rows="3" maxlength="300">${esc((cfg.cumple||{}).regalo||'')}</textarea>
+        </div>
+        <div class="ag-card" style="margin-top:12px">
+          <h3 style="margin:0 0 4px">⭐ Reseñas de Google</h3>
+          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Si el cliente califica 4 o más y volvería, al final de la encuesta ve un botón para dejar su reseña. Si califica menos de 3, se le avisa a César Zamora. Vacío = no se muestra el botón.</p>
+          <input id="fd-r" value="${esc(cfg.resenasUrl||'')}" placeholder="https://g.page/r/…/review"/>
+        </div>
+        <button class="ag-btn" id="fd-save" style="width:100%;margin-top:12px">Guardar</button>`;
+        const leer = ()=>{
+          D.items = [...cont.querySelectorAll('[data-fd-n]')].map(inp=>{ const i = inp.dataset.fdN; return { nombre:inp.value.trim(), emoji:cont.querySelector('[data-fd-e="'+i+'"]').value.trim(), frase:cont.querySelector('[data-fd-f="'+i+'"]').value.trim() }; });
+          D.activo = cont.querySelector('#fd-act').checked; D.titulo = cont.querySelector('#fd-tit').value.trim();
+          D.desde = mmddSRV(cont.querySelector('#fd-de').value); D.hasta = mmddSRV(cont.querySelector('#fd-ha').value);
+          S.activo = cont.querySelector('#fd-s-act').checked; S.n = Number(cont.querySelector('#fd-s-n').value) || 5; S.desde = cont.querySelector('#fd-s-de').value; S.premio = cont.querySelector('#fd-s-p').value.trim();
+          cfg.cumple = { regalo:cont.querySelector('#fd-c').value.trim() }; cfg.resenasUrl = cont.querySelector('#fd-r').value.trim();
+        };
+        cont.querySelector('#fd-add').onclick = ()=>{ leer(); D.items.push({ nombre:'', emoji:'✨', frase:'' }); pintar(); };
+        cont.querySelectorAll('[data-fd-x]').forEach(b=>b.onclick = ()=>{ leer(); D.items.splice(Number(b.dataset.fdX), 1); pintar(); });
+        cont.querySelector('#fd-save').onclick = async (ev)=>{
+          leer();
+          if(!D.desde || !D.hasta){ alert('Escribe las fechas como día-mes, por ejemplo 01-11 (1 de noviembre).'); return; }
+          if(cfg.resenasUrl && !/^https:\/\//.test(cfg.resenasUrl)){ alert('El enlace de reseñas debe empezar por https://'); return; }
+          ev.target.disabled = true; ev.target.textContent = 'Guardando…';
+          try{ const r = await gs('saveFidelCfg', cfg, auth()); state.fidelCfg = r; toast('💧 Guardado.'); renderFidelAdmin(cont); }
+          catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); ev.target.disabled = false; ev.target.textContent = 'Guardar'; }
+        };
+      };
+      pintar();
+    }).catch(e=>{ cont.innerHTML = '<p class="ag-empty">No se pudo cargar: ' + esc(e && e.message ? e.message : String(e)) + '</p>'; });
+  }
+  // El servidor guarda mes-día («11-01»); aquí se muestra y se escribe día-mes («01-11»), como se dice en Venezuela.
+  function mmddADM(v){ const m = /^(\d{2})-(\d{2})$/.exec(String(v||'')); return m ? m[2] + '-' + m[1] : ''; }
+  function mmddSRV(v){ const m = /^\s*(\d{1,2})\s*[-\/.]\s*(\d{1,2})\s*$/.exec(String(v||'')); if(!m) return ''; const d = Number(m[1]), mo = Number(m[2]); if(!(d>=1 && d<=31 && mo>=1 && mo<=12)) return ''; return String(mo).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
+  // 💧 v348: tarjeta de sellos en la ficha del cliente (la administración marca el premio como entregado).
+  function pintarSellosCliente(box, c){
+    if(!box) return;
+    gs('getSellosCliente', c.id, auth()).then(S=>{
+      if(!S || !S.activo || !box.isConnected){ box.innerHTML = ''; return; }
+      let p = ''; for(let i = 0; i < S.n; i++) p += `<span style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;${i < S.actuales ? 'background:#d3f1f7;box-shadow:inset 0 0 0 2px #0e9fb8' : 'background:#eef2f3;filter:grayscale(1);opacity:.45'}">💧</span>`;
+      box.innerHTML = `<div class="ag-card" style="margin-top:10px;background:#f2fbfd;border-color:#bfe6ee">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>💧 Tarjeta de sellos</strong><span class="ag-muted" style="font-size:12px">${S.visitas} visita${S.visitas===1?'':'s'} desde ${esc(isoToDMY(S.desde))}</span></div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin:8px 0">${p}</div>
+        <div class="ag-muted" style="font-size:12.5px">${S.disponibles > 0 ? '🎉 <strong>Premio listo:</strong> ' + esc(S.premio) + (S.disponibles > 1 ? ' (tiene ' + S.disponibles + ')' : '') : 'Lleva ' + S.actuales + ' de ' + S.n + '. Premio: ' + esc(S.premio)}${S.canjeados ? ' · Premios entregados: ' + S.canjeados : ''}</div>
+        ${S.disponibles > 0 && state.user.admin ? '<button class="ag-btn sm" id="cd-sello-ok" style="width:100%;margin-top:8px">✅ Marcar premio como entregado</button>' : ''}</div>`;
+      const b = box.querySelector('#cd-sello-ok');
+      if(b) b.onclick = async ()=>{ if(!confirm('¿Marcar como entregado el premio de ' + c.nombre + '?\n\n' + S.premio)) return; b.disabled = true;
+        try{ await gs('canjearSello', c.id, auth()); toast('🎁 Premio entregado.'); pintarSellosCliente(box, c); }catch(e){ alert('No se pudo: ' + (e && e.message ? e.message : e)); b.disabled = false; } };
+    }).catch(()=>{ box.innerHTML = ''; });
   }
 
   // Quién ha entrado (o no) a la app, desde qué equipo y cuándo.
