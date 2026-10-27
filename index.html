@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v348' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v349' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2195,7 +2195,7 @@ setTimeout(function(){
       ${esCocina() ? '' : `<nav class="ag-nav abajo" aria-label="Secciones" style="grid-template-columns:repeat(${navAbajo.length},minmax(0,1fr))">
         ${navAbajo.map(([k,ic,tx])=>`<button type="button" data-tab="${k}" class="${(k==='mas' ? enMas : state.tab===k)?'active':''}"><span class="ic">${ic}</span><span class="tx">${tx}${k==='mas' && puntoMas ? '<span style="color:#d33"> ●</span>' : ''}${k==='disp' ? '<span id="disp-punto" style="color:#d33;'+(dispRecordar()?'':'display:none')+'"> ●</span>' : ''}</span></button>`).join('')}
       </nav>
-      ${(state.tab==='home' || (state.tab==='clientes' && !state.selClienteId) || (state.tab==='agenda' && (!state.ag || !state.ag.vista || state.ag.vista==='lista'))) ? (()=>{ const ca = citasDeAhora(), r0 = ca[0] && ca[0].r; return r0 ? `<button type="button" id="ag-fab-nueva" class="ag-fab" aria-label="Atender a ${esc(r0.clienteNombre)}" style="background:#1d6b35;box-shadow:0 6px 16px rgba(29,107,53,.35);display:flex;align-items:center;gap:8px;text-align:left"><span>▶</span><span style="display:flex;flex-direction:column;line-height:1.15">Atender a ${esc(String(r0.clienteNombre || '').split(' ')[0])}${ca.length > 1 ? ' +' + (ca.length - 1) : ''}<small style="font-weight:500;opacity:.9">${esc(r0.hora)}${r0.paqueteNombre ? ' · ' + esc(r0.paqueteNombre) : ''}</small></span></button>` : '<button type="button" id="ag-fab-nueva" class="ag-fab" aria-label="Nueva ficha">📝 Nueva ficha</button>'; })() : ''}`}`;
+      ${(state.tab==='home' || (state.tab==='clientes' && !state.selClienteId) || (state.tab==='agenda' && (!state.ag || !state.ag.vista || state.ag.vista==='lista'))) ? fabNuevoHTML() : ''}`}`;
     const alertaPagos = app.querySelector('#ag-pagos-alerta');
     if(alertaPagos) alertaPagos.onclick = ()=>{
       // Lleva directo al presupuesto (o a la lista, si son varios) y fuerza a pedirlos de nuevo al servidor.
@@ -2216,7 +2216,7 @@ setTimeout(function(){
       else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); if(window.AG_WEB) colaSoltar(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
     const irTab = k=>{ state.tab=k; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ if(b.dataset.tab === 'mas') return abrirMenuMas(tabsMas, irTab); irTab(b.dataset.tab); });
-    const fab = app.querySelector('#ag-fab-nueva'); if(fab) fab.onclick = ()=>{ const ca = citasDeAhora(); if(ca.length) abrirMenuNuevo(ca, irTab); else irTab('nueva'); };
+    irTabFab = irTab; conectarFab(app.querySelector('#ag-fab-nueva'));
     const body = app.querySelector('#ag-body');
     if(state.tab==='home') renderHome(body);
     else if(state.tab==='clientes') renderClientes(body);
@@ -7785,7 +7785,7 @@ setTimeout(function(){
     state._agendaPromesa = gs('getAgenda', auth())
       .then(d=>{ state.agenda = d; colaReaplicar(); })
       .catch(e=>{ state.agenda = { reservas:[], paquetes:[], error: String(e&&e.message?e.message:e) }; })
-      .then(()=>{ state.agendaCargando = false; state._agendaPromesa = null; });
+      .then(()=>{ state.agendaCargando = false; state._agendaPromesa = null; refrescarFab(); });
     return state._agendaPromesa;
   }
   function nombreStaff(id){ const s = state.staff.find(x=>String(x.id)===String(id)); return s ? s.nombre : '—'; }
@@ -9487,7 +9487,10 @@ setTimeout(function(){
       '🎂 La felicitación de cumpleaños por WhatsApp ya trae el regalo del mes (puedes quitarlo con una casilla).',
       '⭐ Si la encuesta sale buena, se invita al cliente a dejar su reseña en Google (falta poner el enlace en Admin). Si sale mala, le llega un aviso a César Zamora.',
       '🔗 Inicio: en los enlaces por vencer o vencidos marcas los que quieres alargar y con un toque caducas y quitas los demás.',
-      '🧹 Ajustes internos: el fondo de reserva ya no pierde movimientos viejos, las órdenes de Rosita solo descuentan del inventario de Rosita y un solo resumen diario.' ] }
+      '🧹 Ajustes internos: el fondo de reserva ya no pierde movimientos viejos, las órdenes de Rosita solo descuentan del inventario de Rosita y un solo resumen diario.' ] },
+    { v:349, fecha:'27 oct', titulo:'Botón ➕ inteligente: atiende la cita de ahora', puntos:[
+      '▶ Cuando falta 1 hora o menos para una cita tuya, el botón de abajo se pone verde y dice «Atender a …». Un toque abre la ficha con el cliente y la reserva ya puestos.',
+      '📋 Si hay varias citas cerca, o si lo dejas presionado, sale un menú: las citas de ahora, «Ficha sin cita» y «Nueva reserva».' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9613,8 +9616,42 @@ setTimeout(function(){
   // ▶ v346: botón ➕ inteligente. Con una cita de hoy que empieza en la próxima hora (o empezó hace menos de 30 min) y no se ha atendido,
   // el botón se pone verde con su nombre; al tocarlo se abren las citas de ahora (▶ Atender abre la ficha con la reserva ya puesta),
   // «Ficha sin cita» y «Nueva reserva». Sin citas cerca sigue siendo «Nueva ficha».
-  // ➕ Botón inteligente (cita cercana → «▶ Atender»): apagado hasta que la administración elija la opción del botón.
-  const BOTON_CITA = false;
+  // ➕ v349 (opción A + B elegida por la administración): con UNA cita cerca, un toque la atiende directo;
+  // con varias, o dejándolo presionado, sale el menú (citas, «Ficha sin cita», «Nueva reserva»). Se actualiza solo cada minuto.
+  const BOTON_CITA = true;
+  let irTabFab = null;
+  function fabNuevoHTML(){
+    const ca = citasDeAhora(), r0 = ca[0] && ca[0].r;
+    if(!r0) return '<button type="button" id="ag-fab-nueva" class="ag-fab" data-k="" aria-label="Nueva ficha" title="Mantén presionado para más opciones">📝 Nueva ficha</button>';
+    const k = ca.map(x=>x.r.id).join(',');
+    return `<button type="button" id="ag-fab-nueva" class="ag-fab" data-k="${esc(k)}" aria-label="Atender a ${esc(r0.clienteNombre)}" title="Mantén presionado para más opciones" style="background:#1d6b35;box-shadow:0 6px 16px rgba(29,107,53,.35);display:flex;align-items:center;gap:8px;text-align:left"><span>▶</span><span style="display:flex;flex-direction:column;line-height:1.15">Atender a ${esc(String(r0.clienteNombre || '').split(' ')[0])}${ca.length > 1 ? ' +' + (ca.length - 1) : ''}<small style="font-weight:500;opacity:.9">${esc(r0.hora)}${r0.paqueteNombre ? ' · ' + esc(r0.paqueteNombre) : ''}</small></span></button>`;
+  }
+  function conectarFab(fab){
+    if(!fab) return;
+    const ir = k=>(irTabFab ? irTabFab(k) : (state.tab = k, render()));
+    let tLargo = null, largo = false;
+    const soltar = ()=>{ if(tLargo){ clearTimeout(tLargo); tLargo = null; } };
+    fab.addEventListener('pointerdown', ()=>{ largo = false; soltar(); tLargo = setTimeout(()=>{ largo = true; tLargo = null; try{ navigator.vibrate && navigator.vibrate(30); }catch(e){} abrirMenuNuevo(citasDeAhora(), ir); }, 550); });
+    ['pointerup','pointerleave','pointercancel'].forEach(ev=>fab.addEventListener(ev, soltar));
+    fab.addEventListener('contextmenu', e=>e.preventDefault());
+    fab.onclick = ()=>{
+      if(largo){ largo = false; return; }
+      const ca = citasDeAhora();
+      if(ca.length === 1) atenderCita(ca[0].r);
+      else if(ca.length > 1) abrirMenuNuevo(ca, ir);
+      else ir('nueva');
+    };
+  }
+  // Cada minuto: si cambió la cita cercana, se cambia solo el botón (sin redibujar la pantalla ni borrar lo que se está escribiendo).
+  // También al llegar la agenda (al abrir la app el botón se dibuja antes de que lleguen las citas).
+  function refrescarFab(){
+    const f = document.getElementById('ag-fab-nueva'); if(!f || !BOTON_CITA) return;
+    const ca = citasDeAhora(), k = ca.map(x=>x.r.id).join(',');
+    if(k === (f.dataset.k || '')) return;
+    const w = document.createElement('div'); w.innerHTML = fabNuevoHTML(); const nf = w.firstElementChild;
+    f.replaceWith(nf); conectarFab(nf);
+  }
+  setInterval(refrescarFab, 60000);
   function citasDeAhora(){
     if(!BOTON_CITA) return [];
     const ag = state.agenda; if(!ag || !Array.isArray(ag.reservas) || !state.user) return [];
@@ -9634,9 +9671,9 @@ setTimeout(function(){
     const cuando = d=>d > 1 ? 'en ' + d + ' min' : d >= -1 ? 'ahora' : 'empezó hace ' + (-d) + ' min';
     const fondo = document.createElement('div'); fondo.id = 'ag-mas'; fondo.className = 'ag-mas-fondo';
     fondo.innerHTML = `<div class="ag-mas-hoja" role="dialog" aria-label="Nuevo"><div class="ag-mas-asa"></div>
-      <div style="font-size:13px;font-weight:700;color:var(--sub);margin:2px 4px 6px">Citas de ahora</div>
+      ${citas.length ? '<div style="font-size:13px;font-weight:700;color:var(--sub);margin:2px 4px 6px">Citas de ahora</div>' : ''}
       ${citas.map((x, i)=>`<button type="button" data-nv-cita="${esc(x.r.id)}" style="${i === 0 ? 'border:2px solid #1d6b35;background:#f3faf5' : ''}"><b style="min-width:48px;color:${i === 0 ? '#1d6b35' : 'var(--teal-d)'}">${esc(x.r.hora)}</b><span style="flex:1;text-align:left;display:flex;flex-direction:column;line-height:1.25"><strong>${esc(x.r.clienteNombre)}${(x.r.personas || []).length > 1 ? ' +' + ((x.r.personas || []).length - 1) : ''}</strong><small style="color:var(--sub);font-weight:400">${esc(x.r.paqueteNombre || durTxt(x.r.duracionMin || 60))} · ${cuando(x.dif)}</small></span><span style="background:#1d6b35;color:#fff;border-radius:999px;padding:7px 12px;font-size:13px">▶ Atender</span></button>`).join('')}
-      <div style="font-size:13px;font-weight:700;color:var(--sub);margin:10px 4px 6px">Otra cosa</div>
+      <div style="font-size:13px;font-weight:700;color:var(--sub);margin:${citas.length ? '10px' : '2px'} 4px 6px">${citas.length ? 'Otra cosa' : '¿Qué quieres hacer?'}</div>
       <div style="display:grid;grid-template-columns:${state.user.admin ? '1fr 1fr' : '1fr'};gap:8px"><button type="button" data-nv="ficha" style="justify-content:center">📝 Ficha sin cita</button>${state.user.admin ? '<button type="button" data-nv="reserva" style="justify-content:center">📅 Nueva reserva</button>' : ''}</div></div>`;
     fondo.onclick = e=>{ if(e.target === fondo) cerrarMenuMas(); };
     document.body.appendChild(fondo);
