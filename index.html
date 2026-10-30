@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v351' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v352' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9496,7 +9496,9 @@ setTimeout(function(){
       '📆 Si se corrige la fecha de una ficha, queda guardada la fecha original y quién la cambió. La limpieza de fichas repetidas ya no junta visitas de días distintos.' ] },
     { v:351, fecha:'30 oct', titulo:'Informe de ventas por semana o por mes', puntos:[
       '📈 Admin → Ventas → <strong>📈 Informe</strong> (solo administradores): presupuestos emitidos, cuántos contestaron, cuántos se concretaron y cuántos pagaron, lo cobrado y lo más vendido. Eliges mes o semana y lo comparas con otro.',
-      '💬 Nuevo estado del presupuesto <strong>«Contestó»</strong> (respondió pero lo está pensando) y lista de los que esperan respuesta, con botón de seguimiento por WhatsApp.' ] }
+      '💬 Nuevo estado del presupuesto <strong>«Contestó»</strong> (respondió pero lo está pensando) y lista de los que esperan respuesta, con botón de seguimiento por WhatsApp.' ] },
+    { v:352, fecha:'30 oct', titulo:'Informe de ventas: primero el período, comparar si quieres', puntos:[
+      '📈 El informe abre mostrando solo el mes (o la semana). La comparación con otro período es opcional: la eliges en «⚖️ Comparar con».' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15757,19 +15759,19 @@ setTimeout(function(){
     const V = state.iv;
     const cargar = ()=>{
       V.datos = null; cont.innerHTML = '<p class="ag-empty">Cargando informe…</p>';
-      gs('getInformeVentas', V.modo, V.ref, V.comparar || ivMover(V.modo, V.ref, -1), auth())
+      gs('getInformeVentas', V.modo, V.ref, V.comparar || '', auth())
         .then(d=>{ V.datos = d; V.ref = d.ref; V.comparar = d.comparar; if(state.tab==='adminpanel' && state.adminSub==='informe') render(); })
         .catch(e=>{ cont.innerHTML = '<p class="ag-err">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</p>'; });
     };
     if(!V.datos){ cargar(); return; }
-    const D = V.datos, P = D.periodos, A = P.find(x=>x.clave===D.ref), B = P.find(x=>x.clave===D.comparar) || { emitidos:0 };
+    const D = V.datos, P = D.periodos, A = P.find(x=>x.clave===D.ref), hayB = !!D.comparar, B = (hayB && P.find(x=>x.clave===D.comparar)) || { emitidos:0 };
     const serie = P.filter(x=>x.clave <= D.ref).slice(-6);
     const pct = (v, b)=>b > 0 ? Math.round(v / b * 100) + '%' : '—';
     const conv = x=>x.emitidos ? x.concretados / x.emitidos * 100 : 0;
     const varH = (a, b, inv)=>{ if(!b && !a) return '<span class="ag-muted">=</span>'; if(!b) return '<span style="color:#1d6b35">nuevo</span>';
       const v = Math.round((a - b) / Math.abs(b) * 100), bien = inv ? v <= 0 : v >= 0; return `<span style="color:${v === 0 ? 'var(--sub)' : (bien ? '#1d6b35' : 'var(--danger)')};font-weight:700">${v > 0 ? '▲' : (v < 0 ? '▼' : '=')} ${Math.abs(v)}%</span>`; };
     const kpi = (t, v, sub, color)=>`<div style="flex:1 1 140px;min-width:0;padding:12px;border-radius:14px;background:#f6fafa;border:1px solid var(--line)"><div class="ag-muted" style="font-size:12px">${t}</div><div style="font-size:22px;font-weight:800;color:${color || 'var(--ink)'}">${v}</div><div style="font-size:11.5px;margin-top:2px">${sub}</div></div>`;
-    const nomB = ivEtiqueta(D.modo, D.comparar || '', true);
+    const nomB = hayB ? ivEtiqueta(D.modo, D.comparar, true) : '';
     const etapas = [ ['🧾 Emitidos', A.emitidos, dinero(A.montoEmitido), '#0a5a68'], ['💬 Contestaron', A.contestaron, pct(A.contestaron, A.emitidos) + ' de los emitidos', '#0e9fb8'],
       ['🤝 Concretados', A.concretados, pct(A.concretados, A.contestaron) + ' de los que contestaron · ' + dinero(A.montoConcretado), '#d99a00'], ['💵 Pagaron', A.pagaron, pct(A.pagaron, A.concretados) + ' de los concretados · ' + dinero(A.montoCobradoPres), '#1d6b35'] ];
     const maxE = Math.max(1, A.emitidos);
@@ -15785,12 +15787,12 @@ setTimeout(function(){
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px"><button class="ag-btn sm ghost" id="iv-prev" style="width:44px">◀</button><h3 style="margin:0;text-align:center">📈 ${esc(ivEtiqueta(D.modo, D.ref))}</h3><button class="ag-btn sm ghost" id="iv-next" style="width:44px" ${ivMover(D.modo, D.ref, 1) > (D.modo === 'mes' ? D.hoy.slice(0, 7) : D.hoy) ? 'disabled' : ''}>▶</button></div>
         <label class="f" style="margin-top:8px">⚖️ Comparar con</label>
-        <select id="iv-comp">${opcComp.map(c=>`<option value="${c}" ${c===D.comparar ? 'selected' : ''}>${esc(ivEtiqueta(D.modo, c))}</option>`).join('')}</select>
+        <select id="iv-comp"><option value="">— No comparar (solo ${D.modo === 'mes' ? 'este mes' : 'esta semana'}) —</option>${opcComp.map(c=>`<option value="${c}" ${c===D.comparar ? 'selected' : ''}>${esc(ivEtiqueta(D.modo, c))}</option>`).join('')}</select>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-          ${kpi('💵 Cobrado', dinero(A.cobrado), varH(A.cobrado, B.cobrado) + ' <span class="ag-muted">vs ' + esc(nomB) + '</span>', '#1d6b35')}
-          ${kpi('🧾 Presupuestos', A.emitidos, varH(A.emitidos, B.emitidos) + ' <span class="ag-muted">vs ' + esc(nomB) + '</span>')}
-          ${kpi('🎯 Se concretan', A.emitidos ? Math.round(conv(A)) + '%' : '—', '<span class="ag-muted">antes ' + (B.emitidos ? Math.round(conv(B)) + '%' : '—') + '</span>', 'var(--teal-d)')}
-          ${kpi('✅ Reservas atendidas', A.completadas, dinero(A.ventasCompletadas) + ' · ' + varH(A.completadas, B.completadas))}
+          ${kpi('💵 Cobrado', dinero(A.cobrado), hayB ? varH(A.cobrado, B.cobrado) + ' <span class="ag-muted">vs ' + esc(nomB) + '</span>' : '<span class="ag-muted">spa, abonos y Rosita</span>', '#1d6b35')}
+          ${kpi('🧾 Presupuestos', A.emitidos, hayB ? varH(A.emitidos, B.emitidos) + ' <span class="ag-muted">vs ' + esc(nomB) + '</span>' : '<span class="ag-muted">por ' + dinero(A.montoEmitido) + '</span>')}
+          ${kpi('🎯 Se concretan', A.emitidos ? Math.round(conv(A)) + '%' : '—', '<span class="ag-muted">' + (hayB ? 'antes ' + (B.emitidos ? Math.round(conv(B)) + '%' : '—') : A.concretados + ' de ' + A.emitidos) + '</span>', 'var(--teal-d)')}
+          ${kpi('✅ Reservas atendidas', A.completadas, dinero(A.ventasCompletadas) + (hayB ? ' · ' + varH(A.completadas, B.completadas) : ''))}
         </div>
         <button class="ag-btn ghost sm" id="iv-print" style="width:100%;margin-top:10px">🖨️ Imprimir / PDF</button>
       </div>
@@ -15818,7 +15820,7 @@ setTimeout(function(){
           <tr><td style="padding:5px 0;border-top:1px solid var(--line)">🛍️ Catálogos enviados por enlace</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${A.catalogos}</strong> <span class="ag-muted">(${A.catalogosArmados} armaron su pedido)</span></td></tr>
         </tbody></table>
       </div>
-      <div class="ag-card" style="margin-top:10px"><strong>⚖️ ${esc(ivEtiqueta(D.modo, D.ref, true))} frente a ${esc(nomB)}</strong>
+      ${hayB ? `<div class="ag-card" style="margin-top:10px"><strong>⚖️ ${esc(ivEtiqueta(D.modo, D.ref, true))} frente a ${esc(nomB)}</strong>
         <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px"><thead><tr class="ag-muted" style="font-size:11.5px"><th style="text-align:left;font-weight:600"></th><th style="text-align:right;font-weight:600">Ahora</th><th style="text-align:right;font-weight:600">Antes</th><th style="text-align:right;font-weight:600">Cambio</th></tr></thead><tbody>
           ${filaC('💵 Cobrado', A.cobrado, B.cobrado || 0, dinero)}
           ${filaC('🧾 Presupuestos emitidos', A.emitidos, B.emitidos || 0)}
@@ -15831,7 +15833,7 @@ setTimeout(function(){
           ${filaC('🚫 Canceladas', A.canceladas, B.canceladas || 0, null, true)}
           ${filaC('🍽️ Rosita aparte', A.cobradoRosita, B.cobradoRosita || 0, dinero)}
         </tbody></table>
-      </div>
+      </div>` : ''}
       <div class="ag-card" style="margin-top:10px"><strong>📊 Últimos ${serie.length} ${D.modo === 'mes' ? 'meses' : 'semanas'}</strong>
         <div style="display:flex;gap:6px;align-items:flex-end;height:150px;margin-top:10px">
           ${serie.map(x=>`<div data-iv-ir="${x.clave}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;cursor:pointer">
@@ -15854,11 +15856,12 @@ setTimeout(function(){
       </div>`;
     cont.innerHTML = html;
     cont.querySelectorAll('[data-iv-modo]').forEach(b=>b.onclick = ()=>{ const m = b.dataset.ivModo; if(m === V.modo) return; V.modo = m; V.ref = m === 'mes' ? hoyISO().slice(0, 7) : ivLunes(hoyISO()); V.comparar = ''; cargar(); });
-    cont.querySelector('#iv-prev').onclick = ()=>{ V.ref = ivMover(V.modo, D.ref, -1); V.comparar = ''; cargar(); };
-    cont.querySelector('#iv-next').onclick = ()=>{ V.ref = ivMover(V.modo, D.ref, 1); V.comparar = ''; cargar(); };
+    const compSigue = r=>V.comparar && V.comparar < r ? V.comparar : '';   // la comparación elegida se mantiene al moverse, si sigue siendo un período anterior
+    cont.querySelector('#iv-prev').onclick = ()=>{ V.ref = ivMover(V.modo, D.ref, -1); V.comparar = compSigue(V.ref); cargar(); };
+    cont.querySelector('#iv-next').onclick = ()=>{ V.ref = ivMover(V.modo, D.ref, 1); V.comparar = compSigue(V.ref); cargar(); };
     cont.querySelector('#iv-comp').onchange = e=>{ V.comparar = e.target.value; cargar(); };
-    cont.querySelectorAll('[data-iv-ir]').forEach(b=>b.onclick = ()=>{ if(b.dataset.ivIr === D.ref) return; V.ref = b.dataset.ivIr; V.comparar = ''; cargar(); });
-    cont.querySelector('#iv-print').onclick = ()=>imprimirHTML(`<div class="pf-page" style="font-family:Inter,Arial,sans-serif;color:#222;padding:10px 4px"><h2 style="margin:0 0 4px">📈 Informe de ventas · ${esc(ivEtiqueta(D.modo, D.ref))}</h2><div style="font-size:12px;color:#666;margin-bottom:8px">Aguamiel · Centro de Bienestar · comparado con ${esc(ivEtiqueta(D.modo, D.comparar))}</div>${Array.from(cont.querySelectorAll('.ag-card')).slice(1, 6).map(c=>c.outerHTML).join('')}</div>`);
+    cont.querySelectorAll('[data-iv-ir]').forEach(b=>b.onclick = ()=>{ if(b.dataset.ivIr === D.ref) return; V.ref = b.dataset.ivIr; V.comparar = compSigue(V.ref); cargar(); });
+    cont.querySelector('#iv-print').onclick = ()=>imprimirHTML(`<div class="pf-page" style="font-family:Inter,Arial,sans-serif;color:#222;padding:10px 4px"><h2 style="margin:0 0 4px">📈 Informe de ventas · ${esc(ivEtiqueta(D.modo, D.ref))}</h2><div style="font-size:12px;color:#666;margin-bottom:8px">Aguamiel · Centro de Bienestar${hayB ? ' · comparado con ' + esc(ivEtiqueta(D.modo, D.comparar)) : ''}</div>${Array.from(cont.querySelectorAll('.ag-card')).slice(1, 6).map(c=>c.outerHTML).join('')}</div>`);
     const buscarP = id=>pend.find(x=>x.id===id) || {};
     cont.querySelectorAll('[data-iv-wa]').forEach(b=>b.onclick = ()=>{
       const p = buscarP(b.dataset.ivWa), c = (state.clientes||[]).find(x=>x.nombre===p.cliente);
