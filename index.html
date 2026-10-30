@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v349' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v350' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9490,7 +9490,10 @@ setTimeout(function(){
       '🧹 Ajustes internos: el fondo de reserva ya no pierde movimientos viejos, las órdenes de Rosita solo descuentan del inventario de Rosita y un solo resumen diario.' ] },
     { v:349, fecha:'27 oct', titulo:'Botón ➕ inteligente: atiende la cita de ahora', puntos:[
       '▶ Cuando falta 1 hora o menos para una cita tuya, el botón de abajo se pone verde y dice «Atender a …». Un toque abre la ficha con el cliente y la reserva ya puestos.',
-      '📋 Si hay varias citas cerca, o si lo dejas presionado, sale un menú: las citas de ahora, «Ficha sin cita» y «Nueva reserva».' ] }
+      '📋 Si hay varias citas cerca, o si lo dejas presionado, sale un menú: las citas de ahora, «Ficha sin cita» y «Nueva reserva».' ] },
+    { v:350, fecha:'28 oct', titulo:'Reglas del dinero y de las fichas, reforzadas', puntos:[
+      '🔐 El personal ya no recibe cantidades de dinero en el historial de las reservas.',
+      '📆 Si se corrige la fecha de una ficha, queda guardada la fecha original y quién la cambió. La limpieza de fichas repetidas ya no junta visitas de días distintos.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
