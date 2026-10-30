@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v350' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v351' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9493,7 +9493,10 @@ setTimeout(function(){
       '📋 Si hay varias citas cerca, o si lo dejas presionado, sale un menú: las citas de ahora, «Ficha sin cita» y «Nueva reserva».' ] },
     { v:350, fecha:'28 oct', titulo:'Reglas del dinero y de las fichas, reforzadas', puntos:[
       '🔐 El personal ya no recibe cantidades de dinero en el historial de las reservas.',
-      '📆 Si se corrige la fecha de una ficha, queda guardada la fecha original y quién la cambió. La limpieza de fichas repetidas ya no junta visitas de días distintos.' ] }
+      '📆 Si se corrige la fecha de una ficha, queda guardada la fecha original y quién la cambió. La limpieza de fichas repetidas ya no junta visitas de días distintos.' ] },
+    { v:351, fecha:'30 oct', titulo:'Informe de ventas por semana o por mes', puntos:[
+      '📈 Admin → Ventas → <strong>📈 Informe</strong> (solo administradores): presupuestos emitidos, cuántos contestaron, cuántos se concretaron y cuántos pagaron, lo cobrado y lo más vendido. Eliges mes o semana y lo comparas con otro.',
+      '💬 Nuevo estado del presupuesto <strong>«Contestó»</strong> (respondió pero lo está pensando) y lista de los que esperan respuesta, con botón de seguimiento por WhatsApp.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -11628,7 +11631,7 @@ setTimeout(function(){
     if(P.vista==='ver') return renderPresupuestoVer(body);
     if(P.vista==='catalogo') return renderCatalogoEnlace(body);
     const lista = state.presupuestos.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-    const colorP = e=> e==='Aceptado' ? 'background:#e2f4e6;color:#1d6b35' : e==='Rechazado' ? 'background:#eee;color:#777' : e==='Enviado' ? 'background:var(--teal-l);color:var(--teal-d)' : 'background:var(--amber-l);color:var(--amber-d)';
+    const colorP = e=> e==='Aceptado' ? 'background:#e2f4e6;color:#1d6b35' : e==='Rechazado' ? 'background:#eee;color:#777' : e==='Enviado' ? 'background:var(--teal-l);color:var(--teal-d)' : e==='Contestó' ? 'background:#efeaff;color:#5b3f8f' : 'background:var(--amber-l);color:var(--amber-d)';
     body.innerHTML = `
       <div class="ag-card">
         <h3>🧾 Presupuestos</h3>
@@ -12456,7 +12459,7 @@ setTimeout(function(){
         ${p.saldo>0.009 && pagos.length ? `<button class="ag-btn sm ghost" id="pv-datospago" style="width:100%;margin-top:8px">💳 Enviar datos de pago al cliente por WhatsApp</button>` : ''}
       </div>
       <label class="f" style="margin-top:12px">Estado</label>
-      <select id="pv-estado">${['Borrador','Enviado','Aceptado','Rechazado'].map(e=>`<option ${e===p.estado?'selected':''}>${e}</option>`).join('')}</select>
+      <select id="pv-estado">${['Borrador','Enviado','Contestó','Aceptado','Rechazado'].map(e=>`<option value="${e}" ${e===p.estado?'selected':''}>${e==='Contestó' ? '💬 Contestó (lo está pensando)' : e}</option>`).join('')}</select>
       <button class="ag-btn sm danger" id="pv-borrar" style="width:100%;margin-top:14px">🗑️ Eliminar presupuesto</button>`;
     body.querySelector('#pv-volver').onclick = ()=>{ P.vista='lista'; render(); };
     body.querySelector('#pv-regalo').onclick = ()=>{
@@ -15734,12 +15737,148 @@ setTimeout(function(){
   }
   // Finanzas: un color por tipo de movimiento (pestañas y tarjetas) para distinguir de un vistazo lo que entra y lo que sale.
   const FIN_COL = { balance:['#0a5a68','#e2f4f6'], fondo:['#2c5aa0','#e8f0fb'], ingresos:['#1d6b35','#e3f6e8'], gastos:['#a32b2b','#fde8e8'], pagosper:['#8a5a00','#fff3d6'] };
+  // 📈 v351: Informe de ventas (Admin → Ventas). Embudo de presupuestos (emitidos → contestaron → concretados → pagaron),
+  // dinero cobrado, reservas, lo más vendido y quién vende; por mes o por semana, con tendencia y comparación con otro período.
+  // Todo sale de lo que ya se registra (presupuestos, reservas, abonos y recibos de Rosita); el informe no guarda nada.
+  function ivEtiqueta(modo, clave, corto){
+    if(modo === 'mes'){ const [y, m] = clave.split('-').map(Number); return corto ? MESES_ES[m-1].slice(0, 3) + ' ' + String(y).slice(2) : MESES_ES[m-1] + ' ' + y; }
+    const [y, m, d] = clave.split('-').map(Number), f = new Date(y, m-1, d + 6);
+    const ini = d + (f.getMonth() !== m-1 ? ' ' + MESES_ES[m-1].slice(0, 3) : '');
+    return (corto ? '' : 'Semana del ') + ini + '–' + f.getDate() + ' ' + MESES_ES[f.getMonth()].slice(0, 3) + (corto ? '' : ' ' + f.getFullYear());
+  }
+  function ivMover(modo, clave, n){
+    if(modo === 'mes') return finMover(clave, n);
+    const [y, m, d] = clave.split('-').map(Number), x = new Date(y, m-1, d + 7*n);
+    return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+  }
+  function ivLunes(iso){ const [y, m, d] = iso.split('-').map(Number), x = new Date(y, m-1, d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
+  function renderInformeVentas(cont){
+    if(!state.iv) state.iv = { modo:'mes', ref:hoyISO().slice(0, 7), comparar:'', datos:null };
+    const V = state.iv;
+    const cargar = ()=>{
+      V.datos = null; cont.innerHTML = '<p class="ag-empty">Cargando informe…</p>';
+      gs('getInformeVentas', V.modo, V.ref, V.comparar || ivMover(V.modo, V.ref, -1), auth())
+        .then(d=>{ V.datos = d; V.ref = d.ref; V.comparar = d.comparar; if(state.tab==='adminpanel' && state.adminSub==='informe') render(); })
+        .catch(e=>{ cont.innerHTML = '<p class="ag-err">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</p>'; });
+    };
+    if(!V.datos){ cargar(); return; }
+    const D = V.datos, P = D.periodos, A = P.find(x=>x.clave===D.ref), B = P.find(x=>x.clave===D.comparar) || { emitidos:0 };
+    const serie = P.filter(x=>x.clave <= D.ref).slice(-6);
+    const pct = (v, b)=>b > 0 ? Math.round(v / b * 100) + '%' : '—';
+    const conv = x=>x.emitidos ? x.concretados / x.emitidos * 100 : 0;
+    const varH = (a, b, inv)=>{ if(!b && !a) return '<span class="ag-muted">=</span>'; if(!b) return '<span style="color:#1d6b35">nuevo</span>';
+      const v = Math.round((a - b) / Math.abs(b) * 100), bien = inv ? v <= 0 : v >= 0; return `<span style="color:${v === 0 ? 'var(--sub)' : (bien ? '#1d6b35' : 'var(--danger)')};font-weight:700">${v > 0 ? '▲' : (v < 0 ? '▼' : '=')} ${Math.abs(v)}%</span>`; };
+    const kpi = (t, v, sub, color)=>`<div style="flex:1 1 140px;min-width:0;padding:12px;border-radius:14px;background:#f6fafa;border:1px solid var(--line)"><div class="ag-muted" style="font-size:12px">${t}</div><div style="font-size:22px;font-weight:800;color:${color || 'var(--ink)'}">${v}</div><div style="font-size:11.5px;margin-top:2px">${sub}</div></div>`;
+    const nomB = ivEtiqueta(D.modo, D.comparar || '', true);
+    const etapas = [ ['🧾 Emitidos', A.emitidos, dinero(A.montoEmitido), '#0a5a68'], ['💬 Contestaron', A.contestaron, pct(A.contestaron, A.emitidos) + ' de los emitidos', '#0e9fb8'],
+      ['🤝 Concretados', A.concretados, pct(A.concretados, A.contestaron) + ' de los que contestaron · ' + dinero(A.montoConcretado), '#d99a00'], ['💵 Pagaron', A.pagaron, pct(A.pagaron, A.concretados) + ' de los concretados · ' + dinero(A.montoCobradoPres), '#1d6b35'] ];
+    const maxE = Math.max(1, A.emitidos);
+    const filaC = (t, a, b, txt, inv)=>`<tr><td style="padding:6px 4px;border-top:1px solid var(--line)">${t}</td><td style="padding:6px 4px;border-top:1px solid var(--line);text-align:right;font-weight:700">${txt ? txt(a) : a}</td><td style="padding:6px 4px;border-top:1px solid var(--line);text-align:right" class="ag-muted">${txt ? txt(b) : b}</td><td style="padding:6px 4px;border-top:1px solid var(--line);text-align:right">${varH(a, b, inv)}</td></tr>`;
+    const maxS = Math.max(1, ...serie.map(x=>x.cobrado));
+    const opcComp = []; for(let i = 1; i <= (D.modo === 'mes' ? 24 : 26); i++) opcComp.push(ivMover(D.modo, D.ref, -i));
+    const pend = D.pendientes || [];
+    const html = `
+      <div class="ag-card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <button class="ag-btn sm ${D.modo==='mes' ? '' : 'ghost'}" data-iv-modo="mes">📅 Por mes</button>
+          <button class="ag-btn sm ${D.modo==='semana' ? '' : 'ghost'}" data-iv-modo="semana">🗓️ Por semana</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px"><button class="ag-btn sm ghost" id="iv-prev" style="width:44px">◀</button><h3 style="margin:0;text-align:center">📈 ${esc(ivEtiqueta(D.modo, D.ref))}</h3><button class="ag-btn sm ghost" id="iv-next" style="width:44px" ${ivMover(D.modo, D.ref, 1) > (D.modo === 'mes' ? D.hoy.slice(0, 7) : D.hoy) ? 'disabled' : ''}>▶</button></div>
+        <label class="f" style="margin-top:8px">⚖️ Comparar con</label>
+        <select id="iv-comp">${opcComp.map(c=>`<option value="${c}" ${c===D.comparar ? 'selected' : ''}>${esc(ivEtiqueta(D.modo, c))}</option>`).join('')}</select>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          ${kpi('💵 Cobrado', dinero(A.cobrado), varH(A.cobrado, B.cobrado) + ' <span class="ag-muted">vs ' + esc(nomB) + '</span>', '#1d6b35')}
+          ${kpi('🧾 Presupuestos', A.emitidos, varH(A.emitidos, B.emitidos) + ' <span class="ag-muted">vs ' + esc(nomB) + '</span>')}
+          ${kpi('🎯 Se concretan', A.emitidos ? Math.round(conv(A)) + '%' : '—', '<span class="ag-muted">antes ' + (B.emitidos ? Math.round(conv(B)) + '%' : '—') + '</span>', 'var(--teal-d)')}
+          ${kpi('✅ Reservas atendidas', A.completadas, dinero(A.ventasCompletadas) + ' · ' + varH(A.completadas, B.completadas))}
+        </div>
+        <button class="ag-btn ghost sm" id="iv-print" style="width:100%;margin-top:10px">🖨️ Imprimir / PDF</button>
+      </div>
+      <div class="ag-card" style="margin-top:10px"><strong>🧾 ¿Qué pasó con los presupuestos?</strong>
+        <div class="ag-muted" style="font-size:12px">Los emitidos en este período y hasta dónde llegaron.</div>
+        ${etapas.map(e=>`<div style="margin-top:9px"><div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px"><span>${e[0]}</span><strong>${e[1]}</strong></div>
+          <div style="height:12px;background:#eef3f4;border-radius:999px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.max(e[1] ? 3 : 0, e[1] / maxE * 100)}%;background:${e[3]};border-radius:999px"></div></div>
+          <div class="ag-muted" style="font-size:11.5px;margin-top:2px">${e[2]}</div></div>`).join('')}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;font-size:12.5px">
+          <span style="padding:4px 9px;border-radius:999px;background:#f1f6f7;border:1px solid var(--line)">📅 ${A.agendados} a la agenda</span><span style="padding:4px 9px;border-radius:999px;background:#f1f6f7;border:1px solid var(--line)">🛍️ ${A.ventaSinCita} venta sin cita</span><span style="padding:4px 9px;border-radius:999px;background:#f1f6f7;border:1px solid var(--line)">✅ ${A.pagadoCompleto} pagaron todo</span>
+          <span style="padding:4px 9px;border-radius:999px;background:#f1f6f7;border:1px solid var(--line)">⏳ ${A.esperando} sin respuesta</span><span style="padding:4px 9px;border-radius:999px;background:#f1f6f7;border:1px solid var(--line)">❌ ${A.rechazados} no les interesó</span>${A.sinEnviar ? `<span style="padding:4px 9px;border-radius:999px;background:#f1f6f7;border:1px solid var(--line)">📝 ${A.sinEnviar} en borrador</span>` : ''}
+        </div>
+        <div class="ag-muted" style="font-size:11.5px;margin-top:8px">«Contestó» se cuenta solo cuando el cliente aceptó, rechazó, pagó, mandó capture, se agendó o lo armó en el catálogo. Si respondió pero aún lo piensa, en el presupuesto elige el estado <strong>💬 Contestó</strong>.</div>
+      </div>
+      <div class="ag-card" style="margin-top:10px"><strong>💵 Ventas del período</strong>
+        ${A.cobrado > 0 ? `<div style="display:flex;height:14px;border-radius:999px;overflow:hidden;margin-top:10px">${[[A.cobradoSpa, 'var(--teal)'], [A.cobradoAbonos, '#7a6ff0'], [A.cobradoRosita, '#d99a00']].filter(x=>x[0] > 0).map(x=>`<span style="width:${x[0] / A.cobrado * 100}%;background:${x[1]}"></span>`).join('')}</div>` : ''}
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px"><tbody>
+          <tr><td style="padding:5px 0"><span style="color:var(--teal)">■</span> Spa y reservas</td><td style="text-align:right"><strong>${dinero(A.cobradoSpa)}</strong></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)"><span style="color:#7a6ff0">■</span> Abonos de presupuestos sin cita aún</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${dinero(A.cobradoAbonos)}</strong></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)"><span style="color:#d99a00">■</span> Rincón de Rosita (recibos aparte)</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${dinero(A.cobradoRosita)}</strong></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)">🎟️ Ticket promedio por reserva atendida</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${A.completadas ? dinero(A.ventasCompletadas / A.completadas) : '—'}</strong></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)">⚠️ Por cobrar de esas reservas</td><td style="text-align:right;border-top:1px solid var(--line);color:${A.porCobrar > 0.009 ? 'var(--danger)' : 'inherit'}"><strong>${dinero(A.porCobrar)}</strong></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)">📅 Reservas nuevas agendadas</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${A.reservasNuevas}</strong> <span class="ag-muted">(${A.reservasDePres} de presupuesto)</span></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)">🚫 Reservas canceladas</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${A.canceladas}</strong></td></tr>
+          <tr><td style="padding:5px 0;border-top:1px solid var(--line)">🛍️ Catálogos enviados por enlace</td><td style="text-align:right;border-top:1px solid var(--line)"><strong>${A.catalogos}</strong> <span class="ag-muted">(${A.catalogosArmados} armaron su pedido)</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="ag-card" style="margin-top:10px"><strong>⚖️ ${esc(ivEtiqueta(D.modo, D.ref, true))} frente a ${esc(nomB)}</strong>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px"><thead><tr class="ag-muted" style="font-size:11.5px"><th style="text-align:left;font-weight:600"></th><th style="text-align:right;font-weight:600">Ahora</th><th style="text-align:right;font-weight:600">Antes</th><th style="text-align:right;font-weight:600">Cambio</th></tr></thead><tbody>
+          ${filaC('💵 Cobrado', A.cobrado, B.cobrado || 0, dinero)}
+          ${filaC('🧾 Presupuestos emitidos', A.emitidos, B.emitidos || 0)}
+          ${filaC('💬 Contestaron', A.contestaron, B.contestaron || 0)}
+          ${filaC('🤝 Concretados', A.concretados, B.concretados || 0)}
+          ${filaC('💵 Pagaron', A.pagaron, B.pagaron || 0)}
+          ${filaC('💰 Valor concretado', A.montoConcretado, B.montoConcretado || 0, dinero)}
+          ${filaC('✅ Reservas atendidas', A.completadas, B.completadas || 0)}
+          ${filaC('📅 Reservas nuevas', A.reservasNuevas, B.reservasNuevas || 0)}
+          ${filaC('🚫 Canceladas', A.canceladas, B.canceladas || 0, null, true)}
+          ${filaC('🍽️ Rosita aparte', A.cobradoRosita, B.cobradoRosita || 0, dinero)}
+        </tbody></table>
+      </div>
+      <div class="ag-card" style="margin-top:10px"><strong>📊 Últimos ${serie.length} ${D.modo === 'mes' ? 'meses' : 'semanas'}</strong>
+        <div style="display:flex;gap:6px;align-items:flex-end;height:150px;margin-top:10px">
+          ${serie.map(x=>`<div data-iv-ir="${x.clave}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;cursor:pointer">
+            <div style="font-size:10.5px;font-weight:700">${dinero(x.cobrado)}</div>
+            <div style="width:70%;height:${Math.max(x.cobrado ? 4 : 1, x.cobrado / maxS * 100)}px;background:${x.clave === D.ref ? 'var(--teal)' : '#9fd6df'};border-radius:6px 6px 2px 2px"></div>
+            <div style="font-size:10.5px;text-align:center;line-height:1.2">${esc(ivEtiqueta(D.modo, x.clave, true))}<br/><span class="ag-muted">🎯 ${x.emitidos ? Math.round(conv(x)) + '%' : '—'}</span></div></div>`).join('')}
+        </div>
+        <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Barra = cobrado · 🎯 = presupuestos que se concretaron. Toca una barra para verla.</div>
+      </div>
+      ${A.top.length ? `<div class="ag-card" style="margin-top:10px"><strong>🏆 Lo más vendido</strong><div class="ag-muted" style="font-size:12px">De los presupuestos concretados.</div>
+        ${A.top.map((t, i)=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--line)"><span style="min-width:0">${['🥇','🥈','🥉'][i] || '▫️'} ${esc(t.nombre)} <span class="ag-muted">× ${t.cantidad}</span></span><strong style="flex:0 0 auto">${dinero(t.monto)}</strong></div>`).join('')}</div>` : ''}
+      ${A.vendedores.length ? `<div class="ag-card" style="margin-top:10px"><strong>👥 Quién emitió los presupuestos</strong>
+        ${A.vendedores.map(v=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--line)"><span style="min-width:0">${esc(v.nombre)} <span class="ag-muted">· ${v.emitidos} emitidos, ${v.concretados} concretados</span></span><strong style="flex:0 0 auto">${pct(v.concretados, v.emitidos)}</strong></div>`).join('')}</div>` : ''}
+      <div class="ag-card" style="margin-top:10px"><strong>⏳ Esperando respuesta (${pend.length})</strong>
+        <div class="ag-muted" style="font-size:12px">Presupuestos del último mes sin señal del cliente. Un mensaje a tiempo cierra ventas.</div>
+        ${pend.length ? pend.map(p=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:6px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;gap:8px"><span><strong>${esc(p.cliente)}</strong> <span class="ag-muted" style="font-size:12px">· ${esc(p.numero)} · ${esc(isoToDMY(p.fecha))}${p.estado === 'Borrador' ? ' · 📝 sin enviar' : ''}</span></span><strong>${dinero(p.total)}</strong></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="ag-btn sm" data-iv-wa="${esc(p.id)}" style="flex:1 1 30%">📱 Seguimiento</button><button class="ag-btn sm ghost" data-iv-cont="${esc(p.id)}" style="flex:1 1 30%">💬 Contestó</button><button class="ag-btn sm ghost" data-iv-ver="${esc(p.id)}" style="flex:1 1 30%">🧾 Abrir</button></div></div>`).join('')
+          : '<p class="ag-muted" style="font-size:13px;margin:8px 0 0">🎉 Nadie pendiente.</p>'}
+      </div>`;
+    cont.innerHTML = html;
+    cont.querySelectorAll('[data-iv-modo]').forEach(b=>b.onclick = ()=>{ const m = b.dataset.ivModo; if(m === V.modo) return; V.modo = m; V.ref = m === 'mes' ? hoyISO().slice(0, 7) : ivLunes(hoyISO()); V.comparar = ''; cargar(); });
+    cont.querySelector('#iv-prev').onclick = ()=>{ V.ref = ivMover(V.modo, D.ref, -1); V.comparar = ''; cargar(); };
+    cont.querySelector('#iv-next').onclick = ()=>{ V.ref = ivMover(V.modo, D.ref, 1); V.comparar = ''; cargar(); };
+    cont.querySelector('#iv-comp').onchange = e=>{ V.comparar = e.target.value; cargar(); };
+    cont.querySelectorAll('[data-iv-ir]').forEach(b=>b.onclick = ()=>{ if(b.dataset.ivIr === D.ref) return; V.ref = b.dataset.ivIr; V.comparar = ''; cargar(); });
+    cont.querySelector('#iv-print').onclick = ()=>imprimirHTML(`<div class="pf-page" style="font-family:Inter,Arial,sans-serif;color:#222;padding:10px 4px"><h2 style="margin:0 0 4px">📈 Informe de ventas · ${esc(ivEtiqueta(D.modo, D.ref))}</h2><div style="font-size:12px;color:#666;margin-bottom:8px">Aguamiel · Centro de Bienestar · comparado con ${esc(ivEtiqueta(D.modo, D.comparar))}</div>${Array.from(cont.querySelectorAll('.ag-card')).slice(1, 6).map(c=>c.outerHTML).join('')}</div>`);
+    const buscarP = id=>pend.find(x=>x.id===id) || {};
+    cont.querySelectorAll('[data-iv-wa]').forEach(b=>b.onclick = ()=>{
+      const p = buscarP(b.dataset.ivWa), c = (state.clientes||[]).find(x=>x.nombre===p.cliente);
+      const link = waLink(p.telefono || (c ? pickTelefono(c) : ''), `🌿 ¡Hola ${String(p.cliente||'').split(' ')[0]}! 💙 Te escribimos de *Aguamiel · Centro de Bienestar* para saber si pudiste ver tu presupuesto *${p.numero}* (${dinero(p.total)}).\n\n¿Te ayudamos a reservar tu día o quieres que ajustemos algo? Con gusto te atendemos 🌸`);
+      if(!link){ alert('Este presupuesto no tiene teléfono del cliente.'); return; }
+      window.open(link, '_blank');
+    });
+    cont.querySelectorAll('[data-iv-cont]').forEach(b=>b.onclick = async ()=>{
+      b.disabled = true;
+      try{ await gs('setEstadoPresupuesto', b.dataset.ivCont, 'Contestó', null, auth()); state.presupuestos = null; toast('💬 Marcado: el cliente contestó.'); cargar(); }
+      catch(e){ b.disabled = false; alert('No se pudo marcar: ' + (e && e.message ? e.message : e)); }
+    });
+    cont.querySelectorAll('[data-iv-ver]').forEach(b=>b.onclick = ()=>{ state.pr = { vista:'ver', editId:b.dataset.ivVer }; state.presupuestos = null; state.adminSub = 'presupuestos'; render(); window.scrollTo(0, 0); });
+  }
   function renderAdminPanel(body){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || 'staff';
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
     const hayPagos = (state.pagosPend||[]).length;
     // ⭐ v343: «Lo que más uso»: las 6 secciones que esta persona abre más (se cuentan en este teléfono, nada se envía).
@@ -15759,7 +15898,7 @@ setTimeout(function(){
       </div>
       ${grupoActual[0]==='dinero' ? '<div class="ag-muted" style="font-size:11.5px;margin:0 0 12px">Colores: <span style="color:#1d6b35">■ entra dinero</span> · <span style="color:#a32b2b">■ sale dinero</span> · <span style="color:#8a5a00">■ pagos al personal</span> · <span style="color:#2c5aa0">■ reserva</span> · <span style="color:#0a5a68">■ resumen</span></div>' : ''}
       <div id="adm-cont"></div>`;
-    const irAdmSub = k=>{ state.adminSub = k; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); };
+    const irAdmSub = k=>{ state.adminSub = k; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); };
     body.querySelectorAll('[data-adm-sub]').forEach(b=>b.onclick = ()=>irAdmSub(b.dataset.admSub));
     body.querySelectorAll('[data-adm-grp]').forEach(b=>b.onclick = ()=>{ const g = ADM_GRUPOS.find(x=>x[0]===b.dataset.admGrp); if(g && g !== grupoActual) irAdmSub(g[3][0]); });
     const cont = body.querySelector('#adm-cont');
@@ -15790,6 +15929,7 @@ setTimeout(function(){
     else if(sub==='paquetes') renderPaquetesVentas(cont);
     else if(sub==='fidel') renderFidelAdmin(cont);
     else if(sub==='presupuestos') renderPresupuestos(cont);
+    else if(sub==='informe') renderInformeVentas(cont);
     else if(sub==='solicitudes') renderSolicitudes(cont);
     else if(sub==='cobrar') renderPorCobrar(cont);
     else if(sub==='importar'){ cont.innerHTML = '<div id="adm-imp"></div><div id="adm-img" style="margin-top:14px"></div>'; renderImportar(cont.querySelector('#adm-imp')); renderImagenesAdmin(cont.querySelector('#adm-img')); }
