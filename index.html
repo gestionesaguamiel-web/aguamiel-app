@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v355' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v356' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9540,7 +9540,10 @@ setTimeout(function(){
       '💙 En Admin → Personal, cada profesional tiene su botón «Pago móvil» (nombre, cédula, banco y teléfono). Solo lo ve la administración.',
       '💙 En la cita, el botón «Datos para propina» arma una tarjetita con los datos de SU fisioterapeuta para enviarla por WhatsApp, solo si el cliente lo pide. La empresa no maneja ese dinero.',
       '💧 <strong>Tarjeta de gotas</strong>: cada día que el cliente vino cuenta como visita, con reserva completada <strong>o con ficha</strong>. En Admin → Temporada y fidelización, botón <strong>«📅 Últimos 6 meses»</strong> que muestra antes de guardar cuántos clientes suben y cuántos premios quedan listos.',
-      '🎁 <strong>Lista de premios</strong> (hidroterapia, masaje antiestrés, reflexología podal…): al entregar el premio en la ficha eliges cuál, y queda anotado.' ] }
+      '🎁 <strong>Lista de premios</strong> (hidroterapia, masaje antiestrés, reflexología podal…): al entregar el premio en la ficha eliges cuál, y queda anotado.' ] },
+    { v:356, fecha:'5 nov', titulo:'Chequeo nocturno de la app', puntos:[
+      '🩺 Cada noche la app revisa que nada se acerque a los límites de Google: lo arregla sola o te avisa por Telegram antes de que falle.',
+      '🧹 La limpieza de enlaces vencidos borra en bloques: no se pone lenta aunque se acumulen miles.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
