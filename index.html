@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v352' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v353' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -4740,7 +4740,15 @@ setTimeout(function(){
   }
   // PRECIO ESPECIAL SOLO EN DIVISAS: si la cuenta tiene un descuento (pct %) por pagar en divisas, ese descuento aplica solo a lo que se paga con un método
   // que lo tenga (Binance, Zelle…). Un abono con otro método (Bs, pago móvil…) cubre menos de la cuenta. Esta pista lo explica antes de registrar.
-  function esMetodoConDescuento(nombre){ const m = metodoDe(nombre); return !!(m && Number(m.descuento) > 0); }
+  // 🛡️ v353: «en divisas» se decide por el TIPO del método (no por el % de hoy): un pago ya hecho en divisas no pierde su descuento si mañana cambia la tasa o la regla.
+  function esMetodoConDescuento(nombre){
+    const n = String(nombre||'').trim().toLowerCase(); if(!n) return false;
+    const m = (state.metodosPago||[]).find(x=>String(x.nombre||'').trim().toLowerCase()===n) || null;
+    const tipo = m && m.tipo ? m.tipo : (/binance|zelle|zinli|usdt|divisa|d[oó]lar|efectivo \(\$\)|efectivo \$|\$\)/.test(n) ? 'divisas' : (/\(bs\)|bs\b|bol[ií]var|pago m[oó]vil|transferencia|punto/.test(n) ? 'bs' : 'fijo'));
+    if(tipo === 'divisas') return true;
+    if(tipo === 'fijo') return !!m && Number(m.descuentoFijo !== undefined ? m.descuentoFijo : m.descuento) > 0;
+    return false;
+  }
   function factorCuenta(metodo, pct){ return (Number(pct) > 0 && !esMetodoConDescuento(metodo)) ? (1 - Number(pct) / 100) : 1; }
   function pistaCobertura(root, pref, montoInp, metodoSel, leerMon, pct, saldo){
     const cont = root.querySelector('[data-ab-moneda="' + pref + '"]'); if(!cont || !(Number(pct) > 0)) return;
@@ -7791,7 +7799,7 @@ setTimeout(function(){
   function nombreStaff(id){ const s = state.staff.find(x=>String(x.id)===String(id)); return s ? s.nombre : '—'; }
   function saldoReserva(r){ const pag = (r.pagos||[]).reduce((t,p)=>t+(Number(p.monto)||0),0); const cub = (r.pagos||[]).reduce((t,p)=>t+((p.cubre !== undefined && p.cubre !== null && p.cubre !== '') ? (Number(p.cubre)||0) : (Number(p.monto)||0)),0); const extra = (r.cargos||[]).reduce((t,c)=>t+(Number(c.monto)||0),0); const total = Math.round(((Number(r.montoTotal)||0) + extra)*100)/100;
     // v347: con el precio especial perdido (algún abono en Bs), lo de Rosita se lleva a la escala de los abonos (no tenía rebaja).
-    const pct = Number(r.pagoPct) || 0, perdio = pct > 0 && (r.pagos||[]).some(p=>String(p.moneda||'') === 'Bs' || factorCuenta(p.metodo, pct) < 1);
+    const pct = Number(r.pagoPct) || 0, perdio = pct > 0 && (r.pagos||[]).some(p=>String(p.moneda||'') === 'Bs' || (p.div === false) || (p.div !== true && factorCuenta(p.metodo, pct) < 1));
     const totalCub = perdio ? Math.round(((Number(r.montoTotal)||0) + extra * (1 - pct / 100))*100)/100 : total;
     return { pagado: pag, cubierto: cub, extra, total, saldo: Math.round((totalCub - cub)*100)/100 }; }
   // 🕒 v343: el día en línea de tiempo: una columna por profesional (y «Sin asignar»), los huecos libres a la vista y una línea roja en la hora actual.
@@ -8658,7 +8666,12 @@ setTimeout(function(){
         <label class="f">Buscar cliente</label><input id="rf-buscar" placeholder="Nombre o cédula…"/>
         <label class="f">Cliente <span style="color:var(--danger)">*</span></label>
         <select id="rf-cliente"><option value="">— Elige el cliente —</option>${optsCliente}</select>
-        <p class="ag-muted" style="font-size:11.5px">Si es nuevo, regístralo primero en Clientes.</p>
+        <button type="button" class="ag-btn sm ghost" id="rf-nuevo-btn" style="margin-top:6px">➕ Cliente nuevo (registrarlo aquí)</button>
+        <div id="rf-nuevo" style="display:none;border-left:3px solid var(--teal);padding-left:10px;margin-top:6px">
+          <label class="f">Nombre y apellido</label><input id="rf-nv-nombre" value="${esc(pre && pre.nombreSinRegistro ? pre.nombreSinRegistro : '')}"/>
+          <div class="ag-row"><div><label class="f">Cédula</label><input id="rf-nv-ced" inputmode="numeric"/></div><div><label class="f">Teléfono</label><input id="rf-nv-tel" inputmode="tel" placeholder="0414-1234567"/></div></div>
+          <p class="ag-muted" style="font-size:11.5px;margin:4px 0">Con la cédula o el teléfono basta; el resto se completa el día de su visita.</p>
+          <button type="button" class="ag-btn sm" id="rf-nv-guardar">✅ Registrar y usar en esta reserva</button></div>
         <div class="ag-row">
           <div><label class="f">Día <span style="color:var(--danger)">*</span></label><input id="rf-fecha" type="date" value="${esc(prev?prev.fecha:hoyISO())}"/></div>
           <div><label class="f">Hora <span style="color:var(--danger)">*</span></label><input id="rf-hora" type="time" value="${esc(prev?prev.hora:'10:00')}"/></div>
@@ -8714,6 +8727,21 @@ setTimeout(function(){
         <button class="ag-btn" id="rf-guardar" style="width:100%;margin-top:12px">Guardar reserva</button>
       </div>`;
     const selC = body.querySelector('#rf-cliente');
+    // ➕ v353: cliente nuevo sin salir de la reserva (antes había que ir a Clientes y volver a empezar).
+    const nvBox = body.querySelector('#rf-nuevo');
+    body.querySelector('#rf-nuevo-btn').onclick = ()=>{ nvBox.style.display = nvBox.style.display === 'none' ? '' : 'none'; if(nvBox.style.display === ''){ const q = val('rf-buscar').trim(); const ni = body.querySelector('#rf-nv-nombre'); if(q && !ni.value && !/^\d+$/.test(q)) ni.value = q; else if(q && /^\d+$/.test(q)) body.querySelector('#rf-nv-ced').value = q; ni.focus(); } };
+    if(pre && pre.nombreSinRegistro && !selC.value) nvBox.style.display = '';   // viene de un presupuesto con cliente sin registrar: el registro ya aparece abierto
+    body.querySelector('#rf-nv-guardar').onclick = async (ev)=>{
+      const b = ev.target; if(b.disabled) return; b.disabled = true; b.textContent = 'Registrando…';
+      try{
+        const r = await gs('registrarClienteRapido', { nombre:val('rf-nv-nombre'), cedula:val('rf-nv-ced'), telefono:limpiarTelefono(val('rf-nv-tel')) }, auth());
+        const c = r.cliente; if(!state.clientes.some(x=>x.id===c.id)) state.clientes.push(c);
+        if(!Array.from(selC.options).some(o=>o.value===c.id)){ const o = document.createElement('option'); o.value = c.id; o.textContent = c.nombre + (c.cedula ? ' (' + c.cedula + ')' : ''); selC.appendChild(o); }
+        selC.value = c.id; selC.dispatchEvent(new Event('change')); actNombreCliente(); nvBox.style.display = 'none';
+        toast(r.existia ? '✓ ' + c.nombre + ' ya estaba registrado(a): quedó elegido(a).' : '✓ ' + c.nombre + ' quedó registrado(a) y elegido(a) en la reserva.');
+      }catch(e){ alert(e && e.message ? e.message : e); }
+      finally{ b.disabled = false; b.textContent = '✅ Registrar y usar en esta reserva'; }
+    };
     // Regalo: quien compra y paga.
     const rgChk = body.querySelector('#rf-regalo'), compCli = body.querySelector('#rf-comp-cli');
     const verComp = ()=>{ body.querySelector('#rf-comp').style.display = rgChk.checked ? '' : 'none'; body.querySelector('#rf-comp-otro').style.display = compCli.value ? 'none' : ''; };
@@ -9498,7 +9526,11 @@ setTimeout(function(){
       '📈 Admin → Ventas → <strong>📈 Informe</strong> (solo administradores): presupuestos emitidos, cuántos contestaron, cuántos se concretaron y cuántos pagaron, lo cobrado y lo más vendido. Eliges mes o semana y lo comparas con otro.',
       '💬 Nuevo estado del presupuesto <strong>«Contestó»</strong> (respondió pero lo está pensando) y lista de los que esperan respuesta, con botón de seguimiento por WhatsApp.' ] },
     { v:352, fecha:'30 oct', titulo:'Informe de ventas: primero el período, comparar si quieres', puntos:[
-      '📈 El informe abre mostrando solo el mes (o la semana). La comparación con otro período es opcional: la eliges en «⚖️ Comparar con».' ] }
+      '📈 El informe abre mostrando solo el mes (o la semana). La comparación con otro período es opcional: la eliges en «⚖️ Comparar con».' ] },
+    { v:353, fecha:'4 nov', titulo:'Reservas pagadas por enlace: sin deudas falsas', puntos:[
+      '💳 Al tocar <strong>📅 Convertir en reserva</strong> en un presupuesto con pago reportado por el enlace, la app te pide verificarlo primero: el abono pasa a la reserva y el mensaje al cliente ya no le muestra deuda.',
+      '➕ En la reserva, <strong>Cliente nuevo</strong>: lo registras ahí mismo con nombre y cédula o teléfono, sin salir.',
+      '🛡️ Descuento en divisas: quien ya pagó conserva el descuento pactado. Si cambias la regla (ej. mínimo de $100) o cambia la tasa, solo aplica desde ese día; los pagos ya hechos en divisas siguen contando como divisas.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -12097,6 +12129,8 @@ setTimeout(function(){
   function renderPresupuestoForm(body){
     const P = state.pr;
     const prev = P.editId ? state.presupuestos.find(p=>p.id===P.editId) : null;
+    // 🛡️ v353: si ya hay pagos (registrados o reportados por el enlace) o reserva, el % de descuento queda como se pactó: no cambia con la tasa ni con una regla nueva.
+    const pctFijo = prev && prev.pagoMetodo && (prev.reservaId || (prev.pagos||[]).length || Number(prev.pagoReportadoPct) > 0 || Number(prev.pagoReportadoMonto) > 0 || (prev.pagosReportados||[]).length) ? (Number(prev.pagoPct)||0) : null;
     if(!P.items || P._para !== (P.editId||'nuevo')){ P.items = prev ? JSON.parse(JSON.stringify(prev.items)) : []; P.personas = prev ? JSON.parse(JSON.stringify(prev.personas||[])) : []; P.addPara = ''; P._para = P.editId||'nuevo'; }
     if(!P.personas) P.personas = [];
     const arbol = arbolTarifas();
@@ -12144,7 +12178,9 @@ setTimeout(function(){
         <div class="ag-row"><div><label class="f">Descuento</label><input id="pf-desc" inputmode="decimal" value="${esc(prev&&prev.descuento?prev.descuento:'')}" placeholder="0"/></div>
           <div><label class="f">Tipo</label><select id="pf-desctipo"><option value="monto" ${prev&&prev.descuentoTipo==='porcentaje'?'':'selected'}>$ (monto)</option><option value="porcentaje" ${prev&&prev.descuentoTipo==='porcentaje'?'selected':''}>% (porcentaje)</option></select></div></div>
         <label class="f">Descuento por forma de pago (opcional)</label>
-        <select id="pf-pago"><option value="">— Ninguno —</option>${metodosLista().filter(m=>m.descuento).map(m=>`<option value="${esc(m.nombre)}" data-pct="${m.descuento}" ${prev&&prev.pagoMetodo===m.nombre?'selected':''}>${esc(m.nombre)} (−${m.descuento}%)</option>`).join('')}</select>
+        <select id="pf-pago"><option value="">— Ninguno —</option>${(()=>{ const L = metodosLista().filter(m=>m.descuento || (pctFijo !== null && m.nombre===prev.pagoMetodo)).map(m=>({ nombre:m.nombre, pct:(pctFijo !== null && m.nombre===prev.pagoMetodo) ? pctFijo : m.descuento }));
+          if(pctFijo !== null && !L.some(m=>m.nombre===prev.pagoMetodo)) L.unshift({ nombre:prev.pagoMetodo, pct:pctFijo });
+          return L.map(m=>`<option value="${esc(m.nombre)}" data-pct="${m.pct}" ${prev&&prev.pagoMetodo===m.nombre?'selected':''}>${esc(m.nombre)} (−${m.pct}%)${pctFijo !== null && m.nombre===prev.pagoMetodo ? ' · pactado' : ''}</option>`).join(''); })()}</select>
         <label class="f" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pf-mostrarpagos" style="width:auto" ${!prev||prev.mostrarPagos?'checked':''}/> Mostrar al cliente las formas de pago (y cuánto ahorra con las que tienen descuento)</label>
         <label class="f">Condiciones / notas</label>
         <textarea id="pf-notas" rows="3">${esc(prev?prev.notas:'Precios expresados en dólares ($). Para confirmar la reserva se requiere un abono. Sujeto a disponibilidad.')}</textarea>
@@ -12193,9 +12229,11 @@ setTimeout(function(){
       const base = Math.max(0, sub - (val('pf-desctipo')==='porcentaje' ? sub*d/100 : d));
       const sp = body.querySelector('#pf-pago'); let pct = sp && sp.value ? Number(sp.options[sp.selectedIndex].dataset.pct)||0 : 0;
       const mp = sp && sp.value ? metodoDe(sp.value) : null; let sinDesc = false;
-      if(pct && mp && mp.tipo==='divisas' && base < descMinDiv()){ pct = 0; sinDesc = true; }
+      const pactado = pctFijo !== null && sp && sp.value === prev.pagoMetodo;
+      if(pactado) pct = pctFijo;
+      else if(pct && mp && mp.tipo==='divisas' && base < descMinDiv()){ pct = 0; sinDesc = true; }
       const tot = Math.round((base - base*pct/100)*100)/100;
-      body.querySelector('#pf-sub').textContent = 'Subtotal ' + dinero(sub) + (d ? ' · con descuento' : '') + (pct ? ' · −' + pct + '% por ' + sp.value : '') + (sinDesc ? ' · sin descuento por ' + sp.value + ' (solo para montos desde ' + dinero(descMinDiv()) + ')' : '');
+      body.querySelector('#pf-sub').textContent = 'Subtotal ' + dinero(sub) + (d ? ' · con descuento' : '') + (pct ? ' · −' + pct + '% por ' + sp.value : '') + (pactado ? ' (pactado cuando pagó: no cambia)' : '') + (sinDesc ? ' · sin descuento por ' + sp.value + ' (solo para montos desde ' + dinero(descMinDiv()) + ')' : '');
       body.querySelector('#pf-total').textContent = dinero(tot);
     };
     const dibujarItems = ()=>{
@@ -12555,6 +12593,13 @@ setTimeout(function(){
     if(bir) bir.onclick = ()=>{ if(!state.ag) state.ag = { vista:'lista', filtro:'proximas', editId:null }; state.ag.vista='pagos'; state.ag.editId=p.reservaId; state.tab='agenda'; render(); };
     const brs = body.querySelector('#pv-reserva');
     if(brs) brs.onclick = async ()=>{
+      // 🛡️ v353: si el cliente reportó su pago por el enlace y aún no se verificó, primero se verifica: así el abono pasa a la reserva
+      // y el mensaje al cliente no le muestra deuda (antes la reserva nacía «debiendo» el total aunque ya hubiera pagado).
+      const pendUno = !(p.pagosReportados||[]).length && (p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado;
+      const pendGrupo = (p.pagosReportados||[]).filter(x=>!x.verificado);
+      if(pendUno && bve){
+        if(confirm('💳 ' + (p.clienteNombre||'El cliente') + ' reportó su pago por el enlace' + (p.pagoReportadoMonto ? ' (' + (p.pagoReportadoPct ? p.pagoReportadoPct + '% · ' : '') + dinero(p.pagoReportadoMonto) + ')' : '') + '.\n\nAceptar: lo verificas ahora y el abono queda registrado en la reserva.\nCancelar: haces la reserva sin registrarlo (sigue en «Pagos por verificar»).')){ bve.click(); return; }
+      } else if(pendGrupo.length && !confirm('💳 Hay ' + pendGrupo.length + ' pago' + (pendGrupo.length>1?'s':'') + ' reportado' + (pendGrupo.length>1?'s':'') + ' por el enlace sin verificar (' + pendGrupo.map(x=>x.nombre).join(', ') + ').\n\nLo ideal es verificarlos arriba («✅ Verificar y registrar abono») para que pasen a la reserva.\n\n¿Hacer la reserva de todas formas? (siguen en «Pagos por verificar»)')) return;
       brs.disabled = true; brs.textContent = 'Preparando…';
       // Si el cliente no está registrado, se registra solo con los datos del presupuesto.
       try{ aplicarPresupuesto(p, await gs('prepararReservaPresupuesto', p.id, auth())); }
@@ -12591,7 +12636,7 @@ setTimeout(function(){
       }
       if(!state.ag) state.ag = { vista:'lista', filtro:'proximas', editId:null };
       state.ag.vista = 'form'; state.ag.editId = null;
-      state.ag.prefill = { presupuestoId:p.id, numero:p.numero, clienteId:cliRes, comprador, terapias, servicios, comidas, tipoFicha, paqueteId: (!prog && paqObj)?paqObj.id:'', montoTotal:p.total, abonado:p.pagado||0, notas:'Según presupuesto ' + p.numero + (()=>{
+      state.ag.prefill = { presupuestoId:p.id, numero:p.numero, clienteId:cliRes, nombreSinRegistro: cliRes ? '' : (nomRes||''), comprador, terapias, servicios, comidas, tipoFicha, paqueteId: (!prog && paqObj)?paqObj.id:'', montoTotal:p.total, abonado:p.pagado||0, notas:'Según presupuesto ' + p.numero + (()=>{
           // Abonó una parte: el resto se paga el día de la cita, en la modalidad que eligió el cliente.
           const resta = Math.round(((Number(p.total)||0) - (Number(p.pagado)||0))*100)/100;
           if(!(Number(p.pagado) > 0) || resta <= 0) return '';
