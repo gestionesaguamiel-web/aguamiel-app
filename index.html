@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v359' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v360' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -8142,10 +8142,40 @@ setTimeout(function(){
     return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">` + ps.map(p=>{
       const n = esc(p.nombre || 'Acompañante');
       if(p.fichaId) return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13px;background:#eefaf1;border-radius:8px;padding:6px 8px"><span>✅ ${n}: ficha registrada</span><button class="ag-btn sm ghost" data-pa-ver="${esc(r.id)}|${esc(p.key)}">📄 Ver</button></div>`;
-      if(r.estado!=='Confirmada') return `<div class="ag-muted" style="font-size:12.5px">${n}: sin ficha</div>`;
+      if(r.estado!=='Confirmada') return `<div class="ag-muted" style="font-size:12.5px">${n}: sin ficha${state.user.admin && r.estado==='Completada' ? ' · toca <strong>🔓 Reabrir</strong> para completarla' : ''}</div>`;
       if(p.rol!=='cliente' && !p.clienteId) return `<button class="ag-btn" data-pa-reg="${esc(r.id)}|${esc(p.key)}" style="width:100%">➕ Registrar a ${n} y llenar su ficha</button>`;
       return `<button class="ag-btn" data-pa-ficha="${esc(r.id)}|${esc(p.key)}" style="width:100%">▶️ Llenar la ficha de ${n}</button>`;
     }).join('') + (r.estado==='Confirmada' && hechas && hechas < ps.length ? `<button class="ag-btn sm ghost" data-pa-terminar="${esc(r.id)}" style="width:100%">✔️ Dar por terminada (alguien no vino o no necesita ficha)</button>` : '') + `</div>`;
+  }
+  // 🔎 v360: ventana para elegir a un cliente ya registrado (evita fichas duplicadas). Devuelve el cliente, null = «registrar nuevo», undefined = cerró.
+  function elegirClienteRegistrado(nombre, acompanaA){
+    return new Promise(resolve=>{
+      const nz = s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:14px';
+      const ini = esNombreGenerico(nombre) ? '' : String(nombre||'');
+      el.innerHTML = `<div style="background:#fff;border-radius:16px;padding:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.25)">
+        <h3 style="margin:0 0 4px">👤 ¿${esc(nombre || 'El acompañante')} ya está registrado(a)?</h3>
+        <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Acompaña a ${esc(acompanaA||'')}. Si ya tiene registro, búscalo y tócalo: se enlaza con su ficha. Si no, regístralo nuevo.</p>
+        <input id="ecr-q" placeholder="Nombre o cédula…" value="${esc(ini)}"/>
+        <div id="ecr-lista" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+        <button class="ag-btn" id="ecr-nuevo" style="width:100%;margin-top:10px">➕ No está: registrarlo nuevo</button>
+        <button class="ag-btn ghost sm" id="ecr-cerrar" style="width:100%;margin-top:6px">Cancelar</button></div>`;
+      document.body.appendChild(el);
+      const fin = v=>{ el.remove(); resolve(v); };
+      const q = el.querySelector('#ecr-q'), lista = el.querySelector('#ecr-lista');
+      const pintar = ()=>{
+        const t = nz(q.value), partes = t.split(' ').filter(Boolean);
+        const m = partes.length ? (state.clientes||[]).filter(c=>{ const h = nz(c.nombre) + ' ' + String(c.cedula||''); return partes.every(x=>h.includes(x)); }).slice(0, 8) : [];
+        lista.innerHTML = m.map(c=>`<button class="ag-btn ghost sm" data-ecr="${esc(c.id)}" style="text-align:left">👤 ${esc(c.nombre)}${c.cedula ? ' <span class="ag-muted">(' + esc(c.cedula) + ')</span>' : ''}</button>`).join('')
+          || `<p class="ag-muted" style="font-size:12.5px;margin:0">${partes.length ? 'No hay clientes con ese nombre.' : 'Escribe su nombre para buscarlo.'}</p>`;
+        lista.querySelectorAll('[data-ecr]').forEach(b=>b.onclick = ()=>fin((state.clientes||[]).find(c=>String(c.id)===b.dataset.ecr) || null));
+      };
+      q.oninput = pintar; pintar(); setTimeout(()=>{ try{ q.focus(); }catch(e){} }, 50);
+      el.querySelector('#ecr-nuevo').onclick = ()=>fin(null);
+      el.querySelector('#ecr-cerrar').onclick = ()=>fin(undefined);
+      el.addEventListener('click', e=>{ if(e.target===el) fin(undefined); });
+    });
   }
   function conectarFichasPersonas(body, repintar){
     const buscar = v=>{ const [rid, key] = String(v||'').split('|'); const r = ((state.agenda&&state.agenda.reservas)||[]).find(x=>x.id===rid); const p = r ? (r.personas||[]).find(x=>x.key===key) : null; return { r, p, key }; };
@@ -8160,16 +8190,24 @@ setTimeout(function(){
       const { r, p, key } = buscar(b.dataset.paReg); if(!r || !p) return;
       // Si esa persona ya está registrada como cliente, se enlaza en vez de crear un segundo registro.
       const nz = s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-      const ya = !esNombreGenerico(p.nombre) ? (state.clientes||[]).find(c=>nz(c.nombre) === nz(p.nombre)) : null;
-      if(ya && confirm(ya.nombre + ' ya está registrado(a) como cliente. ¿Enlazarlo(a) a esta reserva y llenar su ficha, en vez de crear otro registro?\n\nAceptar = enlazar · Cancelar = registrar a otra persona con ese nombre')){
+      const enlazar = async (cli)=>{
         try{
-          const res = await gs('vincularPersonaReserva', r.id, key, ya.id, auth()); Object.assign(r, res);
+          const res = await gs('vincularPersonaReserva', r.id, key, cli.id, auth()); Object.assign(r, res);
           const pp = (r.personas||[]).find(x=>x.key===key);
-          avisarInicioAtencion(r, key); state.reservaActual = r; state.reservaPersona = key; state.preselectClienteId = ya.id;
+          // 🔗 v360: si ya tenía su ficha de ese día (llenada por fuera), quedó enlazada: no se abre otra.
+          if(pp && pp.fichaId){ repintar(); toast('🔗 ' + cli.nombre + ' quedó enlazado(a) con su ficha de ese día.' + (r.estado==='Completada' ? ' Atención completada.' : '')); return; }
+          avisarInicioAtencion(r, key); state.reservaActual = r; state.reservaPersona = key; state.preselectClienteId = cli.id;
           state.formTipo = ((pp && (pp.servicios||[]).find(x=>x.tipoFicha))||{}).tipoFicha || r.tipoFicha || 'normal';
-          state.tab = 'nueva'; render(); toast(ya.nombre + ' quedó enlazado(a). Ahora llena su ficha.');
+          state.tab = 'nueva'; render(); toast(cli.nombre + ' quedó enlazado(a). Ahora llena su ficha.');
         }catch(e){ alert('No se pudo enlazar: ' + (e && e.message ? e.message : e)); }
-        return;
+      };
+      const ya = !esNombreGenerico(p.nombre) ? (state.clientes||[]).find(c=>nz(c.nombre) === nz(p.nombre)) : null;
+      if(ya && confirm(ya.nombre + ' ya está registrado(a) como cliente. ¿Enlazarlo(a) a esta reserva y llenar su ficha, en vez de crear otro registro?\n\nAceptar = enlazar · Cancelar = registrar a otra persona con ese nombre')){ await enlazar(ya); return; }
+      // 🔎 v360: si no coincide el nombre exacto (p. ej. «Acompañante 1» o solo «Cristian»), se pregunta si ya está registrado(a) antes de crear otro registro.
+      if(!ya){
+        const elegido = await elegirClienteRegistrado(p.nombre, r.clienteNombre);
+        if(elegido === undefined) return;            // cerró la ventana
+        if(elegido){ await enlazar(elegido); return; }
       }
       state.registrarPersonaReserva = { reservaId:r.id, key, nombre: esNombreGenerico(p.nombre) ? '' : p.nombre, etiqueta:p.nombre, volver: state.tab };
       state.tab = 'clientes'; state.selClienteId = '__new__'; state.editing = false; render();
@@ -8465,6 +8503,7 @@ setTimeout(function(){
               <button class="ag-btn sm ghost" data-ag-exp="${r.id}">✨ Lo que disfrutará</button>
               <button class="ag-btn sm ghost" data-ag-recom="${r.id}">🌿 Recomendaciones</button>
               <button class="ag-btn sm ghost" data-ag-regalo="${r.id}">🎁 Mensaje de regalo</button>` : ''}
+            ${admin && r.estado==='Completada' ? `<button class="ag-btn sm ghost" data-ag-reabrir="${r.id}" title="Para editarla o completar fichas (p. ej. la del acompañante)">🔓 Reabrir</button>` : ''}
             ${admin ? `<button class="ag-btn sm ghost" data-ag-pagos="${r.id}">💵 Pagos</button>` : ''}
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ${r.fecha<=hoy?'':'ghost'}" data-ag-saldo="${r.id}">💬 Recordar saldo</button>` : ''}
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-datospago="${r.id}">💳 Enviar datos de pago</button>` : ''}
@@ -8503,6 +8542,14 @@ setTimeout(function(){
         if(!confirm('¿Dar por atendida la reserva de ' + r.clienteNombre + ' del ' + isoToDMY(r.fecha) + ' ' + r.hora + '?\n\nQuedará como Completada en la agenda.' + (faltan.length ? '\n\nNo encontré la ficha de hoy de: ' + faltan.join(', ') + '.' : ''))){ b.disabled = false; return; }
         Object.assign(r, await gs('completarReserva', r.id, auth())); render(); toast('Reserva completada.');
       }catch(e){ b.disabled = false; alert(e && e.message ? e.message : 'No se pudo. Intenta de nuevo.'); }
+    });
+    // 🔓 v360: reabrir una reserva completada para editarla o llenar fichas que faltan (p. ej. la del acompañante).
+    body.querySelectorAll('[data-ag-reabrir]').forEach(b=>b.onclick=async ()=>{
+      const r = buscar(b.dataset.agReabrir); if(!r || b.disabled) return;
+      if(!confirm('¿Reabrir la reserva de ' + r.clienteNombre + ' del ' + isoToDMY(r.fecha) + ' ' + r.hora + '?\n\nPodrás editarla (✏️, p. ej. agregar al acompañante) y la fisioterapeuta asignada podrá llenar las fichas que falten. La fecha, los pagos y la orden de Rosita no cambian.\n\nAl terminar toca ✅ Dar por atendida (si no, se cierra sola en 3 días).')) return;
+      b.disabled = true;
+      try{ Object.assign(r, await gs('reabrirReserva', r.id, auth())); render(); toast('🔓 Reserva reabierta. Edítala o llena las fichas que faltan.'); }
+      catch(e){ b.disabled = false; alert(e && e.message ? e.message : 'No se pudo. Intenta de nuevo.'); }
     });
     body.querySelectorAll('[data-ag-borrar]').forEach(b=>b.onclick=async ()=>{
       const r = buscar(b.dataset.agBorrar);
@@ -9551,7 +9598,11 @@ setTimeout(function(){
       '✍️ Lo que va entre *asteriscos* llega en <strong>negrita</strong> por Telegram.' ] },
     { v:359, fecha:'5 nov', titulo:'Propinas: el cliente recibe un enlace', puntos:[
       '💙 En la cita, <strong>«Enlace para propina»</strong> ya no envía los datos de pago: envía el enlace de la encuesta; al terminarla el cliente ve «💝 Dejar una propina». Solo si el cliente pregunta cómo agradecer.',
-      '💳 Cada fisioterapeuta registra sus datos en <strong>Inicio → 💝 Mis propinas</strong>. Se quitó «Pago móvil» de Admin → Personal para no tenerlos en dos lugares.' ] }
+      '💳 Cada fisioterapeuta registra sus datos en <strong>Inicio → 💝 Mis propinas</strong>. Se quitó «Pago móvil» de Admin → Personal para no tenerlos en dos lugares.' ] },
+    { v:360, fecha:'5 nov', titulo:'Reabrir reservas y enlazar al acompañante', puntos:[
+      '🔓 En <strong>Agenda → Pasadas</strong>, una reserva completada tiene <strong>Reabrir</strong> (solo administradores): se puede editar (✏️, p. ej. agregar al acompañante) y la fisioterapeuta llena las fichas que falten. Al terminar, <strong>✅ Dar por atendida</strong>.',
+      '🔗 Si el acompañante ya tenía su ficha de ese día, queda enlazada sola: ya no sale como pendiente.',
+      '🔎 Al tocar <strong>➕ Registrar</strong> a un acompañante, primero puedes buscarlo si ya está registrado, para no duplicarlo.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
