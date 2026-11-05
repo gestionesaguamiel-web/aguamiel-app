@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v356' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v357' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9543,7 +9543,9 @@ setTimeout(function(){
       '🎁 <strong>Lista de premios</strong> (hidroterapia, masaje antiestrés, reflexología podal…): al entregar el premio en la ficha eliges cuál, y queda anotado.' ] },
     { v:356, fecha:'5 nov', titulo:'Chequeo nocturno de la app', puntos:[
       '🩺 Cada noche la app revisa que nada se acerque a los límites de Google: lo arregla sola o te avisa por Telegram antes de que falle.',
-      '🧹 La limpieza de enlaces vencidos borra en bloques: no se pone lenta aunque se acumulen miles.' ] }
+      '🧹 La limpieza de enlaces vencidos borra en bloques: no se pone lenta aunque se acumulen miles.' ] },
+    { v:357, fecha:'5 nov', titulo:'Enlaces por vencer: solo se toca lo que marcas', puntos:[
+      '☑️ En Inicio, en los enlaces por vencer o vencidos, marcas los que quieras y eliges <strong>♻️ Alargar los marcados</strong> o <strong>🗑️ Quitar los marcados</strong>. Los que no marques quedan igual. Hay una casilla para marcar todos.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9616,10 +9618,11 @@ setTimeout(function(){
     if(A.fallidos.length){ n += A.fallidos.length; h += bloque('📭', 'Mensajes que no salieron (últimas 48 h)', lista(A.fallidos, g=>linea(`<strong>${esc(g.canal)} a ${esc(g.quien)}</strong>${g.n > 1 ? ' (' + g.n + ')' : ''}: ${esc(amigable(g.canal, g.error))}${g.texto ? `<div class="ag-muted" style="font-size:11.5px">«${esc(g.texto)}»</div>` : ''}`), 5) + '<button class="ag-btn sm ghost" data-at-visto style="margin-top:6px">✔️ Ya lo revisé</button>', '', 'var(--danger-l)'); }
     if(A.vencidas.n){ n++; h += bloque('💰', 'Cuentas vencidas: ' + A.vencidas.n + ' · ' + dinero(A.vencidas.total), '', 'cobrar'); }
     const EV = A.enlacesVencen || [];
-    // 🧹 v348: marcas los que quieres alargar; los demás se caducan y salen de esta lista con un toque.
+    // ☑️ v357: todo funciona por selección: marcas los enlaces y eliges «Alargar» o «Quitar». Solo se tocan los marcados.
     if(EV.length){ n += EV.length; h += bloque('⏳', 'Enlaces de clientes por vencer o vencidos (' + EV.length + ')', EV.map(x=>`<label style="display:flex;gap:8px;align-items:flex-start;margin-top:6px;font-size:12.5px;cursor:pointer"><input type="checkbox" data-at-ev="${esc(x.token)}" data-at-nom="${esc(x.cliente)}" style="width:auto;margin-top:2px"/><span><strong>${esc(x.cliente)}</strong> · ${esc(x.tipo)} · ${x.vencido ? '<span style="color:#b3261e;font-weight:700">venció el ' + fd(x.vence.slice(0, 10)) + '</span>' : 'vence el ' + fd(x.vence.slice(0, 10))}${x.creadoPor ? ' · lo envió ' + esc(x.creadoPor) : ''}${x.recibido ? ' · ✅ ya envió su selección' : ''}</span></label>`).join('') +
-      `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px"><select data-at-plazo-todos style="width:auto">${plazosOpciones(30)}</select><button type="button" class="ag-btn sm" data-at-alargar-sel>♻️ Alargar los marcados</button></div>
-      <button type="button" class="ag-btn sm ghost" data-at-descartar style="width:100%;margin-top:6px">🗑️ Caducar y quitar los que no marqué</button>` +
+      `<label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12.5px;cursor:pointer;color:var(--sub)"><input type="checkbox" data-at-ev-todos style="width:auto"/>Marcar todos</label>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px"><select data-at-plazo-todos style="width:auto">${plazosOpciones(30)}</select><button type="button" class="ag-btn sm" data-at-alargar-sel>♻️ Alargar los marcados</button></div>
+      <button type="button" class="ag-btn sm ghost" data-at-descartar style="width:100%;margin-top:6px">🗑️ Quitar los marcados</button>` +
       linea('<span class="ag-muted">Lo que el cliente ya envió no se borra.</span>'), '', 'var(--teal-l)'); }
     if(A.disp && A.disp.faltan.length){ n++; h += bloque('🕒', 'Disponibilidad de la semana del ' + esc(A.disp.rango), linea('Falta que indiquen: ' + esc(A.disp.faltan.join(', '))), 'disp'); }
     if(A.sugerencias){ n++; h += bloque('📮', 'Sugerencias nuevas del equipo: ' + A.sugerencias, '', 'buzon', '#eef3ff'); }
@@ -9794,10 +9797,12 @@ setTimeout(function(){
   }
   function conectarAtencionHoy(el){
     el.querySelectorAll('[data-at-recargar]').forEach(b=>b.onclick = ()=>cargarAtencionHoy(el, true));
-    const evMarcados = (si)=>[...el.querySelectorAll('[data-at-ev]')].filter(c=>c.checked === si);
+    const evMarcados = ()=>[...el.querySelectorAll('[data-at-ev]')].filter(c=>c.checked);
+    const evTodos = el.querySelector('[data-at-ev-todos]');
+    if(evTodos) evTodos.onchange = ()=>el.querySelectorAll('[data-at-ev]').forEach(c=>{ c.checked = evTodos.checked; });
     const bAl = el.querySelector('[data-at-alargar-sel]');
     if(bAl) bAl.onclick = async ()=>{
-      const m = evMarcados(true); if(!m.length){ alert('Marca primero los enlaces que quieres alargar.'); return; }
+      const m = evMarcados(); if(!m.length){ alert('Marca primero los enlaces que quieres alargar.'); return; }
       const sel = el.querySelector('[data-at-plazo-todos]'), dias = sel ? +sel.value : 30;
       bAl.disabled = true; let ok = 0;
       for(const c of m){ try{ await gs('extenderEnlace', c.dataset.atEv, dias, auth()); ok++; }catch(e){ alert('No se pudo alargar el de ' + c.dataset.atNom + ': ' + (e && e.message ? e.message : e)); } }
@@ -9805,8 +9810,8 @@ setTimeout(function(){
     };
     const bDe = el.querySelector('[data-at-descartar]');
     if(bDe) bDe.onclick = async ()=>{
-      const m = evMarcados(false); if(!m.length){ alert('Todos están marcados para alargar: no hay nada que quitar.'); return; }
-      if(!confirm('¿Caducar y quitar de la lista ' + m.length + ' enlace' + (m.length === 1 ? '' : 's') + '?\n\n' + m.map(c=>'• ' + c.dataset.atNom).join('\n') + '\n\nEl cliente ya no podrá usarlo. Lo que ya envió no se borra.')) return;
+      const m = evMarcados(); if(!m.length){ alert('Marca primero los enlaces que quieres quitar.'); return; }
+      if(!confirm('¿Quitar de la lista ' + m.length + ' enlace' + (m.length === 1 ? '' : 's') + '?\n\n' + m.map(c=>'• ' + c.dataset.atNom).join('\n') + '\n\nEl cliente ya no podrá usarlo. Lo que ya envió no se borra.')) return;
       bDe.disabled = true;
       try{ const nq = await gs('descartarEnlaces', m.map(c=>c.dataset.atEv), auth()); toast('🗑️ ' + nq + ' enlace' + (nq === 1 ? '' : 's') + ' quitado' + (nq === 1 ? '' : 's') + '.'); state.ceEnv = null; cargarAtencionHoy(el, true); }
       catch(e){ bDe.disabled = false; alert('No se pudo: ' + (e && e.message ? e.message : e)); }
