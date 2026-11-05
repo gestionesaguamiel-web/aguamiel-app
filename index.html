@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v354' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v355' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -8469,6 +8469,7 @@ setTimeout(function(){
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ${r.fecha<=hoy?'':'ghost'}" data-ag-saldo="${r.id}">💬 Recordar saldo</button>` : ''}
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-datospago="${r.id}">💳 Enviar datos de pago</button>` : ''}
             ${admin && r.estado==='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-avisar="${r.id}">📱 Avisar cancelación</button>` : ''}
+            ${asignada && r.estado!=='Cancelada' && profsCita(r).length ? `<button class="ag-btn sm ghost" data-ag-propina="${r.id}" title="Solo si el cliente pregunta cómo agradecer">💙 Datos para propina</button>` : ''}
             ${admin ? `<button class="ag-btn sm danger" data-ag-borrar="${r.id}">🗑️ Eliminar</button>` : ''}
           </div>
           ${admin && (r.historial||[]).length>1 ? '<details style="font-size:12px"><summary class="ag-muted">Historial</summary>'+r.historial.map(h=>'<div class="ag-muted">'+esc(formatDT(h.fecha))+' · '+esc(h.texto)+'</div>').join('')+'</details>' : ''}
@@ -8546,6 +8547,7 @@ setTimeout(function(){
       window.open(link, '_blank');
       gs('registrarGestionCobro', 'reserva', r.id, 'Recordatorio de saldo (' + dinero(sp.saldo) + ') enviado por WhatsApp', auth()).then(g=>{ r.gestiones = g; }).catch(()=>{});
     });
+    body.querySelectorAll('[data-ag-propina]').forEach(b=>b.onclick=()=>{ const r = buscar(b.dataset.agPropina); if(r) tarjetaPropina(r); });
     body.querySelectorAll('[data-ag-datospago]').forEach(b=>b.onclick=()=>{
       const r = buscar(b.dataset.agDatospago); const sp = saldoReserva(r);
       // Si es un regalo, los datos de pago se le envían a quien lo compró.
@@ -9533,7 +9535,12 @@ setTimeout(function(){
       '🛡️ Descuento en divisas: quien ya pagó conserva el descuento pactado. Si cambias la regla (ej. mínimo de $100) o cambia la tasa, solo aplica desde ese día; los pagos ya hechos en divisas siguen contando como divisas.' ] },
     { v:354, fecha:'4 nov', titulo:'Enlaces grandes ya se pueden quitar', puntos:[
       '🔗 Los catálogos completos ya no dan error de «más de 50.000» al quitarlos, caducarlos o alargarlos, y el cliente puede enviar su selección sin problema.',
-      '🧹 Los enlaces de informes y encuestas vencidos se borran solos a los 30 días.' ] }
+      '🧹 Los enlaces de informes y encuestas vencidos se borran solos a los 30 días.' ] },
+    { v:355, fecha:'5 nov', titulo:'Propinas por pago móvil y tarjeta de gotas con premios a elegir', puntos:[
+      '💙 En Admin → Personal, cada profesional tiene su botón «Pago móvil» (nombre, cédula, banco y teléfono). Solo lo ve la administración.',
+      '💙 En la cita, el botón «Datos para propina» arma una tarjetita con los datos de SU fisioterapeuta para enviarla por WhatsApp, solo si el cliente lo pide. La empresa no maneja ese dinero.',
+      '💧 <strong>Tarjeta de gotas</strong>: cada día que el cliente vino cuenta como visita, con reserva completada <strong>o con ficha</strong>. En Admin → Temporada y fidelización, botón <strong>«📅 Últimos 6 meses»</strong> que muestra antes de guardar cuántos clientes suben y cuántos premios quedan listos.',
+      '🎁 <strong>Lista de premios</strong> (hidroterapia, masaje antiestrés, reflexología podal…): al entregar el premio en la ficha eliges cuál, y queda anotado.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9708,6 +9715,50 @@ setTimeout(function(){
     // Con acompañantes cada persona tiene su ficha: se abre la agenda de hoy, donde se elige a quién se atiende.
     if((r.personas || []).length > 1){ state.tab = 'agenda'; state.ag = Object.assign({ filtro:'proximas' }, state.ag || {}, { vista:'lista', filtro:'hoy', editId:null }); render(); return; }
     avisarInicioAtencion(r, null); state.reservaActual = r; state.reservaPersona = null; state.preselectClienteId = r.clienteId; state.formTipo = r.tipoFicha || 'normal'; state.tab = 'nueva'; render();
+  }
+  // 💙 v355: propinas por pago móvil, directas del cliente a su fisioterapeuta (la empresa no maneja ese dinero).
+  function profsCita(r){ const L = (r.profesionales || []).map(String); (r.personas || []).forEach(p=>(p && p.profesionales || []).forEach(x=>{ if(!L.includes(String(x))) L.push(String(x)); })); return L; }
+  function editarPagoMovil(s){
+    if(!s) return;
+    const pm = (state.pmStaff || {})[s.id] || {};
+    openFullscreen('💙 Pago móvil de ' + s.nombre, `
+      <p class="ag-muted" style="font-size:13px;margin:0 0 10px">Para que el cliente le deje una propina directa, <strong>solo si él lo pide</strong>. La empresa no cobra ni administra ese dinero. Estos datos solo los ve la administración.</p>
+      <label class="f">Nombre del titular</label><input id="pm-nom" maxlength="80" value="${esc(pm.nombre || '')}" placeholder="${esc(s.nombre)}"/>
+      <label class="f">Cédula</label><input id="pm-ced" maxlength="20" value="${esc(pm.cedula || '')}" placeholder="V-12345678"/>
+      <label class="f">Banco</label><input id="pm-ban" maxlength="50" list="pm-bancos" value="${esc(pm.banco || '')}" placeholder="Banco de Venezuela"/>
+      <datalist id="pm-bancos">${['Banco de Venezuela','Banesco','Mercantil','Provincial (BBVA)','Bancamiga','Banco Nacional de Crédito (BNC)','Bicentenario','Banco del Tesoro','Exterior','Venezolano de Crédito','Banplus','Bancaribe','Sofitasa','100% Banco','Banco Activo','Plaza','Del Sur','Caroní','Mi Banco','Banfanb','Banco Agrícola'].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+      <label class="f">Teléfono del pago móvil</label><input id="pm-tel" maxlength="16" inputmode="tel" value="${esc(pm.telefono || '')}" placeholder="0414-1234567"/>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="ag-btn" id="pm-guardar" style="flex:1">💾 Guardar</button>${pm.telefono ? '<button class="ag-btn danger" id="pm-borrar">🗑️ Borrar</button>' : ''}</div>`);
+    const fs = document.getElementById('ag-fullscreen');
+    const guardar = async (vacio)=>{
+      const d = vacio ? {} : { nombre:fs.querySelector('#pm-nom').value, cedula:fs.querySelector('#pm-ced').value, banco:fs.querySelector('#pm-ban').value, telefono:fs.querySelector('#pm-tel').value };
+      if(vacio && !confirm('¿Borrar los datos de pago móvil de ' + s.nombre + '?')) return;
+      try{ const r = await gs('savePagoMovilStaff', s.id, d, auth()); state.pmStaff = Object.assign({}, state.pmStaff || {}); if(r) state.pmStaff[s.id] = r; else delete state.pmStaff[s.id];
+        closeFullscreen(); toast(r ? '💙 Pago móvil guardado.' : 'Datos borrados.'); render(); }
+      catch(e){ alert(e && e.message ? e.message : e); }
+    };
+    fs.querySelector('#pm-guardar').onclick = ()=>guardar(false);
+    const bb = fs.querySelector('#pm-borrar'); if(bb) bb.onclick = ()=>guardar(true);
+  }
+  async function tarjetaPropina(r){
+    let sid = String(state.user.id);
+    if(state.user.admin){
+      const L = profsCita(r);
+      if(L.length === 1) sid = L[0];
+      else { const op = L.map((id, i)=>(i + 1) + '. ' + nombreStaff(id)).join('\n'), k = prompt('¿De quién son los datos?\n\n' + op + '\n\nEscribe el número:', '1'); if(k === null) return; sid = L[(parseInt(k, 10) || 0) - 1]; if(!sid){ alert('Número no válido.'); return; } }
+    }
+    let d = null;
+    try{ d = await gs('getTarjetaPropina', r.id, sid, auth()); }catch(e){ alert(e && e.message ? e.message : e); return; }
+    const c = r.clienteId ? (state.clientes || []).find(x=>x.id === r.clienteId) : null, tel = c ? pickTelefono(c) : '';
+    openFullscreen('💙 Datos para propina', `
+      <p style="background:#fff3d6;color:#7a4f00;border-radius:10px;padding:8px 10px;font-size:13.5px;margin:0 0 10px">Envíalo <strong>solo si el cliente preguntó</strong> cómo agradecer. Nunca se pide propina.</p>
+      <div style="white-space:pre-wrap;background:linear-gradient(135deg,#ffffff,#eef9fb);border:1px solid var(--line);border-radius:16px;padding:14px;font-size:14.5px;line-height:1.5">${esc(d.texto.replace(/\*/g, ''))}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <button class="ag-btn" id="pp-wa" style="flex:1 1 auto">📱 Enviar por WhatsApp</button>
+        <button class="ag-btn ghost" id="pp-copiar" style="flex:1 1 auto">📋 Copiar</button></div>`);
+    const fs = document.getElementById('ag-fullscreen');
+    fs.querySelector('#pp-wa').onclick = ()=>window.open(tel ? waLink(tel, d.texto) : 'https:' + '/' + '/wa.me/?text=' + encodeURIComponent(d.texto), '_blank');
+    fs.querySelector('#pp-copiar').onclick = async ()=>{ try{ await navigator.clipboard.writeText(d.texto); toast('Copiado.'); }catch(e){ alert('No se pudo copiar; selecciona el texto y cópialo.'); } };
   }
   function abrirMenuNuevo(citas, ir){
     cerrarMenuMas();
@@ -15999,6 +16050,7 @@ setTimeout(function(){
           <input data-fd-n="${i}" value="${esc(x.nombre||'')}" placeholder="Nombre exacto del paquete" aria-label="Paquete"/>
           <input data-fd-f="${i}" value="${esc(x.frase||'')}" placeholder="Frase de venta (corta)" style="grid-column:1 / -1" aria-label="Frase"/>
           <button class="ag-btn ghost sm" data-fd-x="${i}" style="grid-column:1 / -1">Quitar</button></div>`;
+      let prevHTML = '';   // la vista previa de gotas se conserva al agregar o quitar premios
       const pintar = ()=>{
         cont.innerHTML = `
         <div class="ag-card">
@@ -16012,12 +16064,16 @@ setTimeout(function(){
           <button class="ag-btn ghost sm" id="fd-add" style="width:100%;margin-top:8px" ${(D.items||[]).length>=8?'disabled':''}>+ Agregar destacado</button>
         </div>
         <div class="ag-card" style="margin-top:12px">
-          <h3 style="margin:0 0 4px">💧 Tarjeta de sellos</h3>
-          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Cada visita atendida (reserva completada) desde la fecha de inicio suma un sello. El cliente lo ve en su catálogo y tú en su ficha, donde marcas el premio como entregado.</p>
-          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fd-s-act" style="width:auto" ${S.activo?'checked':''}/> Usar tarjeta de sellos</label>
+          <h3 style="margin:0 0 4px">💧 Tarjeta de gotas (sellos)</h3>
+          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Cada día que el cliente vino desde la fecha de inicio suma una gota (reserva completada o ficha registrada). El cliente lo ve en su catálogo y tú en su ficha, donde eliges el premio y lo marcas como entregado.</p>
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fd-s-act" style="width:auto" ${S.activo?'checked':''}/> Usar tarjeta de gotas</label>
           <div style="display:flex;gap:8px"><div style="flex:1"><label class="f">Visitas para el premio</label><input id="fd-s-n" type="number" min="2" max="20" value="${S.n}"/></div>
-            <div style="flex:1"><label class="f">Cuentan desde</label><input id="fd-s-de" type="date" value="${esc(S.desde)}"/></div></div>
-          <label class="f">Premio</label><input id="fd-s-p" value="${esc(S.premio||'')}" maxlength="120"/>
+            <div style="flex:1"><label class="f">Cuentan desde</label><input id="fd-s-de" type="date" value="${esc(S.desde)}" max="${esc(hoyISO())}"/></div></div>
+          <div style="display:flex;gap:8px;margin-top:8px"><button class="ag-btn ghost sm" id="fd-s-6m" style="flex:1">📅 Últimos 6 meses</button><button class="ag-btn ghost sm" id="fd-s-ver" style="flex:1">👀 Ver cómo quedan</button></div>
+          <div id="fd-s-prev">${prevHTML}</div>
+          <label class="f" style="margin-top:10px">🎁 Premios para elegir</label>
+          <div id="fd-s-pl">${(S.premios||[]).map((x, i)=>`<div style="display:flex;gap:6px;margin-top:6px"><input data-fd-p="${i}" value="${esc(x)}" maxlength="80" style="flex:1" aria-label="Premio"/><button class="ag-btn ghost sm" data-fd-px="${i}" aria-label="Quitar premio">✕</button></div>`).join('')}</div>
+          <button class="ag-btn ghost sm" id="fd-s-padd" style="width:100%;margin-top:6px" ${(S.premios||[]).length>=12?'disabled':''}>+ Agregar premio</button>
         </div>
         <div class="ag-card" style="margin-top:12px">
           <h3 style="margin:0 0 4px">🎂 Regalo de cumpleaños</h3>
@@ -16034,15 +16090,40 @@ setTimeout(function(){
           D.items = [...cont.querySelectorAll('[data-fd-n]')].map(inp=>{ const i = inp.dataset.fdN; return { nombre:inp.value.trim(), emoji:cont.querySelector('[data-fd-e="'+i+'"]').value.trim(), frase:cont.querySelector('[data-fd-f="'+i+'"]').value.trim() }; });
           D.activo = cont.querySelector('#fd-act').checked; D.titulo = cont.querySelector('#fd-tit').value.trim();
           D.desde = mmddSRV(cont.querySelector('#fd-de').value); D.hasta = mmddSRV(cont.querySelector('#fd-ha').value);
-          S.activo = cont.querySelector('#fd-s-act').checked; S.n = Number(cont.querySelector('#fd-s-n').value) || 5; S.desde = cont.querySelector('#fd-s-de').value; S.premio = cont.querySelector('#fd-s-p').value.trim();
+          S.activo = cont.querySelector('#fd-s-act').checked; S.n = Number(cont.querySelector('#fd-s-n').value) || 5; S.desde = cont.querySelector('#fd-s-de').value;
+          S.premios = [...cont.querySelectorAll('[data-fd-p]')].map(inp=>inp.value.trim());
           cfg.cumple = { regalo:cont.querySelector('#fd-c').value.trim() }; cfg.resenasUrl = cont.querySelector('#fd-r').value.trim();
         };
         cont.querySelector('#fd-add').onclick = ()=>{ leer(); D.items.push({ nombre:'', emoji:'✨', frase:'' }); pintar(); };
+        cont.querySelector('#fd-s-padd').onclick = ()=>{ leer(); S.premios.push(''); pintar(); const l = cont.querySelectorAll('[data-fd-p]'); if(l.length) l[l.length - 1].focus(); };
+        cont.querySelectorAll('[data-fd-px]').forEach(b=>b.onclick = ()=>{ leer(); S.premios.splice(Number(b.dataset.fdPx), 1); pintar(); });
+        // 👀 v355: vista previa (no guarda nada): cuántos clientes tendrían gotas y premios con esta fecha y este número de visitas.
+        const verPrev = async ()=>{
+          const box = cont.querySelector('#fd-s-prev'), de = cont.querySelector('#fd-s-de').value, n = Number(cont.querySelector('#fd-s-n').value) || 5;
+          if(!de){ box.innerHTML = ''; return; }
+          box.innerHTML = prevHTML = '<p class="ag-muted" style="font-size:12.5px;margin:8px 0 0">Calculando…</p>';
+          try{
+            const P = await gs('previewSellos', de, n, auth()), T = P.totales;
+            box.innerHTML = `<div style="margin-top:8px;padding:10px;border-radius:10px;background:#f2fbfd;border:1px solid #bfe6ee">
+              <div style="font-size:12.5px;margin-bottom:6px">Desde el <strong>${esc(isoToDMY(P.desde))}</strong>, con premio cada <strong>${P.n}</strong> visitas:</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center">
+                <div><b style="font-size:20px;color:#0a5a68">${T.conVisitas}</b><div class="ag-muted" style="font-size:11.5px">clientes con gotas</div></div>
+                <div><b style="font-size:20px;color:#0a5a68">${T.dosOMas}</b><div class="ag-muted" style="font-size:11.5px">con 2 visitas o más</div></div>
+                <div><b style="font-size:20px;color:#0e9fb8">${T.premios}</b><div class="ag-muted" style="font-size:11.5px">premio${T.premios===1?'':'s'} listo${T.premios===1?'':'s'} (${T.conPremio} cliente${T.conPremio===1?'':'s'})</div></div></div>
+              ${P.top.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600">Quiénes van más adelante</summary>
+                <div style="margin-top:6px;font-size:12.5px">${P.top.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid #e3ecee"><span>${esc(x.nombre)}</span><span>${x.visitas} visita${x.visitas===1?'':'s'}${x.disponibles ? ' · 🎉 ' + x.disponibles + ' premio' + (x.disponibles===1?'':'s') : ' · ' + x.actuales + '/' + P.n}</span></div>`).join('')}</div></details>` : ''}
+              <div class="ag-muted" style="font-size:11.5px;margin-top:6px">Es solo una vista previa: se aplica al tocar «Guardar».</div></div>`;
+            prevHTML = box.innerHTML;
+          }catch(e){ prevHTML = ''; box.innerHTML = '<p class="ag-muted" style="font-size:12.5px;margin:8px 0 0">No se pudo calcular: ' + esc(e && e.message ? e.message : String(e)) + '</p>'; }
+        };
+        cont.querySelector('#fd-s-ver').onclick = verPrev;
+        cont.querySelector('#fd-s-6m').onclick = ()=>{ const d = new Date(hoyISO() + 'T12:00:00'); d.setMonth(d.getMonth() - 6); cont.querySelector('#fd-s-de').value = d.toISOString().slice(0, 10); verPrev(); };
         cont.querySelectorAll('[data-fd-x]').forEach(b=>b.onclick = ()=>{ leer(); D.items.splice(Number(b.dataset.fdX), 1); pintar(); });
         cont.querySelector('#fd-save').onclick = async (ev)=>{
           leer();
           if(!D.desde || !D.hasta){ alert('Escribe las fechas como día-mes, por ejemplo 01-11 (1 de noviembre).'); return; }
           if(cfg.resenasUrl && !/^https:\/\//.test(cfg.resenasUrl)){ alert('El enlace de reseñas debe empezar por https://'); return; }
+          S.premios = S.premios.filter(Boolean); if(!S.premios.length){ alert('Escribe al menos un premio en la lista.'); return; }
           ev.target.disabled = true; ev.target.textContent = 'Guardando…';
           try{ const r = await gs('saveFidelCfg', cfg, auth()); state.fidelCfg = r; toast('💧 Guardado.'); renderFidelAdmin(cont); }
           catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); ev.target.disabled = false; ev.target.textContent = 'Guardar'; }
@@ -16061,13 +16142,15 @@ setTimeout(function(){
       if(!S || !S.activo || !box.isConnected){ box.innerHTML = ''; return; }
       let p = ''; for(let i = 0; i < S.n; i++) p += `<span style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;${i < S.actuales ? 'background:#d3f1f7;box-shadow:inset 0 0 0 2px #0e9fb8' : 'background:#eef2f3;filter:grayscale(1);opacity:.45'}">💧</span>`;
       box.innerHTML = `<div class="ag-card" style="margin-top:10px;background:#f2fbfd;border-color:#bfe6ee">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>💧 Tarjeta de sellos</strong><span class="ag-muted" style="font-size:12px">${S.visitas} visita${S.visitas===1?'':'s'} desde ${esc(isoToDMY(S.desde))}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong>💧 Tarjeta de gotas</strong><span class="ag-muted" style="font-size:12px">${S.visitas} visita${S.visitas===1?'':'s'} desde ${esc(isoToDMY(S.desde))}</span></div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin:8px 0">${p}</div>
-        <div class="ag-muted" style="font-size:12.5px">${S.disponibles > 0 ? '🎉 <strong>Premio listo:</strong> ' + esc(S.premio) + (S.disponibles > 1 ? ' (tiene ' + S.disponibles + ')' : '') : 'Lleva ' + S.actuales + ' de ' + S.n + '. Premio: ' + esc(S.premio)}${S.canjeados ? ' · Premios entregados: ' + S.canjeados : ''}</div>
-        ${S.disponibles > 0 && state.user.admin ? '<button class="ag-btn sm" id="cd-sello-ok" style="width:100%;margin-top:8px">✅ Marcar premio como entregado</button>' : ''}</div>`;
+        <div class="ag-muted" style="font-size:12.5px">${S.disponibles > 0 ? '🎉 <strong>¡Tiene premio!</strong>' + (S.disponibles > 1 ? ' (' + S.disponibles + ' premios)' : '') : 'Lleva ' + S.actuales + ' de ' + S.n + '. Premio: ' + esc(S.premio)}${S.canjeados ? ' · Premios entregados: ' + S.canjeados : ''}</div>
+        ${(S.entregados||[]).length ? '<div class="ag-muted" style="font-size:11.5px;margin-top:4px">Último: ' + esc(S.entregados[S.entregados.length - 1].premio) + ' (' + esc(isoToDMY(S.entregados[S.entregados.length - 1].fecha)) + ')</div>' : ''}
+        ${S.disponibles > 0 && state.user.admin ? `<select id="cd-sello-p" style="width:100%;margin-top:8px" aria-label="Premio">${(S.premios||[]).map(x=>`<option>${esc(x)}</option>`).join('')}</select>
+          <button class="ag-btn sm" id="cd-sello-ok" style="width:100%;margin-top:6px">🎁 Entregar este premio</button>` : ''}</div>`;
       const b = box.querySelector('#cd-sello-ok');
-      if(b) b.onclick = async ()=>{ if(!confirm('¿Marcar como entregado el premio de ' + c.nombre + '?\n\n' + S.premio)) return; b.disabled = true;
-        try{ await gs('canjearSello', c.id, auth()); toast('🎁 Premio entregado.'); pintarSellosCliente(box, c); }catch(e){ alert('No se pudo: ' + (e && e.message ? e.message : e)); b.disabled = false; } };
+      if(b) b.onclick = async ()=>{ const pr = box.querySelector('#cd-sello-p').value; if(!confirm('¿Entregar a ' + c.nombre + ' este premio?\n\n🎁 ' + pr)) return; b.disabled = true;
+        try{ await gs('canjearSello', c.id, pr, auth()); toast('🎁 Premio entregado: ' + pr); pintarSellosCliente(box, c); }catch(e){ alert('No se pudo: ' + (e && e.message ? e.message : e)); b.disabled = false; } };
     }).catch(()=>{ box.innerHTML = ''; });
   }
 
@@ -16531,6 +16614,7 @@ setTimeout(function(){
         <button class="ag-btn sm ghost" data-cargo="${s.id}">Cargo</button>
         <button class="ag-btn sm ghost" data-repin="${s.id}">PIN</button>
         <button class="ag-btn sm ghost" data-tel-staff="${s.id}">📞 ${s.telefono?esc(s.telefono):'Teléfono'}</button>
+        <button class="ag-btn sm ${(state.pmStaff||{})[s.id]?'':'ghost'}" data-pm-staff="${s.id}" title="Datos para que el cliente le deje propina (solo los ve la administración)">💙 Pago móvil${(state.pmStaff||{})[s.id]?' ✓':''}</button>
         <button class="ag-btn sm ${s.fnac?'':'ghost'}" data-fnac-staff="${s.id}">🎂 ${s.fnac?esc(s.fnac.substr(3,2)+'/'+s.fnac.substr(0,2)):'Cumpleaños'}</button>
         ${s.fnac?`<button class="ag-btn sm ${s.cumpleSinAviso?'':'ghost'}" data-cumple-sa="${s.id}" title="Si está activado, su cumpleaños no se avisa a nadie: solo aparece en la tabla del mes">${s.cumpleSinAviso?'🔕 Cumpleaños sin aviso ✓':'🔔 Avisar cumpleaños'}</button>`:''}
         ${s.conTelegram ? `<button class="ag-btn sm ${s.tgActivo ? '' : 'ghost'}" data-tgtoggle="${s.id}" title="Si está desactivado, esta persona sigue vinculada pero no recibe avisos por Telegram">✈️ Notificaciones Telegram ${s.tgActivo ? 'activadas ✓' : 'desactivadas'}</button>` : `<button class="ag-btn sm ghost" data-tgir="${s.id}" title="Vincula su Telegram en Avisos">✈️ Telegram sin vincular</button>`}
@@ -16897,6 +16981,9 @@ setTimeout(function(){
         } else if(!s.waAuto) toast('Mensajes automáticos desactivados.');
       }catch(e){ alert('No se pudo guardar: ' + (e.message||e)); }
     });
+    // 💙 v355: pago móvil de cada profesional para propinas (solo administración). Se carga una vez al abrir Personal.
+    if(!state.pmStaff && !state._pmCargando){ state._pmCargando = true; gs('getPagosMovilesStaff', auth()).then(m=>{ state.pmStaff = m || {}; state._pmCargando = false; if(state.adminSub === 'staff') render(); }).catch(()=>{ state._pmCargando = false; state.pmStaff = {}; }); }
+    body.querySelectorAll('[data-pm-staff]').forEach(b=>b.onclick=()=>editarPagoMovil(state.staff.find(x=>x.id === b.dataset.pmStaff)));
     body.querySelectorAll('[data-tel-staff]').forEach(b=>b.onclick= async ()=>{
       const s = state.staff.find(s=>s.id===b.dataset.telStaff);
       const tel = prompt('WhatsApp de ' + s.nombre + ' (para avisarle de sus reservas). Ej: 0414-1234567', s.telefono||'');
