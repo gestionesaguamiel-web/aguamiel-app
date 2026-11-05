@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v353' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v354' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9530,7 +9530,10 @@ setTimeout(function(){
     { v:353, fecha:'4 nov', titulo:'Reservas pagadas por enlace: sin deudas falsas', puntos:[
       '💳 Al tocar <strong>📅 Convertir en reserva</strong> en un presupuesto con pago reportado por el enlace, la app te pide verificarlo primero: el abono pasa a la reserva y el mensaje al cliente ya no le muestra deuda.',
       '➕ En la reserva, <strong>Cliente nuevo</strong>: lo registras ahí mismo con nombre y cédula o teléfono, sin salir.',
-      '🛡️ Descuento en divisas: quien ya pagó conserva el descuento pactado. Si cambias la regla (ej. mínimo de $100) o cambia la tasa, solo aplica desde ese día; los pagos ya hechos en divisas siguen contando como divisas.' ] }
+      '🛡️ Descuento en divisas: quien ya pagó conserva el descuento pactado. Si cambias la regla (ej. mínimo de $100) o cambia la tasa, solo aplica desde ese día; los pagos ya hechos en divisas siguen contando como divisas.' ] },
+    { v:354, fecha:'4 nov', titulo:'Enlaces grandes ya se pueden quitar', puntos:[
+      '🔗 Los catálogos completos ya no dan error de «más de 50.000» al quitarlos, caducarlos o alargarlos, y el cliente puede enviar su selección sin problema.',
+      '🧹 Los enlaces de informes y encuestas vencidos se borran solos a los 30 días.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
