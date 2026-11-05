@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v357' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v358' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9545,7 +9545,10 @@ setTimeout(function(){
       '🩺 Cada noche la app revisa que nada se acerque a los límites de Google: lo arregla sola o te avisa por Telegram antes de que falle.',
       '🧹 La limpieza de enlaces vencidos borra en bloques: no se pone lenta aunque se acumulen miles.' ] },
     { v:357, fecha:'5 nov', titulo:'Enlaces por vencer: solo se toca lo que marcas', puntos:[
-      '☑️ En Inicio, en los enlaces por vencer o vencidos, marcas los que quieras y eliges <strong>♻️ Alargar los marcados</strong> o <strong>🗑️ Quitar los marcados</strong>. Los que no marques quedan igual. Hay una casilla para marcar todos.' ] }
+      '☑️ En Inicio, en los enlaces por vencer o vencidos, marcas los que quieras y eliges <strong>♻️ Alargar los marcados</strong> o <strong>🗑️ Quitar los marcados</strong>. Los que no marques quedan igual. Hay una casilla para marcar todos.' ] },
+    { v:358, fecha:'5 nov', titulo:'Comunicados: tus propios modelos', puntos:[
+      '📢 En <strong>Admin → Personal → 📢 Comunicado</strong> los modelos se manejan desde la app: tócalo para usarlo, 🗑️ para borrarlo y <strong>💾 Guardar como modelo</strong> para guardar uno nuevo. Ya están «📲 Instalar la app» y «💸 Propinas fisioterapeutas».',
+      '✍️ Lo que va entre *asteriscos* llega en <strong>negrita</strong> por Telegram.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -16706,24 +16709,7 @@ setTimeout(function(){
     rnDet.addEventListener('toggle', abrirReuniones); if(rnDet.open) abrirReuniones();
     // ---- Comunicados al equipo (información general de la empresa)
     const cmDet = body.querySelector('#cm-det'), cmCont = body.querySelector('#cm-cont');
-    // Lo nuevo de la app explicado para el equipo (sin precios). Se puede editar antes de enviar.
-    const NOVEDADES_APP = 'Estas son las novedades de la app que ya pueden usar:\n\n' +
-      '👥 Reservas con acompañantes: una reserva puede traer al cliente y a sus acompañantes (con nombre o como "Acompañante 1"). Si les asignan a una persona, el aviso les llega SOLO con esa persona. Si es una atención en conjunto, el aviso les dice con quién la comparten.\n\n' +
-      '📍 El día de la atención: en Inicio → Hoy tienes cita aparece un botón por persona. Si el acompañante no está registrado, toquen "➕ Registrar y llenar su ficha": se registra ahí mismo y se abre su ficha.\n\n' +
-      '🍽️ Rincón de Rosita: si la orden va con una reserva, sus acompañantes llegan solos para asignarles los platos. Si alguien llega sin registrar, basta con escribir su nombre; también queda en la reserva con su ficha pendiente.\n\n' +
-      '🎁 Regalos: cuando una atención es un regalo, lo verán en la cita. La ficha y la atención son de quien lo disfruta.\n\n' +
-      '📢 Comunicados: la información general de la empresa les llegará por WhatsApp y también la verán en su Inicio.\n\n' +
-      '✅ Recuerden confirmar cada cita en Inicio → Mis próximas citas, y completar los datos del cliente durante la atención (cédula, teléfono y sector).\n\n' +
-      'Cualquier duda, pregúntenle a la administración. ¡Gracias por su compromiso! 💙';
-    const PLANTILLAS_COM = [
-      ['👋 Nueva integrante', '👋 Damos la bienvenida a una nueva integrante', 'Con mucha alegría les contamos que [nombre] se une a nuestro equipo como [cargo] a partir del [fecha]. Démosle una cálida bienvenida y ayudémosla en sus primeros días. 💙'],
-      ['🚧 Obras / cierre', '🚧 Obras de mejora: cierre temporal', 'Les informamos que estaremos realizando obras de mejora en nuestras instalaciones. La empresa permanecerá cerrada durante [15] días, desde el [fecha] hasta el [fecha]. Les avisaremos cualquier novedad. ¡Gracias por su comprensión!'],
-      ['⚡ Planta eléctrica', '⚡ Ya contamos con planta eléctrica', 'Les informamos que ya tenemos planta eléctrica para suplir los cortes de luz, así que las atenciones continúan con normalidad aunque falle el servicio eléctrico.'],
-      ['🕐 Cambio de horario', '🕐 Cambio de horario', 'Les informamos que a partir del [fecha] nuestro horario será de [hora] a [hora]. Por favor, tómenlo en cuenta para sus citas y turnos.'],
-      ['🎉 Celebración', '🎉 ¡Celebramos juntos!', 'Queremos invitarles a [motivo] el [fecha] a las [hora] en [lugar]. ¡Los esperamos!'],
-      ['📌 Recordatorio', '📌 Recordatorio importante', ''],
-      ['📱 Novedades de la app', '📱 Novedades en la app de Aguamiel', NOVEDADES_APP]
-    ];
+    // Los modelos viven en la hoja (se usan, se guardan y se borran desde aquí). Ver getModelosComunicado en Codigo.gs.
     const pintarComunicados = ()=>{
       const activos = state.staff.filter(x=>x.activo);
       const L = state.comunicados || [];
@@ -16733,10 +16719,11 @@ setTimeout(function(){
         ${res ? `<div style="border:1px solid #bfe3c8;background:#eefaf1;border-radius:10px;padding:10px;margin-bottom:10px">
           <strong>${res.programado ? '🕐 Comunicado "' + esc(res.titulo) + '" programado para el ' + esc(isoToDMY(res.fecha)) + ' a las ' + esc(res.hora) : '✅ Comunicado "' + esc(res.titulo) + '" enviado'}</strong>
           ${res.programado ? '<div style="font-size:12.5px;margin-top:4px">Se enviará solo a esa hora (puede tardar hasta 15 minutos). Si cambias de idea, cancélalo abajo.</div>' : res.envios.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)"><span>${esc(x.nombre)}</span>${x.enviado ? '<span style="color:#1d6b35">✅ Enviado</span>' : (waLink(x.telefono, x.texto) ? `<a class="ag-btn sm" style="text-decoration:none" href="${esc(waLink(x.telefono, x.texto))}" target="_blank" rel="noopener">📱 Enviar tú</a>` : '<span class="ag-muted" style="font-size:12px">sin teléfono</span>')}</div>`).join('')}
+          ${res.modelo && (state.cmModelos||[]).some(m=>m.id===res.modelo.id) ? `<button type="button" class="ag-btn sm danger" id="cm-res-borrar" style="margin-top:8px;width:100%">🗑️ Ya lo usé: borrar el modelo «${esc(res.modelo.nombre)}»</button>` : ''}
           <button type="button" class="ag-btn sm ghost" id="cm-ok" style="margin-top:8px;width:100%">Listo</button></div>` : ''}
         <p class="ag-muted" style="font-size:12.5px;margin-top:0">Información general de la empresa: llega a cada persona por su Telegram (o WhatsApp automático) y la ve también en su Inicio.</p>
         <label class="f">Empezar con un modelo (opcional)</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${PLANTILLAS_COM.map((pl,i)=>`<button type="button" class="ag-btn sm ghost" data-cm-pl="${i}" style="flex:1 1 30%">${pl[0]}</button>`).join('')}</div>
+        <div id="cm-modelos"></div>
         <div style="margin-top:8px;border:1px dashed var(--teal);border-radius:10px;padding:8px 10px">
           <label class="f" style="margin-top:0">🎂 Modelo de cumpleaños (con una frase de cumpleaños al azar)</label>
           <select id="cm-cumple-quien">${activos.slice().sort((a,b)=>((state.cumpleEq||[]).some(c=>c.id===b.id&&c.diff===0)?1:0)-((state.cumpleEq||[]).some(c=>c.id===a.id&&c.diff===0)?1:0)).map(x=>`<option value="${esc(x.id)}">${esc(x.nombre)}${(state.cumpleEq||[]).some(c=>c.id===x.id&&c.diff===0)?' 🎉 (hoy)':(x.fnac?'':' (sin fecha registrada)')}</option>`).join('')}</select>
@@ -16744,7 +16731,8 @@ setTimeout(function(){
           <p class="ag-muted" style="font-size:11.5px;margin:4px 0 0">Llena el título, el mensaje y elige a todo el equipo menos a la persona que cumple. Puedes agregarle algo tuyo antes de enviar.</p></div>
         <label class="f">Título</label><input id="cm-titulo" maxlength="120" placeholder="Ej: Tenemos una nueva integrante en el equipo"/>
         <label class="f">Mensaje</label><textarea id="cm-texto" rows="6" maxlength="1500" placeholder="Escribe aquí la información para el equipo"></textarea>
-        <p class="ag-muted" style="font-size:11.5px;margin:2px 0 0">Si usaste un modelo, cambia lo que está entre [corchetes].</p>
+        <p class="ag-muted" style="font-size:11.5px;margin:2px 0 0">Si usaste un modelo, cambia lo que está entre [corchetes]. Lo que pongas entre *asteriscos* llega en negrita.</p>
+        <button type="button" class="ag-btn sm ghost" id="cm-guardar-modelo" style="margin-top:6px">💾 Guardar como modelo</button>
         <label class="f">¿Cuándo se envía?</label>
         <select id="cm-envio"><option value="ahora">📤 Ahora mismo</option><option value="programado">🕐 Programarlo para un día y hora</option></select>
         <div id="cm-cuando" style="display:none"><div class="ag-row"><div><label class="f">Día</label><input type="date" id="cm-fecha" value="${hoyISO()}"/></div><div><label class="f">Hora</label><input type="time" id="cm-hora" value="08:00"/></div></div></div>
@@ -16763,11 +16751,45 @@ setTimeout(function(){
       const prev = ()=>{ v('#cm-prev').textContent = '📢 Comunicado — Aguamiel\nHola (nombre) 💙\n\n*' + (v('#cm-titulo').value.trim()||'Título') + '*\n\n' + (v('#cm-texto').value.trim()||'Mensaje') + '\n\n— Lic. Dianny\n🌿💙 Equipo Aguamiel'; };
       v('#cm-titulo').oninput = prev; v('#cm-texto').oninput = prev; prev();
       v('#cm-envio').onchange = ()=>{ v('#cm-cuando').style.display = v('#cm-envio').value==='programado' ? '' : 'none'; v('#cm-enviar').textContent = v('#cm-envio').value==='programado' ? '🕐 Programar comunicado' : '📢 Enviar comunicado'; };
-      cmCont.querySelectorAll('[data-cm-pl]').forEach(b=>b.onclick = ()=>{
-        const pl = PLANTILLAS_COM[+b.dataset.cmPl];
-        if((v('#cm-titulo').value.trim() || v('#cm-texto').value.trim()) && !confirm('¿Reemplazar lo que escribiste con el modelo "' + pl[0] + '"?')) return;
-        v('#cm-titulo').value = pl[1]; v('#cm-texto').value = pl[2]; prev(); v('#cm-texto').focus();
-      });
+      // ---- Modelos: tocar = usar; 🗑️ = borrar; «Guardar como modelo» = guardar lo escrito
+      const pintarModelos = ()=>{
+        const box = v('#cm-modelos'); if(!box) return;
+        const M = state.cmModelos;
+        if(!M){ box.innerHTML = '<p class="ag-muted" style="font-size:12.5px;margin:4px 0">Cargando modelos…</p>'; return; }
+        box.innerHTML = M.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${M.map(m=>`<span style="display:inline-flex;flex:1 1 45%;gap:4px"><button type="button" class="ag-btn sm ghost" data-cm-pl="${esc(m.id)}" style="flex:1;text-align:left">${esc(m.nombre)}</button><button type="button" class="ag-btn sm ghost" data-cm-del="${esc(m.id)}" title="Borrar este modelo" aria-label="Borrar el modelo ${esc(m.nombre)}" style="padding:0 10px">🗑️</button></span>`).join('')}</div>`
+          : '<p class="ag-muted" style="font-size:12.5px;margin:4px 0">No hay modelos guardados. Escribe un comunicado y toca «💾 Guardar como modelo».</p>';
+        box.querySelectorAll('[data-cm-pl]').forEach(b=>b.onclick = ()=>{
+          const m = (state.cmModelos||[]).find(x=>x.id===b.dataset.cmPl); if(!m) return;
+          if((v('#cm-titulo').value.trim() || v('#cm-texto').value.trim()) && !confirm('¿Reemplazar lo que escribiste con el modelo "' + m.nombre + '"?')) return;
+          v('#cm-titulo').value = m.titulo; v('#cm-texto').value = m.texto; state.cmModeloUsado = { id:m.id, nombre:m.nombre }; prev(); v('#cm-texto').focus();
+        });
+        box.querySelectorAll('[data-cm-del]').forEach(b=>b.onclick = async ()=>{
+          const m = (state.cmModelos||[]).find(x=>x.id===b.dataset.cmDel); if(!m || b.disabled) return;
+          if(!confirm('¿Borrar el modelo "' + m.nombre + '"? Los comunicados ya enviados no se tocan.')) return;
+          b.disabled = true;
+          try{ state.cmModelos = await gs('deleteModeloComunicado', m.id, auth()) || []; pintarModelos(); toast('Modelo borrado.'); }
+          catch(e){ b.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); }
+        });
+      };
+      pintarModelos(); state.cmPintarModelos = pintarModelos;
+      v('#cm-guardar-modelo').onclick = async ()=>{
+        const titulo = v('#cm-titulo').value.trim(), texto = v('#cm-texto').value.trim();
+        if(!titulo || !texto){ alert('Escribe el título y el mensaje antes de guardarlo como modelo.'); return; }
+        const nombre = (prompt('Nombre corto del modelo (con un emoji si quieres). Si ya existe uno con ese nombre, se reemplaza:', (state.cmModeloUsado && state.cmModeloUsado.nombre) || titulo.slice(0, 40)) || '').trim();
+        if(!nombre) return;
+        const b = v('#cm-guardar-modelo'); if(b.disabled) return; b.disabled = true;
+        try{ state.cmModelos = await gs('saveModeloComunicado', nombre, titulo, texto, auth()) || []; const m = state.cmModelos.find(x=>x.nombre.toLowerCase()===nombre.toLowerCase()); if(m) state.cmModeloUsado = { id:m.id, nombre:m.nombre }; pintarModelos(); toast('Modelo «' + nombre + '» guardado.'); }
+        catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+        finally{ b.disabled = false; }
+      };
+      const resBorrar = v('#cm-res-borrar');
+      if(resBorrar) resBorrar.onclick = async ()=>{
+        const m = res && res.modelo; if(!m || resBorrar.disabled) return;
+        if(!confirm('¿Borrar el modelo "' + m.nombre + '"? El comunicado ya enviado no se toca.')) return;
+        resBorrar.disabled = true;
+        try{ state.cmModelos = await gs('deleteModeloComunicado', m.id, auth()) || []; state.cmResultado = null; pintarComunicados(); toast('Modelo borrado.'); }
+        catch(e){ resBorrar.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); }
+      };
       const aplicarCumple = async (id, otra, sinPreguntar)=>{
         if(!sinPreguntar && (v('#cm-titulo').value.trim() || v('#cm-texto').value.trim()) && !confirm('¿Reemplazar lo que escribiste con el modelo de cumpleaños?')) return;
         try{
@@ -16797,7 +16819,8 @@ setTimeout(function(){
         try{
           const r = await gs('saveComunicado', c, auth());
           state.comunicados = [r.comunicado].concat(state.comunicados||[]);
-          state.cmResultado = { titulo:r.comunicado.titulo, envios:r.envios||[], programado: c.envio==='programado', fecha:c.fecha, hora:c.hora };
+          state.cmResultado = { titulo:r.comunicado.titulo, envios:r.envios||[], programado: c.envio==='programado', fecha:c.fecha, hora:c.hora, modelo:state.cmModeloUsado || null };
+          state.cmModeloUsado = null;
           pintarComunicados(); cmDet.scrollIntoView({ block:'start' });
         }catch(e){ b.disabled = false; v('#cm-envio').onchange(); alert('No se pudo enviar: ' + (e && e.message ? e.message : e)); }
       };
@@ -16810,6 +16833,9 @@ setTimeout(function(){
       });
     };
     const abrirComunicados = ()=>{ state.cmAbierto = cmDet.open; if(!cmDet.open) return;
+      if(!state.cmModelos && !state.cmModelosCargando){ state.cmModelosCargando = true;
+        gs('getModelosComunicado', auth()).then(l=>{ state.cmModelos = l || []; }).catch(()=>{ state.cmModelos = []; toast('No se pudieron cargar los modelos.'); })
+          .finally(()=>{ state.cmModelosCargando = false; if(cmDet.isConnected && state.cmPintarModelos) state.cmPintarModelos(); }); }
       if(state.comunicados) pintarComunicados();
       else { cmCont.innerHTML = '<p class="ag-muted">Cargando…</p>'; gs('getComunicados', auth()).then(l=>{ state.comunicados = l || []; if(cmDet.isConnected) pintarComunicados(); }).catch(e=>{ state.comunicados = []; if(cmDet.isConnected){ pintarComunicados(); toast('No se pudo cargar el historial de comunicados.'); } }); } };
     cmDet.addEventListener('toggle', abrirComunicados); if(cmDet.open) abrirComunicados();
