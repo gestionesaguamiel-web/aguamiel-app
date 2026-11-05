@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v358' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v359' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -8469,7 +8469,7 @@ setTimeout(function(){
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ${r.fecha<=hoy?'':'ghost'}" data-ag-saldo="${r.id}">💬 Recordar saldo</button>` : ''}
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-datospago="${r.id}">💳 Enviar datos de pago</button>` : ''}
             ${admin && r.estado==='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-avisar="${r.id}">📱 Avisar cancelación</button>` : ''}
-            ${asignada && r.estado!=='Cancelada' && profsCita(r).length ? `<button class="ag-btn sm ghost" data-ag-propina="${r.id}" title="Solo si el cliente pregunta cómo agradecer">💙 Datos para propina</button>` : ''}
+            ${asignada && r.estado!=='Cancelada' && profsCita(r).length ? `<button class="ag-btn sm ghost" data-ag-propina="${r.id}" title="Solo si el cliente pregunta cómo agradecer">💙 Enlace para propina</button>` : ''}
             ${admin ? `<button class="ag-btn sm danger" data-ag-borrar="${r.id}">🗑️ Eliminar</button>` : ''}
           </div>
           ${admin && (r.historial||[]).length>1 ? '<details style="font-size:12px"><summary class="ag-muted">Historial</summary>'+r.historial.map(h=>'<div class="ag-muted">'+esc(formatDT(h.fecha))+' · '+esc(h.texto)+'</div>').join('')+'</details>' : ''}
@@ -9548,7 +9548,10 @@ setTimeout(function(){
       '☑️ En Inicio, en los enlaces por vencer o vencidos, marcas los que quieras y eliges <strong>♻️ Alargar los marcados</strong> o <strong>🗑️ Quitar los marcados</strong>. Los que no marques quedan igual. Hay una casilla para marcar todos.' ] },
     { v:358, fecha:'5 nov', titulo:'Comunicados: tus propios modelos', puntos:[
       '📢 En <strong>Admin → Personal → 📢 Comunicado</strong> los modelos se manejan desde la app: tócalo para usarlo, 🗑️ para borrarlo y <strong>💾 Guardar como modelo</strong> para guardar uno nuevo. Ya están «📲 Instalar la app» y «💸 Propinas fisioterapeutas».',
-      '✍️ Lo que va entre *asteriscos* llega en <strong>negrita</strong> por Telegram.' ] }
+      '✍️ Lo que va entre *asteriscos* llega en <strong>negrita</strong> por Telegram.' ] },
+    { v:359, fecha:'5 nov', titulo:'Propinas: el cliente recibe un enlace', puntos:[
+      '💙 En la cita, <strong>«Enlace para propina»</strong> ya no envía los datos de pago: envía el enlace de la encuesta; al terminarla el cliente ve «💝 Dejar una propina». Solo si el cliente pregunta cómo agradecer.',
+      '💳 Cada fisioterapeuta registra sus datos en <strong>Inicio → 💝 Mis propinas</strong>. Se quitó «Pago móvil» de Admin → Personal para no tenerlos en dos lugares.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -9759,7 +9762,7 @@ setTimeout(function(){
     let d = null;
     try{ d = await gs('getTarjetaPropina', r.id, sid, auth()); }catch(e){ alert(e && e.message ? e.message : e); return; }
     const c = r.clienteId ? (state.clientes || []).find(x=>x.id === r.clienteId) : null, tel = c ? pickTelefono(c) : '';
-    openFullscreen('💙 Datos para propina', `
+    openFullscreen('💙 Enlace para propina', `
       <p style="background:#fff3d6;color:#7a4f00;border-radius:10px;padding:8px 10px;font-size:13.5px;margin:0 0 10px">Envíalo <strong>solo si el cliente preguntó</strong> cómo agradecer. Nunca se pide propina.</p>
       <div style="white-space:pre-wrap;background:linear-gradient(135deg,#ffffff,#eef9fb);border:1px solid var(--line);border-radius:16px;padding:14px;font-size:14.5px;line-height:1.5">${esc(d.texto.replace(/\*/g, ''))}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
@@ -16625,7 +16628,6 @@ setTimeout(function(){
         <button class="ag-btn sm ghost" data-cargo="${s.id}">Cargo</button>
         <button class="ag-btn sm ghost" data-repin="${s.id}">PIN</button>
         <button class="ag-btn sm ghost" data-tel-staff="${s.id}">📞 ${s.telefono?esc(s.telefono):'Teléfono'}</button>
-        <button class="ag-btn sm ${(state.pmStaff||{})[s.id]?'':'ghost'}" data-pm-staff="${s.id}" title="Datos para que el cliente le deje propina (solo los ve la administración)">💙 Pago móvil${(state.pmStaff||{})[s.id]?' ✓':''}</button>
         <button class="ag-btn sm ${s.fnac?'':'ghost'}" data-fnac-staff="${s.id}">🎂 ${s.fnac?esc(s.fnac.substr(3,2)+'/'+s.fnac.substr(0,2)):'Cumpleaños'}</button>
         ${s.fnac?`<button class="ag-btn sm ${s.cumpleSinAviso?'':'ghost'}" data-cumple-sa="${s.id}" title="Si está activado, su cumpleaños no se avisa a nadie: solo aparece en la tabla del mes">${s.cumpleSinAviso?'🔕 Cumpleaños sin aviso ✓':'🔔 Avisar cumpleaños'}</button>`:''}
         ${s.conTelegram ? `<button class="ag-btn sm ${s.tgActivo ? '' : 'ghost'}" data-tgtoggle="${s.id}" title="Si está desactivado, esta persona sigue vinculada pero no recibe avisos por Telegram">✈️ Notificaciones Telegram ${s.tgActivo ? 'activadas ✓' : 'desactivadas'}</button>` : `<button class="ag-btn sm ghost" data-tgir="${s.id}" title="Vincula su Telegram en Avisos">✈️ Telegram sin vincular</button>`}
@@ -17015,9 +17017,6 @@ setTimeout(function(){
         } else if(!s.waAuto) toast('Mensajes automáticos desactivados.');
       }catch(e){ alert('No se pudo guardar: ' + (e.message||e)); }
     });
-    // 💙 v355: pago móvil de cada profesional para propinas (solo administración). Se carga una vez al abrir Personal.
-    if(!state.pmStaff && !state._pmCargando){ state._pmCargando = true; gs('getPagosMovilesStaff', auth()).then(m=>{ state.pmStaff = m || {}; state._pmCargando = false; if(state.adminSub === 'staff') render(); }).catch(()=>{ state._pmCargando = false; state.pmStaff = {}; }); }
-    body.querySelectorAll('[data-pm-staff]').forEach(b=>b.onclick=()=>editarPagoMovil(state.staff.find(x=>x.id === b.dataset.pmStaff)));
     body.querySelectorAll('[data-tel-staff]').forEach(b=>b.onclick= async ()=>{
       const s = state.staff.find(s=>s.id===b.dataset.telStaff);
       const tel = prompt('WhatsApp de ' + s.nombre + ' (para avisarle de sus reservas). Ej: 0414-1234567', s.telefono||'');
