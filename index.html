@@ -1191,7 +1191,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v360' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v361' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2098,7 +2098,7 @@ setTimeout(function(){
     const so = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows' : /Mac OS/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : 'Otro';
     const tiene = t=>u.indexOf(t) > -1;
     const nav = tiene('SamsungBrowser') ? 'Samsung Internet' : tiene('Edg') ? 'Edge' : tiene('OPR') ? 'Opera' : tiene('Firefox') ? 'Firefox' : (tiene('CriOS') || tiene('Chrome')) ? 'Chrome' : tiene('Safari') ? 'Safari' : 'Navegador';
-    return so + ' · ' + nav;
+    return so + ' · ' + nav + modoApp();   // 📲 v361: queda en Accesos si entró por la app instalada
   }
   function codigoEquipo(){
     let c = null; try{ c = localStorage.getItem('aguamiel_equipo'); }catch(e){}
@@ -9602,7 +9602,10 @@ setTimeout(function(){
     { v:360, fecha:'5 nov', titulo:'Reabrir reservas y enlazar al acompañante', puntos:[
       '🔓 En <strong>Agenda → Pasadas</strong>, una reserva completada tiene <strong>Reabrir</strong> (solo administradores): se puede editar (✏️, p. ej. agregar al acompañante) y la fisioterapeuta llena las fichas que falten. Al terminar, <strong>✅ Dar por atendida</strong>.',
       '🔗 Si el acompañante ya tenía su ficha de ese día, queda enlazada sola: ya no sale como pendiente.',
-      '🔎 Al tocar <strong>➕ Registrar</strong> a un acompañante, primero puedes buscarlo si ya está registrado, para no duplicarlo.' ] }
+      '🔎 Al tocar <strong>➕ Registrar</strong> a un acompañante, primero puedes buscarlo si ya está registrado, para no duplicarlo.' ] },
+    { v:361, fecha:'6 nov', titulo:'¿Quién ya está listo?', puntos:[
+      '📋 En <strong>Admin → Personal</strong> (solo administradores) se ve quién ya registró sus <strong>datos para propinas</strong> y quién usa la <strong>app instalada</strong>, con quiénes faltan y un botón para recordarles. No se muestran los datos de pago.',
+      '🕛 <strong>Tasa BCV</strong>: la de mañana (que el BCV publica en la tarde) queda guardada y rige sola desde las <strong>12:00 a. m.</strong> Una venta a medianoche ya sale con la tasa nueva. Se ve en Admin → Ventas → 💳 Formas de pago.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -12874,7 +12877,7 @@ setTimeout(function(){
       <div class="ag-card" style="border:2px solid var(--teal)">
         <h3>💱 Tasas del día</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-          <div style="background:var(--bg);border-radius:10px;padding:8px"><div class="ag-muted" style="font-size:12px">BCV (oficial)</div><div style="font-size:20px;font-weight:700">${T.bcv?numVE(T.bcv):'—'}</div><div class="ag-muted" style="font-size:11px">${esc(T.fuenteBcv||'')} · ${fechaT(T.fechaBcv)}</div></div>
+          <div style="background:var(--bg);border-radius:10px;padding:8px"><div class="ag-muted" style="font-size:12px">BCV (oficial)</div><div style="font-size:20px;font-weight:700">${T.bcv?numVE(T.bcv):'—'}</div><div class="ag-muted" style="font-size:11px">${esc(T.fuenteBcv||'')} · ${fechaT(T.fechaBcv)}</div>${T.bcvProx && T.bcvProx.valor ? `<div style="font-size:11.5px;margin-top:4px;color:#1d6b35">🕛 Ya publicada la del ${esc(isoToDMY(T.bcvProx.fecha))}: <strong>${numVE(T.bcvProx.valor)}</strong> · rige sola desde las 12:00 a. m.</div>` : ''}</div>
           <div style="background:var(--bg);border-radius:10px;padding:8px"><div class="ag-muted" style="font-size:12px">USDT</div><div style="font-size:20px;font-weight:700">${T.usdt?numVE(T.usdt):'—'}</div><div class="ag-muted" style="font-size:11px">${esc(T.fuenteUsdt||'')} · ${fechaT(T.fechaUsdt)}</div></div>
         </div>
         <div style="margin-top:8px;font-size:14px;background:#eef8ef;border-radius:8px;padding:8px">Descuento de hoy para pagos en divisas: <strong style="font-size:17px;color:#1d6b35">${T.descActivo===false?'desactivado':(T.pct?pctTxt(T.pct):'—')}</strong>${T.descActivo!==false?`<div class="ag-muted" style="font-size:12px">${T.descFijo>0?'Porcentaje fijo':'Automático según las tasas'} · en compras desde <strong>${dinero(descMinDiv())}</strong></div>`:''}</div>
@@ -16634,6 +16637,39 @@ setTimeout(function(){
     };
     gs('getMensajesEquipo', auth()).then(d=>{ if(cont.isConnected) dibuja(d); }).catch(e=>{ if(cont.isConnected) cont.innerHTML = '<p class="ag-err">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</p>'; });
   }
+  // 📋 v361: ¿quién ya registró sus datos para propinas y quién entra desde la app instalada? Solo administradores; no muestra datos de pago.
+  function pintarEquipoListo(box){
+    if(!box || !state.user || !state.user.admin) return;
+    const C = state.eqListo;
+    const pinta = L=>{
+      const aplicaPago = x=>!/cocina|rosita/i.test(x.cargo || '');
+      const conPago = L.filter(aplicaPago), pagoOk = conPago.filter(x=>x.pago || x.otro), appOk = L.filter(x=>x.app === 'si');
+      const faltaPago = conPago.filter(x=>!(x.pago || x.otro)), faltaApp = L.filter(x=>x.app !== 'si');
+      const ICO = { si:['📲','App instalada','#1d6b35'], web:['🌐','Página, sin instalar','#8a5a00'], google:['🔗','Solo enlace de Google','#8a5a00'], sindato:['❔','Entró (aún sin dato)','#777'], nunca:['⛔','No ha entrado','#a32b2b'] };
+      const fecha = iso=>iso ? new Date(iso).toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit' }) : '';
+      const pill = (ic, t, n, d)=>`<div style="flex:1;min-width:0;border:2px solid ${n === d ? '#1d6b35' : 'var(--line)'};border-radius:12px;padding:8px;text-align:center"><div style="font-size:20px">${ic}</div><div style="font-weight:800;font-size:17px">${n}/${d}</div><div class="ag-muted" style="font-size:11.5px">${t}</div></div>`;
+      const nom = x=>esc(String(x.nombre).split(' ')[0]);
+      box.innerHTML = `<details class="ag-card" style="margin-bottom:10px" ${state.eqListoAb !== false ? 'open' : ''}>
+        <summary style="font-weight:700;cursor:pointer">📋 ¿Quién ya está listo?</summary>
+        <div style="display:flex;gap:8px;margin-top:8px">${pill('💳', 'Datos para propinas', pagoOk.length, conPago.length)}${pill('📲', 'App instalada', appOk.length, L.length)}</div>
+        ${faltaPago.length ? `<p style="font-size:13px;margin:8px 0 0">💳 <strong>Faltan datos:</strong> ${faltaPago.map(nom).join(', ')}</p>` : '<p style="font-size:13px;margin:8px 0 0;color:#1d6b35">💳 Todos registraron sus datos para propinas.</p>'}
+        ${faltaApp.length ? `<p style="font-size:13px;margin:4px 0 0">📲 <strong>Sin la app instalada:</strong> ${faltaApp.map(nom).join(', ')}</p>` : '<p style="font-size:13px;margin:4px 0 0;color:#1d6b35">📲 Todos usan la app instalada.</p>'}
+        <div style="margin-top:8px">${L.slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))).map(x=>{ const i = ICO[x.app] || ICO.nunca;
+          const pg = !aplicaPago(x) ? '<span class="ag-muted">—</span>' : (x.pago ? '✅ Pago móvil' : x.otro ? '✅ Otro medio' : '<span style="color:#a32b2b">⏳ Falta</span>');
+          return `<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.2fr);gap:6px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);align-items:center">
+            <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.nombre)}</strong><span>${pg}</span>
+            <span style="color:${i[2]}">${i[0]} ${i[1]}${x.app === 'si' && x.appUlt ? ' <span class="ag-muted">· ' + fecha(x.appUlt) + '</span>' : ''}</span></div>`; }).join('')}</div>
+        <p class="ag-muted" style="font-size:11.5px;margin:8px 0 0">Los datos de pago los pone cada persona en Inicio → 💝 Mis propinas (aquí no se muestran). «App instalada» se marca la próxima vez que la persona entre desde el ícono de la app en su teléfono.</p>
+        ${faltaPago.length || faltaApp.length ? '<button class="ag-btn sm" id="eql-rec" style="width:100%;margin-top:8px">📢 Enviar un recordatorio al equipo</button>' : ''}
+      </details>`;
+      const det = box.querySelector('details'); if(det) det.ontoggle = ()=>{ state.eqListoAb = det.open; };
+      const rec = box.querySelector('#eql-rec'); if(rec) rec.onclick = ()=>{ state.stVista = 'cm'; state.cmAbierto = true; render(); };
+    };
+    if(C && Date.now() - C.t < 120000){ pinta(C.L); return; }
+    box.innerHTML = '<p class="ag-muted" style="font-size:12.5px;margin:0 0 10px">📋 Revisando quién ya está listo…</p>';
+    gs('getEquipoListo', auth()).then(L=>{ state.eqListo = { t:Date.now(), L:L || [] }; if(box.isConnected) pinta(state.eqListo.L); })
+      .catch(()=>{ box.innerHTML = ''; });
+  }
   function renderAdmin(body){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const CARGOS = ['Fisioterapeuta','Médico','Masoterapeuta y profesional del bienestar','Cocina (Rincón de Rosita)'];
@@ -16671,7 +16707,7 @@ setTimeout(function(){
         <label class="f"><input type="checkbox" id="ad-admin" style="width:auto"/> Es administrador</label>
         <button class="ag-btn" id="ad-save" style="margin-top:10px;width:100%">Agregar</button>
       </div>
-      <div id="st-lista" style="${SV === 'lista' ? '' : 'display:none'}"><div class="ag-sec-h" style="margin-top:4px">Personal registrado <span class="ag-muted" style="font-weight:400;font-size:12px">(toca una persona para ver sus opciones)</span></div>
+      <div id="st-lista" style="${SV === 'lista' ? '' : 'display:none'}"><div id="st-listo"></div><div class="ag-sec-h" style="margin-top:4px">Personal registrado <span class="ag-muted" style="font-weight:400;font-size:12px">(toca una persona para ver sus opciones)</span></div>
       ${state.staff.slice().sort((a,b)=>(b.activo - a.activo) || String(a.nombre).localeCompare(String(b.nombre))).map(s=>{ const ab = !!state.stAb[s.id] || state.accesosAbierto === s.id || state.edicAbierto === s.id; return `<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:6px;${s.activo ? '' : 'opacity:.6'}">
         <div data-st-tog="${esc(s.id)}" style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center"><div style="min-width:0"><strong>${ab ? '▾' : '▸'} ${esc(s.nombre)}</strong>${s.activo ? '' : ' <span class="ag-badge" style="background:#eee;color:#777">inactivo</span>'}<div class="ag-muted">${esc(s.cargo||'Fisioterapeuta')} ${s.admin?'· admin':(s.puedeWhatsapp?'· puede enviar WhatsApp':'· no envía WhatsApp')}${!s.admin?(s.puedeEditarFichas?(s.edicionModo==='todas'?' · edita TODAS las fichas':(s.edicionModo==='elegidas'?' · edita las suyas + '+(s.fichasEditables||[]).length+' elegida(s)':' · edita sus fichas')):' · no edita fichas'):''}</div></div><span class="ag-muted" style="flex:none;font-size:12px">${ab ? 'Cerrar' : '⚙️ Opciones'}</span></div>
         <div class="ag-row" style="flex-wrap:wrap;gap:6px;${ab ? '' : 'display:none'}">
@@ -16694,6 +16730,7 @@ setTimeout(function(){
         ${!s.admin?`<div data-edic-panel="${s.id}" style="display:${state.edicAbierto===s.id?'block':'none'}"></div>`:''}</div>`; }).join('')}</div>
     `;
     // Botones de arriba (Personal, Agregar, Reunión…) y abrir/cerrar las opciones de cada persona.
+    if(SV === 'lista') pintarEquipoListo(body.querySelector('#st-listo'));
     body.querySelectorAll('[data-st-v]').forEach(b=>b.onclick = ()=>{ const v = b.dataset.stV; if(v === 'avisos'){ state.adminSub = 'avisos'; render(); return; } state.stVista = v; state.cmAbierto = v === 'cm'; state.rnAbierto = v === 'rn'; render(); });
     body.querySelectorAll('[data-st-tog]').forEach(h=>h.onclick = ()=>{ const id = h.dataset.stTog; state.stAb[id] = !state.stAb[id]; if(!state.stAb[id]){ if(state.accesosAbierto === id) state.accesosAbierto = null; if(state.edicAbierto === id) state.edicAbierto = null; } render(); });
     // ---- Reuniones del equipo
@@ -17449,7 +17486,9 @@ setTimeout(function(){
     if(await registrarHuella(u)) toast('👆 Listo: la próxima vez entras con tu huella.'); else lsSet(k, Date.now());
   }
   // Nombre corto del equipo para la lista de sesiones del servidor (no identifica a la persona).
-  function nombreDispositivo(){ const ua = navigator.userAgent || ''; return (/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Otro') + (window.AG_WEB ? ' · app' : ' · Google'); }
+  function nombreDispositivo(){ const ua = navigator.userAgent || ''; return (/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Otro') + modoApp(); }
+  // 📲 v361: cómo entró la persona: app instalada en el teléfono («· app»), la página web sin instalar («· web») o el enlace de Google.
+  function modoApp(){ if(!window.AG_WEB) return ' · Google'; let inst = false; try{ inst = !!(window.navigator.standalone || (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: minimal-ui)').matches))); }catch(e){} return inst ? ' · app' : ' · web'; }
   function guardarSesion(who){ if(state.prueba) return; lsSet(CLAVE_SESION, { id:String(who.id), pin:String(who.pin), t:Date.now(), nav:null }); }
   function borrarSesion(){ const sB = lsGet(CLAVE_SESION); if(sB && sB.id) ckQuitar(sB.id); lsDel(CLAVE_SESION); if(!window.AG_WEB) copiaBorrar(); else colaSoltar(); state.desdeCopia = 0; avisoCopia(0); }
   // 📴 Si el servidor dice que la sesión ya no vale (PIN cambiado, persona desactivada), este teléfono olvida sus datos y su PIN guardado.
