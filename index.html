@@ -47,6 +47,12 @@
   .mn-tt{font-weight:800;font-size:15px;color:var(--d);line-height:1.2}.mn-sb{font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.25}.mn-tx{display:flex;flex-direction:column;min-width:0}
   .mn-bd{position:absolute;top:10px;right:10px;color:#fff;background:var(--d);font-size:12px;font-weight:800;min-width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;padding:0 6px}
   #ag-app .mn-back{background:none;border:0;color:var(--teal);font-weight:700;font-size:15px;padding:2px 0 8px;cursor:pointer}
+  /* 🗂️ v365: el mismo diseño por dentro: franja de mes en degradado, filtros parejos y encabezado de color en la primera tarjeta. */
+  .mn-mes{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(135deg,var(--teal),var(--teal-d));border-radius:16px;padding:8px;box-shadow:0 4px 12px rgba(10,90,104,.22)}
+  .mn-mes h3{margin:0;text-align:center;color:#fff;font-size:15px;font-weight:800;line-height:1.25}
+  #ag-app .mn-mes .ag-btn{width:40px;height:36px;padding:0;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);box-shadow:none}
+  .mn-chips{display:grid;gap:6px;margin:12px 0 8px}
+  #ag-app .mn-chips .ag-btn{min-width:0;padding:8px 4px;font-size:12.5px;border-radius:999px}
   .mn-fav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:12px}
   #ag-app .mn-fav button{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 4px;font:inherit;font-size:12px;font-weight:600;color:var(--ink);min-width:0;line-height:1.25}
   .ag-btn.sm{padding:7px 12px;font-size:13px;border-radius:7px}
@@ -193,7 +199,8 @@
   .ag-sec-h{background:transparent;color:var(--teal-d);padding:4px 2px;font-size:13.5px;font-weight:700;letter-spacing:.01em;border-radius:0;border-bottom:2px solid var(--teal-l)}
   .ag-badge{border-radius:999px;padding:2px 9px}
   .ag-warn{border-radius:14px}
-  .iv-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .iv-top{display:flex;justify-content:space-between;align-items:center;gap:8px;background:linear-gradient(135deg,var(--teal),var(--teal-d));border-radius:16px;padding:10px 12px;margin:-4px -4px 10px;box-shadow:0 4px 12px rgba(10,90,104,.22)}
+  .iv-top .iv-tit{color:#fff}.iv-top .iv-sub{color:rgba(255,255,255,.88)}.iv-top .iv-ico{background:rgba(255,255,255,.95);border-color:transparent}
   .iv-tit{font-size:17px;font-weight:700;color:var(--ink)}
   .iv-sub{font-size:12.5px;color:var(--sub)}
   .iv-icos{display:flex;gap:6px;flex:0 0 auto}
@@ -513,6 +520,8 @@ setTimeout(function(){
   function mnHero(tit, sub, stats){ return `<div class="mn-hero"><div class="mn-ht">${tit}</div>${sub ? `<div class="mn-hs">${sub}</div>` : ''}${stats && stats.length ? `<div class="mn-sts">${stats.map(s=>`<div class="mn-st" style="color:${s[2][0]};background:${s[2][1]}"><b>${s[0]}</b>${s[1]}</div>`).join('')}</div>` : ''}</div>`; }
   function mnGrid(items){ items = items.filter(Boolean); return `<div class="mn-grid">${items.map((it, i)=>{ const w = i === items.length - 1 && items.length % 2;
     return `<button type="button" class="mn-t${w ? ' w' : ''}" ${it.at} style="--d:${it.c[0]};--l:${it.c[1]}"><span class="mn-ic">${it.e}</span><span class="mn-tx"><span class="mn-tt">${esc(it.t)}</span>${it.sb ? `<span class="mn-sb">${esc(it.sb)}</span>` : ''}</span>${it.n ? `<span class="mn-bd">${it.n}</span>` : ''}</button>`; }).join('')}</div>`; }
+  function mnMes(idPrev, idNext, titulo, nextAttrs){ return `<div class="mn-mes"><button class="ag-btn sm" id="${idPrev}">◀</button><h3>${titulo}</h3><button class="ag-btn sm" id="${idNext}" ${nextAttrs || ''}>▶</button></div>`; }
+  function mnChips(op, activo, attr){ const n = Math.min(op.length, 4); return `<div class="mn-chips" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${op.map(([k, tx])=>`<button class="ag-btn sm ${activo === k ? '' : 'ghost'}" ${attr}="${k}">${tx}</button>`).join('')}</div>`; }
   function mnVolver(at, txt){ return `<button type="button" class="mn-back" ${at}>‹ ${esc(txt)}</button>`; }
   // Mensaje breve y NO bloqueante (a diferencia de alert(), que puede quedar
   // "pendiente" y aparecer en un momento inesperado si el usuario ya navegó
@@ -1209,7 +1218,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v364' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v365' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9659,7 +9668,11 @@ setTimeout(function(){
       '📅 En Admin → Ventas, «Solicitudes» ahora se llama <strong>Confirmar cita</strong>.' ] },
     { v:364, fecha:'6 nov', titulo:'Tu propio texto de WhatsApp en los enlaces', puntos:[
       '📱 Al crear un enlace de catálogo o de menú, la casilla <strong>«Texto del WhatsApp»</strong> pone tu propio texto (usa {nombre} y {enlace}). Se guarda en las plantillas y antes de enviar puedes retocarlo.',
-      '🔗 En <strong>Enlaces ya enviados</strong>: 🔎 buscar por nombre, 📱 reenviar, ✏️ cambiar el mensaje y 🗑️ borrar.' ] }
+      '🔗 En <strong>Enlaces ya enviados</strong>: 🔎 buscar por nombre, 📱 reenviar, ✏️ cambiar el mensaje y 🗑️ borrar.' ] },
+    { v:365, fecha:'6 nov', titulo:'El nuevo diseño también por dentro', puntos:[
+      '🎨 Al entrar a cada pantalla de <strong>Ventas</strong> y <strong>Finanzas</strong> (Presupuestos, Catálogo, Confirmar cita, Por cobrar, Tarifas, Informe, Balance, Ingresos y Gastos) ves arriba una franja de color con lo importante y las acciones en tarjetas.',
+      '📅 El cambio de mes es una barra con ◀ ▶ en todas las pantallas de Finanzas.',
+      '📦 Los inventarios abren con la misma franja de color.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -11541,7 +11554,7 @@ setTimeout(function(){
     if(!state.tfAbiertas) state.tfAbiertas = {};
     body.innerHTML = `
       <div class="ag-card">
-        <h3>💲 Tarifas de servicios</h3>
+        <div class="mn-hero" style="margin:-4px -4px 10px"><div class="mn-ht">💲 Tarifas de servicios</div><div class="mn-hs">Precio de cada terapia y servicio (en $)</div></div>
         <p class="ag-muted" style="font-size:12.5px">Precio de cada terapia y servicio (en $). Puedes cambiar el <strong>nombre</strong> y eliminar categorías, servicios y variantes, o crear nuevas. Las que vienen con la app no se borran del todo: quedan ocultas y puedes restaurarlas. Solo los administradores ven esta sección.</p>
         ${sinPrecio?`<p class="ag-muted" style="font-size:12px">Faltan ${sinPrecio} precio${sinPrecio!==1?'s':''} por llenar; los que dejes vacíos no aparecerán con precio en los presupuestos.</p>`:''}
         <button class="ag-btn ghost sm" id="tf-nueva-cat" style="width:100%;margin-top:6px">➕ Nueva categoría</button>
@@ -11930,9 +11943,8 @@ setTimeout(function(){
           '\nEn este enlace verás lo que incluye tu regalo y podrás elegir en la agenda el día y la hora que quieras para disfrutarlo:\n\n👉 ' + r.url + '\n\n¡Te esperamos con mucho cariño! 🌿'
         : '🌿✨ ¡Hola ' + String(E.nombre||'').split(' ')[0] + '! Te compartimos nuestro catálogo de *Aguamiel · Centro de Bienestar* 💆‍♀️🍽️\n' +
         'Elige con calma los servicios de bienestar y lo que te provoque del Rincón de Rosita; con eso te preparamos tu presupuesto. Si es un regalo, también puedes indicarlo ahí 🎁\n\n👉 ' + r.url + '\n\n¡Te esperamos con mucho cariño! 💙', E.nombre, r.url);
-      body.innerHTML = `<button class="ag-btn ghost sm" id="ce-volver">← Volver</button>
+      body.innerHTML = `${mnVolver('id="ce-volver"', 'Presupuestos')}${mnHero('✅ Catálogo listo', 'Revisa el mensaje y envíalo por WhatsApp')}
         <div class="ag-card" style="margin-top:10px">
-          <h3>✅ Catálogo listo</h3>
           ${E.regaloPag ? `<p style="font-size:13.5px">Envíaselo a <strong>${esc(E.nombre)}</strong>. Verá su regalo (lo que incluye, sin precios; solo «regalo 100% pagado») y elegirá el día y la hora entre los que le diste. Al tocar «Reservar mi lugar» le aparece que su lugar quedó reservado, con día, hora y duración. A ti te llega el aviso y la fecha queda anotada en el presupuesto <strong>${esc(base ? base.numero : '')}</strong>: conviértelo en reserva y asigna a los profesionales para bloquear ese horario.</p>` : `<p style="font-size:13.5px">Envíaselo a <strong>${esc(E.nombre)}</strong>. Cuando elija y lo envíe, te llega el aviso y ${base ? 'lo que elija se suma al presupuesto <strong>' + esc(base.numero) + '</strong>' : 'queda un <strong>presupuesto nuevo</strong> en 🧾 Presupuestos'} para que lo revises, se lo mandes y lo conviertas en reserva cuando abone.</p>`}
           <div id="ce-wa"></div>
           <p class="ag-muted" style="font-size:12px;margin-top:8px">Vence el ${esc(isoToDMY(String(r.vence).slice(0,10)))}. <a href="${esc(r.url)}&previa=1" target="_blank" rel="noopener">👁️ Ver cómo lo verá el cliente (sin avisar)</a></p>
@@ -11950,10 +11962,9 @@ setTimeout(function(){
           <div style="display:flex;gap:6px;margin:4px 0 6px"><button type="button" class="ag-btn sm ghost" data-ce-todos="${esc(gid)}" style="padding:2px 9px;font-size:12px">Todos</button><button type="button" class="ag-btn sm ghost" data-ce-ninguno="${esc(gid)}" style="padding:2px 9px;font-size:12px">Ninguno</button></div>
         </details></div>`; };
     const chk = (attr, key, on, txt, extra)=>`<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 0 3px 22px"><input type="checkbox" ${attr}="${esc(key)}" style="width:auto" ${on?'checked':''}/> <span>${txt}${extra?' <span class="ag-muted" style="font-size:12px">'+extra+'</span>':''}</span></label>`;
-    body.innerHTML = `<button class="ag-btn ghost sm" id="ce-volver">← Volver</button>
+    body.innerHTML = `${mnVolver('id="ce-volver"', 'Presupuestos')}${mnHero('🛍️ Catálogo para el cliente', 'Él elige servicios, paquetes y menú, y te lo envía')}
       <details class="ag-card" id="ce-env" style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">🔗 Enlaces ya enviados (ver, reenviar, editar o borrar)</summary><div id="ce-env-cont" style="margin-top:8px"></div></details>
       <div class="ag-card" style="margin-top:10px">
-        <h3>🛍️ Catálogo para el cliente</h3>
         <p class="ag-muted" style="font-size:12.5px">El cliente abre el enlace, ve los servicios de bienestar, los paquetes y el menú del Rincón de Rosita con sus precios, elige (para él o como regalo), indica qué día le gustaría y lo envía. Con eso queda su presupuesto.</p>
         <div id="ce-plantillas" style="border:1px dashed var(--line);border-radius:10px;padding:8px;margin:6px 0"></div>
         ${base ? `<div class="ag-warn" style="background:var(--teal-l);color:var(--teal-d)">📎 Lo que elija se <strong>suma al presupuesto ${esc(base.numero)}</strong> de ${esc(base.clienteNombre)} (lo que ya pusiste se conserva).</div>` : `
@@ -12351,9 +12362,8 @@ setTimeout(function(){
     const menu = (state.menu||[]).filter(m=>m.activo);
     const optsCliente = state.clientes.slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).map(c=>`<option value="${esc(c.id)}" ${prev&&prev.clienteId===c.id?'selected':''}>${esc(c.nombre)}${c.cedula?' ('+esc(c.cedula)+')':''}</option>`).join('');
     body.innerHTML = `
-      <button class="ag-btn ghost sm" id="pf-volver">← Volver</button>
+      ${mnVolver('id="pf-volver"', 'Volver')}${mnHero(prev ? '✏️ Editar presupuesto ' + esc(prev.numero) : '➕ Nuevo presupuesto', 'Terapias, comidas y paquetes')}
       <div class="ag-card" style="margin-top:10px">
-        <h3>${prev?'Editar presupuesto '+esc(prev.numero):'Nuevo presupuesto'}</h3>
         <label class="f">Buscar cliente</label><input id="pf-buscar" placeholder="Nombre o cédula…"/>
         <label class="f">Cliente</label><select id="pf-cliente"><option value="">— Cliente no registrado —</option>${optsCliente}</select>
         <div id="pf-otro"><div class="ag-row"><div><label class="f">Nombre y apellido</label><input id="pf-nombre" value="${esc(prev&&!prev.clienteId?prev.clienteNombre:'')}"/></div><div><label class="f">Teléfono (WhatsApp)</label><input id="pf-tel" inputmode="tel" placeholder="0414-1234567 o +1 305 555 0100" value="${esc(prev&&!prev.clienteId?prev.clienteTelefono:'')}"/></div></div>
@@ -12668,16 +12678,15 @@ setTimeout(function(){
     const tel = c ? pickTelefono(c) : p.clienteTelefono;
     const pagos = p.pagos || [];
     body.innerHTML = `
-      <button class="ag-btn ghost sm" id="pv-volver">← Volver a presupuestos</button>
+      ${mnVolver('id="pv-volver"', 'Presupuestos')}
       <div class="ag-card" style="margin-top:10px;padding:0;overflow:hidden">${presupuestoHTML(p)}</div>
-      <div class="ag-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
-        <button class="ag-btn" id="pv-imprimir" style="flex:1 1 45%">📤 Enviar (imagen o PDF)</button>
-        <button class="ag-btn" id="pv-wa" style="flex:1 1 45%">📱 Enviar por WhatsApp</button>
-        <button class="ag-btn ghost" id="pv-editar" style="flex:1 1 45%">✏️ Editar</button>
-        <button class="ag-btn ghost" id="pv-regalo" style="flex:1 1 45%">🎁 Mensaje de regalo</button>
-        ${!(p.pagos||[]).length && !p.reservaId && p.estado!=='Aceptado' && p.estado!=='Rechazado' ? `<button class="ag-btn ghost" id="pv-catalogo" style="flex:1 1 45%">🛍️ Que el cliente agregue desde el catálogo</button>` : ''}
-        ${p.reservaId ? `<button class="ag-btn ghost" id="pv-ir-reserva" style="flex:1 1 45%">📅 Ver reserva</button>` : `<button class="ag-btn ghost" id="pv-reserva" style="flex:1 1 45%">📅 Convertir en reserva</button>`}
-      </div>
+      <div style="margin-top:10px">${mnGrid([   // 🗂️ v365: acciones en tarjetas iguales
+        { at:'id="pv-wa"', e:'📱', t:'WhatsApp', sb:'Enviar el enlace', c:['#1d6b35','#e2f4e6'] },
+        { at:'id="pv-imprimir"', e:'📤', t:'Imagen o PDF', sb:'Enviar como archivo', c:['#0a5a68','#e2f4f6'] },
+        p.reservaId ? { at:'id="pv-ir-reserva"', e:'📅', t:'Ver reserva', sb:'Ya está agendada', c:['#5b3f8f','#efe9f8'] } : { at:'id="pv-reserva"', e:'📅', t:'Convertir en reserva', sb:'Agendar la cita', c:['#5b3f8f','#efe9f8'] },
+        { at:'id="pv-editar"', e:'✏️', t:'Editar', sb:'Cambiar lo incluido', c:['#8a5a00','#fff3d6'] },
+        { at:'id="pv-regalo"', e:'🎁', t:'Mensaje de regalo', sb:'Para quien lo recibe', c:['#a23a69','#fdf3f7'] },
+        !(p.pagos||[]).length && !p.reservaId && p.estado!=='Aceptado' && p.estado!=='Rechazado' ? { at:'id="pv-catalogo"', e:'🛍️', t:'Que agregue más', sb:'Desde el catálogo', c:['#35616b','#eef5f6'] } : null ])}</div>
       ${(p.pagosReportados||[]).length ? `<div class="ag-card" id="pv-pagosgrupo" style="margin-top:10px;background:${p.pagosReportados.some(x=>!x.verificado) ? '#fff7e6;border-color:#f0d9a8' : '#eef8ef;border-color:#cfe8d5'}">
         <div style="font-weight:700;font-size:14.5px">💳 Pagos reportados${p.pagosReportados.some(x=>x.abono) ? ' (incluye abonos de saldo desde el enlace)' : ' por persona'}${p.pagosReportados.some(x=>!x.verificado) ? ' · ' + p.pagosReportados.filter(x=>!x.verificado).length + ' por verificar' : ' · todos verificados ✅'}</div>
         ${p.pagosReportados.map(x=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px;margin-top:6px;background:#fff"><div><strong>${esc(x.nombre)}</strong> · ${x.pct ? 'dice que pagó el <strong>' + x.pct + '%</strong> (' + dinero(x.monto) + ')' : 'adjuntó un comprobante'} · ${x.verificado ? '✅ verificado' + (x.verificadoPor ? ' por ' + esc(String(x.verificadoPor).split(' ')[0]) : '') + (x.montoVerificado ? ' (' + dinero(x.montoVerificado) + ')' : '') : '⏳ por verificar'}</div>
@@ -13072,19 +13081,9 @@ setTimeout(function(){
     grupos.sort((a,b)=>a.masVieja.localeCompare(b.masVieja));
     const telDig = t=>String(t||'').replace(/[^\d+]/g,'');
     body.innerHTML = `
-      <div class="ag-card">
-        <h3>💰 Cuentas por cobrar</h3>
-        <p class="ag-muted" style="font-size:12.5px">Saldos pendientes de reservas (monto total menos abonos) y consumos del Rincón de Rosita cerrados como "no pagado". Desde aquí puedes escribir por WhatsApp, llamar y anotar cada gestión.</p>
-        <div class="ag-row" style="margin-top:8px;text-align:center">
-          <div><span class="ag-muted">Vencidas</span><br/><strong style="color:var(--danger)">${dinero(suma(venc))}</strong><br/><span class="ag-muted" style="font-size:11px">${venc.length} cuenta${venc.length!==1?'s':''}</span></div>
-          <div><span class="ag-muted">Hoy</span><br/><strong>${dinero(suma(deHoy))}</strong><br/><span class="ag-muted" style="font-size:11px">${deHoy.length}</span></div>
-          <div><span class="ag-muted">Próximas</span><br/><strong>${dinero(suma(prox))}</strong><br/><span class="ag-muted" style="font-size:11px">${prox.length}</span></div>
-        </div>
-        <button class="ag-btn ghost sm" id="cx-recargar" style="width:100%;margin-top:8px">↻ Actualizar</button>
-      </div>
-      <div class="ag-row" style="margin:12px 0 8px;gap:6px;flex-wrap:wrap">
-        ${[['vencidas','Vencidas'],['hoy','Hoy'],['proximas','Próximas'],['todas','Todas']].map(([k,t])=>`<button class="ag-btn sm ${X.filtro===k?'':'ghost'}" data-cx-filtro="${k}" style="flex:1 1 auto;min-width:0;padding:6px">${t}</button>`).join('')}
-      </div>
+      ${mnHero('💰 Cuentas por cobrar', 'Reservas y consumos de Rosita sin pagar', [[dinero(suma(venc)), venc.length + ' vencida' + (venc.length !== 1 ? 's' : ''), ['#a32b2b','#fcebeb']], [dinero(suma(deHoy)), 'hoy', ['#8a5a00','#fff3d6']], [dinero(suma(prox)), 'próximas', ['#0a5a68','#e2f4f6']]])}
+      ${mnChips([['vencidas','Vencidas'],['hoy','Hoy'],['proximas','Próximas'],['todas','Todas']], X.filtro, 'data-cx-filtro')}
+      ${mnGrid([{ at:'id="cx-recargar"', e:'↻', t:'Actualizar', sb:'Traer lo más reciente', c:['#35616b','#eef5f6'] }])}
       ${grupos.map((g,gi)=>`
         <div class="ag-card" style="margin-top:10px">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
@@ -13490,12 +13489,8 @@ setTimeout(function(){
     if(G.cat && !catsTodas.includes(G.cat)) catsTodas.push(G.cat);
     const gruposVista = (G.cat ? grupos.map(g=>Object.assign({}, g, { items:g.items.filter(x=>x.categoria === G.cat) })).filter(g=>g.items.length) : grupos).slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
     cont.innerHTML = `
-      <div class="ag-card" style="border-top:5px solid #a32b2b">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <button class="ag-btn sm ghost" id="gs-prev" style="width:44px">◀</button>
-          <h3 style="margin:0;text-align:center;color:#a32b2b">💸 Gastos · ${esc(MESES_ES[mm-1])} ${yy}</h3>
-          <button class="ag-btn sm ghost" id="gs-next" style="width:44px">▶</button>
-        </div>
+      <div class="ag-card">
+        ${mnMes('gs-prev', 'gs-next', '💸 Gastos · ' + esc(MESES_ES[mm-1]) + ' ' + yy)}
         <p class="ag-muted" style="font-size:12.5px;margin:6px 0 0">Gastos del personal operativo (comida, herramientas, uniformes…). Los montos van en dólares; si la factura está en bolívares se convierte con la tasa que indiques.</p>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center"><span style="font-size:13px;flex:0 0 auto">Presupuesto del mes ($)</span><input id="gs-pres" inputmode="decimal" value="${pres ? esc(pres) : ''}" placeholder="Ej: 300" style="flex:1;min-width:0"/><button class="ag-btn sm" id="gs-pres-ok">Guardar</button></div>
         <details style="margin-top:10px" id="gs-tasas"><summary style="cursor:pointer;font-size:13px;font-weight:700">💱 Revisar tasas de las facturas en Bs</summary>
@@ -13780,7 +13775,7 @@ setTimeout(function(){
   }
   function finMesNav(mes, idPrev, idNext, titulo){
     const [yy, mm] = mes.split('-').map(Number);
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><button class="ag-btn sm ghost" id="${idPrev}" style="width:44px">◀</button><h3 style="margin:0;text-align:center">${titulo} · ${esc(MESES_ES[mm-1])} ${yy}</h3><button class="ag-btn sm ghost" id="${idNext}" style="width:44px">▶</button></div>`;
+    return mnMes(idPrev, idNext, titulo + ' · ' + esc(MESES_ES[mm-1]) + ' ' + yy);   // 🗂️ v365: franja de color
   }
   function finMover(mes, d){ const [y, m] = mes.split('-').map(Number); const nd = new Date(y, m - 1 + d, 1); return nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0'); }
   const finPct = (v, base)=>base > 0 ? Math.round(v / base * 1000) / 10 + '%' : '—';
@@ -15612,9 +15607,8 @@ setTimeout(function(){
       <div style="font-size:13.5px;margin-top:4px">${diaTxt(x)}${x.personas ? ' · 👥 ' + x.personas + ' persona' + (x.personas === 1 ? '' : 's') : ''}${x.tipo === 'regalo' ? '' : ' · ' + dinero(x.total)}</div>
       ${x.notasCliente ? `<div style="font-size:12.5px;margin-top:2px;white-space:pre-wrap">📝 ${esc(x.notasCliente)}</div>` : ''}${pagoTxt(x)}
       <div class="ag-row" style="margin-top:8px;gap:6px"><button class="ag-btn sm ${atendida ? 'ghost' : ''}" data-sl-abrir="${esc(x.id)}">🧾 ${atendida ? 'Ver presupuesto' : 'Abrir y atender'}</button></div></div>`;
-    cont.innerHTML = `<div class="ag-card"><h3>📅 Confirmar cita · solicitudes de clientes</h3>
-      <p class="ag-muted" style="font-size:12.5px;margin:0">Lo que piden los clientes desde sus enlaces (catálogo, regalos, grupos, menú), en un solo lugar. <strong>${D.pendientes.length}</strong> por atender · <strong>${D.esperando.length}</strong> enlaces esperando respuesta.</p>
-      <button class="ag-btn sm ghost" id="sl-recargar" style="margin-top:8px">🔄 Actualizar</button></div>
+    cont.innerHTML = `${mnHero('📅 Confirmar cita', 'Lo que piden los clientes desde sus enlaces', [[D.pendientes.length, 'por atender', ['#a32b2b','#fcebeb']], [D.esperando.length, 'esperando respuesta', ['#8a5a00','#fff3d6']]])}
+      ${mnGrid([{ at:'id="sl-recargar"', e:'↻', t:'Actualizar', sb:'Traer lo más reciente', c:['#35616b','#eef5f6'] }])}
       <div class="ag-sec-h" style="margin-top:14px">⏳ Por atender (${D.pendientes.length})</div>
       ${D.pendientes.length ? D.pendientes.map(x=>tarjeta(x, false)).join('') : '<p class="ag-empty">No hay solicitudes pendientes. 🎉</p>'}
       <div class="ag-sec-h" style="margin-top:16px">📨 Enlaces enviados, esperando respuesta (${D.esperando.length})</div>
@@ -16065,7 +16059,7 @@ setTimeout(function(){
           <button class="ag-btn sm ${D.modo==='mes' ? '' : 'ghost'}" data-iv-modo="mes">📅 Por mes</button>
           <button class="ag-btn sm ${D.modo==='semana' ? '' : 'ghost'}" data-iv-modo="semana">🗓️ Por semana</button>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px"><button class="ag-btn sm ghost" id="iv-prev" style="width:44px">◀</button><h3 style="margin:0;text-align:center">📈 ${esc(ivEtiqueta(D.modo, D.ref))}</h3><button class="ag-btn sm ghost" id="iv-next" style="width:44px" ${ivMover(D.modo, D.ref, 1) > (D.modo === 'mes' ? D.hoy.slice(0, 7) : D.hoy) ? 'disabled' : ''}>▶</button></div>
+        <div style="margin-top:10px">${mnMes('iv-prev', 'iv-next', '📈 ' + esc(ivEtiqueta(D.modo, D.ref)), `${ivMover(D.modo, D.ref, 1) > (D.modo === 'mes' ? D.hoy.slice(0, 7) : D.hoy) ? 'disabled' : ''}`)}</div>
         <label class="f" style="margin-top:8px">⚖️ Comparar con</label>
         <select id="iv-comp"><option value="">— No comparar (solo ${D.modo === 'mes' ? 'este mes' : 'esta semana'}) —</option>${opcComp.map(c=>`<option value="${c}" ${c===D.comparar ? 'selected' : ''}>${esc(ivEtiqueta(D.modo, c))}</option>`).join('')}</select>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
@@ -16180,8 +16174,8 @@ setTimeout(function(){
     const partes = k=>{ const s = ADM_NOMBRES[k] || k, i = s.indexOf(' '); return [s.slice(0, i), s.slice(i + 1)]; };
     const grpVer = !sub && state.adminGrp ? ADM_GRUPOS.find(g=>g[0] === state.adminGrp) : null;
     let arriba;
-    if(sub && grupoActual && sub === 'presupuestos'){
-      arriba = mnVolver(`data-adm-grp="${grupoActual[0]}"`, grupoActual[2]);   // trae su propia franja con números
+    if(sub && grupoActual && ['presupuestos','cobrar','solicitudes','tarifas','balance','ingresos','gastos','informe','inv_rosita','inv_personal','inv_spa','inv_oper'].includes(sub)){
+      arriba = sub === 'presupuestos' && state.pr && state.pr.vista && state.pr.vista !== 'lista' ? '' : mnVolver(`data-adm-grp="${grupoActual[0]}"`, grupoActual[2]);   // trae su propia franja con números (dentro de un presupuesto, solo su «‹ Volver»)
     } else if(sub && grupoActual){
       const pt = partes(sub);
       const c0 = (grupoActual[0] === 'dinero' && FIN_COL[sub]) || GC[grupoActual[0]];
