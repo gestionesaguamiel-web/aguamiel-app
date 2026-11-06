@@ -36,6 +36,19 @@
   .ag-btn:active{opacity:.85}
   .ag-btn.ghost{background:#fff;color:var(--teal);border:1px solid var(--teal)}
   .ag-btn.danger{background:var(--danger)}
+  /* 🗂️ v362: menús de tarjetas (Operaciones, Rosita, Admin): todas del mismo tamaño, ícono de color, nombre y una línea de ayuda. */
+  .mn-hero{background:linear-gradient(135deg,var(--teal),var(--teal-d));color:#fff;border-radius:18px;padding:12px 12px 10px;margin-bottom:12px;box-shadow:0 4px 12px rgba(10,90,104,.25)}
+  .mn-ht{font-size:18px;font-weight:800;line-height:1.25}.mn-hs{font-size:12.5px;opacity:.92;margin-top:2px}
+  .mn-sts{display:flex;gap:6px;margin-top:8px}.mn-st{flex:1;min-width:0;border-radius:12px;padding:6px 4px;text-align:center;font-size:11px;font-weight:600;line-height:1.2}.mn-st b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  #ag-app .mn-t{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;background:#fff;border:1px solid #e9eeec;border-radius:18px;padding:12px;min-height:104px;box-shadow:0 2px 8px rgba(0,0,0,.06);color:var(--ink);font:inherit;min-width:0;transition:transform .12s}
+  #ag-app .mn-t:active{transform:scale(.97)}#ag-app .mn-t.w{grid-column:1 / -1;min-height:0;flex-direction:row;align-items:center;gap:10px}
+  .mn-ic{width:42px;height:42px;flex:0 0 auto;border-radius:13px;background:var(--l);display:flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:8px}.mn-t.w .mn-ic{margin-bottom:0}
+  .mn-tt{font-weight:800;font-size:15px;color:var(--d);line-height:1.2}.mn-sb{font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.25}.mn-tx{display:flex;flex-direction:column;min-width:0}
+  .mn-bd{position:absolute;top:10px;right:10px;color:#fff;background:var(--d);font-size:12px;font-weight:800;min-width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;padding:0 6px}
+  #ag-app .mn-back{background:none;border:0;color:var(--teal);font-weight:700;font-size:15px;padding:2px 0 8px;cursor:pointer}
+  .mn-fav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:12px}
+  #ag-app .mn-fav button{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 4px;font:inherit;font-size:12px;font-weight:600;color:var(--ink);min-width:0;line-height:1.25}
   .ag-btn.sm{padding:7px 12px;font-size:13px;border-radius:7px}
   .ag-btn[disabled]{opacity:.5}
   .ag-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
@@ -496,6 +509,11 @@ setTimeout(function(){
   const MEDICO_TURNO_HTML = '<strong>Dr. César Zamora</strong><br><span style="font-size:10px">Médico especialista en salud ocupacional</span><br><span style="font-size:10px">C.I. 13.475.931 · MPPS 100.500 · CMM 3686</span>';
 
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // 🗂️ v362: piezas de los menús de tarjetas. it = { at:'atributos del botón', e:'emoji', t:'nombre', sb:'ayuda', c:[colorFuerte, colorSuave], n:globito }.
+  function mnHero(tit, sub, stats){ return `<div class="mn-hero"><div class="mn-ht">${tit}</div>${sub ? `<div class="mn-hs">${sub}</div>` : ''}${stats && stats.length ? `<div class="mn-sts">${stats.map(s=>`<div class="mn-st" style="color:${s[2][0]};background:${s[2][1]}"><b>${s[0]}</b>${s[1]}</div>`).join('')}</div>` : ''}</div>`; }
+  function mnGrid(items){ items = items.filter(Boolean); return `<div class="mn-grid">${items.map((it, i)=>{ const w = i === items.length - 1 && items.length % 2;
+    return `<button type="button" class="mn-t${w ? ' w' : ''}" ${it.at} style="--d:${it.c[0]};--l:${it.c[1]}"><span class="mn-ic">${it.e}</span><span class="mn-tx"><span class="mn-tt">${esc(it.t)}</span>${it.sb ? `<span class="mn-sb">${esc(it.sb)}</span>` : ''}</span>${it.n ? `<span class="mn-bd">${it.n}</span>` : ''}</button>`; }).join('')}</div>`; }
+  function mnVolver(at, txt){ return `<button type="button" class="mn-back" ${at}>‹ ${esc(txt)}</button>`; }
   // Mensaje breve y NO bloqueante (a diferencia de alert(), que puede quedar
   // "pendiente" y aparecer en un momento inesperado si el usuario ya navegó
   // a otra pantalla mientras el servidor respondía).
@@ -1191,7 +1209,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v361' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v362' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2214,7 +2232,7 @@ setTimeout(function(){
       const sesS = lsGet(CLAVE_SESION);
       if(sesS && huellaDe(state.user.id) && esLlaveLocal(sesS.pin)){ sesS.t = 0; sesS.nav = null; lsSet(CLAVE_SESION, sesS); ckQuitar(state.user.id); state.loginUserId = String(state.user.id); }
       else { const a0 = auth(); if(a0 && esLlaveLocal(a0.pin)) gs('cerrarMiSesion', a0).catch(()=>{}); borrarSesion(); } borrarBorrador(); cerrarPopupDisp(); cerrarCumple(); if(window.AG_WEB) colaSoltar(); state.disp=null; state.dispEq=null; state.inv=null; state.user=null; state.view='login'; state.pinBuf=''; state.agenda=null; state.reservaActual=null; state.reservaPersona=null; state.registrarPersonaReserva=null; render(); };
-    const irTab = k=>{ state.tab=k; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); try{ window.scrollTo(0, 0); }catch(e){} };
+    const irTab = k=>{ if(k === 'adminpanel'){ state.adminSub = ''; state.adminGrp = null; } if(k === 'operaciones' && state.op){ state.op.sec = 'menu'; state.op.form = null; state.op.zona = ''; } state.tab=k; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     app.querySelectorAll('.ag-nav button').forEach(b=>b.onclick=()=>{ if(b.dataset.tab === 'mas') return abrirMenuMas(tabsMas, irTab); irTab(b.dataset.tab); });
     irTabFab = irTab; conectarFab(app.querySelector('#ag-fab-nueva'));
     const body = app.querySelector('#ag-body');
@@ -4976,14 +4994,23 @@ setTimeout(function(){
     lista.sort((a,b)=> ['abiertas','cocina','programadas','listas'].includes(R.filtro) ? clave(a).localeCompare(clave(b)) : clave(b).localeCompare(clave(a)));
     const abiertas = pedidosVisibles().filter(p=>p.estado==='Abierta' && !((p.fechaEntrega||'') > hoy));
     const cobradoHoy = (state.pedidos||[]).filter(p=>p.estado==='Cerrada' && fechaLocal(p.cerradoAt)===hoy).reduce((t,p)=>t+(Number(p.total)||0),0);
-    body.innerHTML = `
-      <div class="ag-card">
+    // 🗂️ v362: arriba lo del día y las acciones en tarjetas iguales (la cocina conserva su vista sencilla). Los montos solo para administradores.
+    const progN = pedidosVisibles().filter(p=>p.estado!=='Cancelada' && (p.fechaEntrega||'') > hoy).length;
+    const RC = { g:['#1d6b35','#e2f4e6'], t:['#0a5a68','#e2f4f6'], a:['#8a5a00','#fff3d6'], p:['#5b3f8f','#efe9f8'] };
+    const cabRosita = cocina ? `      <div class="ag-card">
         <h3>🍽️ El Rincón de Rosita</h3>
         <p class="ag-muted">${cocina ? '👩‍🍳 Cocina · ' + (state.pedidos||[]).filter(p=>paraCocinaHoy(p) && p.cocinaEstado!=='listo').length + ' por preparar hoy' : abiertas.length + ' orden' + (abiertas.length!==1?'es':'') + ' en curso' + (admin?' · Cerrado hoy: '+dinero(cobradoHoy):' · tus órdenes de hoy')}</p>
         ${cocina ? '' : '<button class="ag-btn" id="ro-nuevo" style="width:100%;margin-top:8px">+ Nueva orden</button>'}
         ${!cocina && puedeEnviarWhatsapp() ? '<button class="ag-btn ghost" id="ro-enlace" style="width:100%;margin-top:8px">🔗 Enviar el menú al cliente (que elija él)</button>' : ''}
         ${state.user.admin?'<button class="ag-btn ghost sm" id="ro-menu" style="width:100%;margin-top:8px">📋 Menú, precios y avisos</button><button class="ag-btn ghost sm" id="ro-costos" style="width:100%;margin-top:6px">🧮 Costos de recetas (platos nuevos)</button>':''}
-      </div>
+      </div>` : mnHero('🍽️ El Rincón de Rosita', admin ? '' : 'Tus órdenes de hoy', [[abiertas.length, 'en curso', RC.t]].concat(admin ? [[dinero(cobradoHoy), 'cerrado hoy', RC.g]] : []).concat([[progN, 'programadas', RC.a]]))
+      + mnGrid([
+        { at:'id="ro-nuevo"', e:'➕', t:'Nueva orden', sb:'Mesa, cabaña o piscina', c:RC.g },
+        puedeEnviarWhatsapp() ? { at:'id="ro-enlace"', e:'🔗', t:'Enviar menú', sb:'Que elija el cliente', c:RC.t } : null,
+        admin ? { at:'id="ro-menu"', e:'📋', t:'Menú y precios', sb:'Platos y avisos', c:RC.a } : null,
+        admin ? { at:'id="ro-costos"', e:'🧮', t:'Costos', sb:'Recetas y platos nuevos', c:RC.p } : null ]);
+    body.innerHTML = `
+      ${cabRosita}
       <div class="ag-row" style="margin:12px 0 8px;flex-wrap:wrap;gap:6px">
         ${(cocina?[['cocina','🔥 Para hoy'],['programadas','📅 Próximos días'],['listas','✅ Listas hoy']]:admin?[['abiertas','En curso'],['hoy','Hoy'],['programadas','📅 Programadas'],['cerradas','Cerradas'],['todas','Todas']]:[['abiertas','En curso'],['hoy','Hoy'],['cerradas','Cerradas hoy']]).map(([k,t])=>`<button class="ag-btn sm ${R.filtro===k?'':'ghost'}" data-ro-filtro="${k}" style="flex:1">${t}</button>`).join('')}
       </div>
@@ -9605,7 +9632,10 @@ setTimeout(function(){
       '🔎 Al tocar <strong>➕ Registrar</strong> a un acompañante, primero puedes buscarlo si ya está registrado, para no duplicarlo.' ] },
     { v:361, fecha:'6 nov', titulo:'¿Quién ya está listo?', puntos:[
       '📋 En <strong>Admin → Personal</strong> (solo administradores) se ve quién ya registró sus <strong>datos para propinas</strong> y quién usa la <strong>app instalada</strong>, con quiénes faltan y un botón para recordarles. No se muestran los datos de pago.',
-      '🕛 <strong>Tasa BCV</strong>: la de mañana (que el BCV publica en la tarde) queda guardada y rige sola desde las <strong>12:00 a. m.</strong> Una venta a medianoche ya sale con la tasa nueva. Se ve en Admin → Ventas → 💳 Formas de pago.' ] }
+      '🕛 <strong>Tasa BCV</strong>: la de mañana (que el BCV publica en la tarde) queda guardada y rige sola desde las <strong>12:00 a. m.</strong> Una venta a medianoche ya sale con la tasa nueva. Se ve en Admin → Ventas → 💳 Formas de pago.' ] },
+    { v:362, fecha:'6 nov', titulo:'Menús en tarjetas', puntos:[
+      '🗂️ <strong>Operaciones</strong>, <strong>Rosita</strong> y la parte de arriba de <strong>Admin</strong> ahora son tarjetas del mismo tamaño, con ícono y una línea de ayuda. Cada una abre su propia pantalla y arriba está «‹ Volver».',
+      '📌 Arriba de cada una se ve lo del día: en Operaciones lo vencido, lo de esta semana y lo que está en reparación; en Rosita las órdenes en curso y las programadas.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -15193,23 +15223,45 @@ setTimeout(function(){
     const nz = body.querySelector('#oz-nz'); if(nz) nz.onclick = async ()=>{ const n = await opNuevaArea(); if(!n) return; O.volverZona = true; O.sec = 'tareas'; O.form = { estado:'Pendiente', area:n, prioridad:'Media' }; render(); window.scrollTo(0, 0); };
     opMatWire(body, O);
   }
+  // 🗂️ v362: menú de Operaciones en tarjetas. Arriba lo urgente; cada tarjeta abre su propia pantalla (con los mismos datos de siempre).
+  function opMenuHTML(O){
+    const D = O.datos, hoy = hoyISO(), sum = n=>{ const d = new Date(hoy + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }, en3 = sum(3), en7 = sum(7);
+    const L = (D || []).filter(x=>(x.seccion === 'tareas' || x.seccion === 'mantenimiento') && !(OP_SECC[x.seccion].hecho || []).includes(x.estado));
+    const rep = x=>/reparaci|fuera de servicio/i.test(x.estado || '');
+    const cnt = f=>D ? L.filter(f).length : '…';
+    const nPend = k=>D ? D.filter(x=>x.seccion === k && !OP_SECC[k].hecho.includes(x.estado)).length : 0;
+    const C = { r:['#a32b2b','#fcebeb'], g:['#1d6b35','#e2f4e6'], t:['#0a5a68','#e2f4f6'], a:['#8a5a00','#fff3d6'], p:['#5b3f8f','#efe9f8'], b:['#2c5aa0','#e6eefa'], s:['#35616b','#eef5f6'] };
+    const hoyN = D ? L.filter(x=>(x.fecha && x.fecha <= en3) || rep(x)).length : 0;
+    return mnHero('🛠️ Operaciones', '', [[cnt(x=>x.fecha && x.fecha < hoy), 'vencidas', C.r], [cnt(x=>x.fecha && x.fecha >= hoy && x.fecha <= en7), 'esta semana', C.a], [cnt(x=>x.seccion === 'mantenimiento' && rep(x)), 'en reparación', C.p]])
+      + mnGrid([
+        { at:'data-op-sec="zonas" data-op-zona="__hoy"', e:'📌', t:'Hoy toca', sb:'Lo vencido y lo próximo', c:C.r, n:hoyN },
+        { at:'data-op-sec="zonas" data-op-zona=""', e:'🗺️', t:'Por zona', sb:'Cabañas, jardines…', c:C.g },
+        { at:'data-op-sec="tareas"', e:'✅', t:'Tareas', sb:'Por realizar', c:C.t, n:nPend('tareas') },
+        { at:'data-op-sec="mantenimiento"', e:'🔧', t:'Equipos', sb:'Mantenimiento', c:C.a, n:nPend('mantenimiento') },
+        { at:'data-op-sec="proyectos"', e:'📐', t:'Proyectos', sb:'Estimaciones de mejora', c:C.p, n:nPend('proyectos') },
+        { at:'data-op-sec="obras"', e:'🏗️', t:'Obras', sb:'Construcción y supervisión', c:C.b, n:nPend('obras') },
+        { at:'data-op-sec="reporte"', e:'📊', t:'Reporte', sb:'Semanal', c:C.s },
+        { at:'data-op-sec="tareas" data-op-nueva="1"', e:'➕', t:'Nueva tarea', sb:'Anotar algo por hacer', c:C.g } ]);
+  }
   function renderOperaciones(body){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Esta sección es solo para administradores.</p>'; return; }
-    if(!state.op) state.op = { datos:null, error:'', sec:'zonas', form:null, filtro:'' };
+    if(!state.op) state.op = { datos:null, error:'', sec:'menu', form:null, filtro:'' };   // 🗂️ v362: abre en el menú de tarjetas
     const O = state.op, S = OP_SECC[O.sec];
     const nPend = k=>O.datos ? O.datos.filter(x=>x.seccion === k && !OP_SECC[k].hecho.includes(x.estado)).length : 0;
     // Cada sección con su color (pestaña, encabezados de grupo y franja de las tarjetas) para distinguirlas de un vistazo.
     const OP_COLOR = { zonas:['#1d6b35','#e2f4e6'], tareas:['#0a5a68','#e2f4f6'], mantenimiento:['#8a5a00','#fff3d6'], proyectos:['#5b3f8f','#efe9f8'], reporte:['#35616b','#eef5f6'] };
     const colSec = k=>OP_COLOR[k] || OP_COLOR.tareas;
     const tabOp = (k, txt, extra)=>{ const c = colSec(k), on = O.sec === k; return `<button class="ag-btn sm" data-op-sec="${k}" style="flex:1 1 30%;min-width:0;padding:9px 6px;font-size:12.5px;border:2px solid ${c[0]};background:${on ? c[0] : c[1]};color:${on ? '#fff' : c[0]};font-weight:700">${txt}${extra || ''}</button>`; };
-    const cab = `<div class="ag-row" style="flex-wrap:wrap;gap:6px;margin-bottom:12px">${tabOp('zonas', '🗺️ Por zona')}${Object.keys(OP_SECC).map(k=>tabOp(k, OP_SECC[k].icono + ' ' + esc(OP_SECC[k].nombre), O.datos ? ' <span class="ag-badge" style="background:#fff;color:' + colSec(k)[0] + '">' + nPend(k) + '</span>' : '')).join('')}${tabOp('reporte', '📊 Reporte semanal')}</div>`;
-    const conectarSecc = ()=>body.querySelectorAll('[data-op-sec]').forEach(b=>b.onclick = ()=>{ O.sec = b.dataset.opSec; O.form = null; O.filtro = ''; O.q = ''; O.filtroTipo = ''; O.filtroArea = ''; render(); });
+    // 🗂️ v362: cada sección abre en su propia pantalla; arriba solo «‹ Operaciones» para volver al menú de tarjetas.
+    const cab = mnVolver('data-op-sec="menu"', 'Operaciones');
+    const conectarSecc = ()=>body.querySelectorAll('[data-op-sec]').forEach(b=>b.onclick = ()=>{ O.sec = b.dataset.opSec; O.volverZona = false; if(O.sec === 'menu' || b.dataset.opZona !== undefined) O.zona = b.dataset.opZona || ''; O.form = b.dataset.opNueva ? { titulo:'', estado:'Pendiente', area:'', tipo:'', responsable:'', ubicacion:'', fecha:'', fecha2:'', monto:'', avance:0, prioridad:'Media', notas:'' } : null; O.filtro = ''; O.q = ''; O.filtroTipo = ''; O.filtroArea = ''; render(); });
     if(!O.datos){
-      body.innerHTML = cab + (O.error ? `<p class="ag-err">${esc(O.error)}</p><button class="ag-btn ghost sm" id="op-reint">Reintentar</button>` : '<p class="ag-empty">Cargando…</p>');
+      body.innerHTML = (O.sec === 'menu' ? opMenuHTML(O) : cab) + (O.error ? `<p class="ag-err">${esc(O.error)}</p><button class="ag-btn ghost sm" id="op-reint">Reintentar</button>` : (O.sec === 'menu' ? '' : '<p class="ag-empty">Cargando…</p>'));
       conectarSecc(); const rb = body.querySelector('#op-reint'); if(rb) rb.onclick = ()=>{ O.error = ''; render(); };
       if(!O.error) Promise.all([gs('getOperaciones', auth()), gs('getOpAreas', auth()).catch(()=>[])]).then(([d, ar])=>{ opAplicarAreas(ar); O.datos = d; if(state.op === O) render(); }).catch(e=>{ O.error = String(e && e.message ? e.message : e); if(state.op === O) render(); });
       return;
     }
+    if(O.sec === 'menu'){ body.innerHTML = opMenuHTML(O); conectarSecc(); return; }
     if(O.sec === 'reporte'){ opRenderReporte(body, cab, O, conectarSecc); return; }
     if(O.sec === 'zonas'){ opRenderZonas(body, cab, O, conectarSecc); return; }
     // ---- formulario (nuevo / editar) ----
@@ -16043,34 +16095,46 @@ setTimeout(function(){
     });
     cont.querySelectorAll('[data-iv-ver]').forEach(b=>b.onclick = ()=>{ state.pr = { vista:'ver', editId:b.dataset.ivVer }; state.presupuestos = null; state.adminSub = 'presupuestos'; render(); window.scrollTo(0, 0); });
   }
+  function admGrupoDe(k){ return ({ presupuestos:'ventas', informe:'ventas', paquetes:'ventas', fidel:'ventas', solicitudes:'ventas', cobrar:'ventas', pagos:'ventas', tarifas:'ventas', balance:'dinero', fondo:'dinero', ingresos:'dinero', gastos:'dinero', pagosper:'dinero', inv_rosita:'inventario', inv_personal:'inventario', inv_spa:'inventario', inv_oper:'inventario', compras:'inventario', choques:'sistema', papelera:'sistema', limpieza:'sistema', rendimiento:'sistema', importar:'sistema', exportar:'sistema' })[k] || (k ? 'equipo' : null); }
   function renderAdminPanel(body){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
-    const sub = state.adminSub || 'staff';
+    const sub = state.adminSub || '';   // 🗂️ v362: sin sección = inicio de Admin (tarjetas de grupos + Staff debajo, como antes)
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
     const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
     const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
-    const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || ADM_GRUPOS[3];
+    const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || null;
     const hayPagos = (state.pagosPend||[]).length;
     // ⭐ v343: «Lo que más uso»: las 6 secciones que esta persona abre más (se cuentan en este teléfono, nada se envía).
     const kUso = 'ag_admuso_' + state.user.id; let uso = {};
     try{ uso = JSON.parse(localStorage.getItem(kUso) || '{}') || {}; if(ADM_NOMBRES[sub]){ uso[sub] = (uso[sub] || 0) + 1; localStorage.setItem(kUso, JSON.stringify(uso)); } }catch(e){}
     const masUsadas = Object.keys(uso).filter(k=>ADM_NOMBRES[k] && uso[k] >= 2).sort((a, b)=>uso[b] - uso[a]).slice(0, 6);
-    body.innerHTML = `
-      ${masUsadas.length >= 3 ? `<div style="margin-bottom:10px"><div style="font-size:12px;font-weight:700;color:var(--sub);margin:0 0 6px 2px">⭐ Lo que más uso</div>
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">${masUsadas.map(k=>`<button type="button" data-adm-sub="${k}" style="min-height:52px;padding:6px;border-radius:14px;border:1px solid ${sub===k ? 'var(--teal)' : 'var(--line)'};background:${sub===k ? 'var(--teal-l)' : '#fff'};color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;line-height:1.25;min-width:0;cursor:pointer">${ADM_NOMBRES[k]}</button>`).join('')}</div></div>` : ''}
-      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:8px">
-        ${ADM_GRUPOS.map(g=>`<button class="ag-btn sm ${grupoActual===g?'':'ghost'}" data-adm-grp="${g[0]}" style="padding:8px 2px;font-size:12.5px;line-height:1.25;min-width:0"><span style="display:block;font-size:18px">${g[1]}</span>${g[2]}${g[0]==='ventas' && hayPagos ? ' <span style="color:#ff8a80">●</span>' : ''}</button>`).join('')}
-      </div>
-      <div class="ag-row" style="flex-wrap:wrap;gap:6px;margin-bottom:${grupoActual[0]==='dinero' ? 6 : 12}px">
-        ${grupoActual[3].map(k=>{ const fc = grupoActual[0]==='dinero' ? FIN_COL[k] : null;
-          return fc ? `<button class="ag-btn sm" data-adm-sub="${k}" style="flex:1 1 30%;min-width:0;padding:8px 6px;font-size:13px;font-weight:700;border:2px solid ${fc[0]};background:${sub===k ? fc[0] : fc[1]};color:${sub===k ? '#fff' : fc[0]}">${ADM_NOMBRES[k]}</button>`
-            : `<button class="ag-btn sm ${sub===k?'':'ghost'}" data-adm-sub="${k}" style="flex:1 1 auto;min-width:0;padding:7px 8px;font-size:13px">${ADM_NOMBRES[k]}${k==='presupuestos' && hayPagos ? ' <span style="color:#d33">● ' + hayPagos + '</span>' : ''}</button>`; }).join('')}
-      </div>
-      ${grupoActual[0]==='dinero' ? '<div class="ag-muted" style="font-size:11.5px;margin:0 0 12px">Colores: <span style="color:#1d6b35">■ entra dinero</span> · <span style="color:#a32b2b">■ sale dinero</span> · <span style="color:#8a5a00">■ pagos al personal</span> · <span style="color:#2c5aa0">■ reserva</span> · <span style="color:#0a5a68">■ resumen</span></div>' : ''}
-      <div id="adm-cont"></div>`;
-    const irAdmSub = k=>{ state.adminSub = k; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); };
+    // 🗂️ v362: menú de tarjetas. Inicio → grupo (sus secciones en tarjetas) → sección en su propia pantalla, con «‹ Volver».
+    const GC = { ventas:['#0a5a68','#e2f4f6'], dinero:['#1d6b35','#e2f4e6'], inventario:['#8a5a00','#fff3d6'], equipo:['#5b3f8f','#efe9f8'], sistema:['#35616b','#eef5f6'] };
+    const GD = { ventas:'Presupuestos, paquetes, cobros', dinero:'Balance, ingresos, egresos', inventario:'Rosita, spa, compras', equipo:'Staff, propinas, avisos', sistema:'Papelera, limpieza, copias' };
+    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', solicitudes:'Pedidos del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
+      balance:'Resumen del mes', fondo:'Ahorro', ingresos:'Entra dinero', gastos:'Sale dinero', pagosper:'Quincenas y honorarios',
+      inv_rosita:'Cocina y bar', inv_personal:'Lo del personal', inv_spa:'Insumos de terapia', inv_oper:'Equipos y ferretería', compras:'Lista de compras',
+      staff:'Personas y accesos', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
+      choques:'Cambios sin señal', papelera:'Recuperar borrados', limpieza:'Hoja liviana', rendimiento:'Velocidad de la app', importar:'Subir datos', exportar:'Descargar copia' };
+    const partes = k=>{ const s = ADM_NOMBRES[k] || k, i = s.indexOf(' '); return [s.slice(0, i), s.slice(i + 1)]; };
+    const grpVer = !sub && state.adminGrp ? ADM_GRUPOS.find(g=>g[0] === state.adminGrp) : null;
+    let arriba;
+    if(sub && grupoActual){
+      const pt = partes(sub);
+      arriba = mnVolver(`data-adm-grp="${grupoActual[0]}"`, grupoActual[2]) + `<div style="font-size:18px;font-weight:800;color:var(--teal-d);margin:0 0 10px">${pt[0]} ${esc(pt[1])}</div>`;
+    } else if(grpVer){
+      arriba = mnVolver('data-adm-home="1"', 'Admin') + mnHero(grpVer[1] + ' ' + grpVer[2], GD[grpVer[0]])
+        + mnGrid(grpVer[3].map(k=>{ const pt = partes(k); return { at:`data-adm-sub="${k}"`, e:pt[0], t:pt[1], sb:SD[k], c:(grpVer[0] === 'dinero' && FIN_COL[k]) || GC[grpVer[0]], n:k === 'presupuestos' && hayPagos ? hayPagos : 0 }; }));
+    } else {
+      arriba = (masUsadas.length >= 3 ? `<div style="font-size:12px;font-weight:700;color:var(--sub);margin:0 0 6px 2px">⭐ Lo que más uso</div><div class="mn-fav">${masUsadas.map(k=>`<button type="button" data-adm-sub="${k}">${ADM_NOMBRES[k]}</button>`).join('')}</div>` : '')
+        + mnGrid(ADM_GRUPOS.map(g=>({ at:`data-adm-grp="${g[0]}"`, e:g[1], t:g[2], sb:GD[g[0]], c:GC[g[0]], n:g[0] === 'ventas' && hayPagos ? hayPagos : 0 })));
+    }
+    body.innerHTML = `${arriba}<div id="adm-cont"${grpVer ? ' style="display:none"' : ''}></div>`;
+    const irAdmSub = k=>{ state.adminSub = k; state.adminGrp = null; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     body.querySelectorAll('[data-adm-sub]').forEach(b=>b.onclick = ()=>irAdmSub(b.dataset.admSub));
-    body.querySelectorAll('[data-adm-grp]').forEach(b=>b.onclick = ()=>{ const g = ADM_GRUPOS.find(x=>x[0]===b.dataset.admGrp); if(g && g !== grupoActual) irAdmSub(g[3][0]); });
+    body.querySelectorAll('[data-adm-grp]').forEach(b=>b.onclick = ()=>{ state.adminSub = ''; state.adminGrp = b.dataset.admGrp; render(); try{ window.scrollTo(0, 0); }catch(e){} });
+    body.querySelectorAll('[data-adm-home]').forEach(b=>b.onclick = ()=>{ state.adminSub = ''; state.adminGrp = null; render(); });
+    if(grpVer) return;
     const cont = body.querySelector('#adm-cont');
     // 🍱 La comida del personal vive en el inventario de Rosita, pero tiene su propia pestaña para encontrarla directo.
     if(sub==='inv_rosita') renderInventario(cont, 'rosita', true);
@@ -17614,7 +17678,10 @@ setTimeout(function(){
     const R = state.rosita, A = state.ag, P = state.pr;
     if(state.tab==='rosita' && R && R.vista!=='lista'){ R.vista = R.vista==='form' && R.editId && (state.pedidos.find(p=>p.id===R.editId)||{}).estado==='Cerrada' ? 'recibo' : 'lista'; render(); return true; }
     if(state.tab==='agenda' && A && A.vista!=='lista'){ A.vista='lista'; render(); return true; }
+    if(state.tab==='operaciones' && state.op && state.op.sec !== 'menu'){ const O = state.op; if(O.form){ O.form = null; if(O.volverZona){ O.volverZona = false; O.sec = 'zonas'; } } else { O.sec = 'menu'; O.zona = ''; } render(); return true; }
     if(state.tab==='adminpanel' && state.adminSub==='presupuestos' && P && P.vista!=='lista'){ P.vista = P.vista==='form' && P.editId ? 'ver' : 'lista'; P.items = null; render(); return true; }
+    if(state.tab==='adminpanel' && state.adminSub){ state.adminGrp = admGrupoDe(state.adminSub); state.adminSub = ''; render(); return true; }
+    if(state.tab==='adminpanel' && state.adminGrp){ state.adminGrp = null; render(); return true; }
     if(state.tab==='clientes'){
       if(state.selFichaId){ if(state.informeMode||state.editFichaMeta){ state.informeMode=false; state.editFichaMeta=false; } else state.selFichaId=null; render(); return true; }
       if(state.editing || state.selClienteId==='__new__'){ state.editing=false; if(state.selClienteId==='__new__') state.selClienteId=null; render(); return true; }
