@@ -1209,7 +1209,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v362' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v363' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -8469,18 +8469,17 @@ setTimeout(function(){
     const admin = state.user.admin;
     let fechaPrev = '';
     body.innerHTML = `
-      <div class="ag-card">
-        <h3>📅 Agenda de reservas</h3>
-        <p class="ag-muted" style="font-size:12.5px">${admin ? 'Crea reservas, asigna profesionales y lleva los pagos.' : 'Tus reservas asignadas. El día de la reserva podrás abrir la ficha y la orden de comidas.'}</p>
-        ${state.agenda.error ? '<p class="ag-err">'+esc(state.agenda.error)+'</p>' : ''}
-        ${admin ? `<button class="ag-btn" id="ag-nueva-res" style="width:100%;margin-top:8px">+ Nueva reserva</button>
-        <button class="ag-btn ghost sm" id="ag-paquetes" style="width:100%;margin-top:8px">📦 Paquetes</button>
-        <button class="ag-btn ghost sm" id="ag-programas" style="width:100%;margin-top:8px">📅 Programas por días</button>` : (state.user.puedeArmarProgramas ? `<button class="ag-btn ghost sm" id="ag-armarprog" style="width:100%;margin-top:8px">🧩 Armar programa por días</button>` : '')}
-        <button class="ag-btn ghost sm" id="ag-recargar" style="width:100%;margin-top:8px">↻ Actualizar</button>
-      </div>
+      ${(()=>{ // 🗂️ v363: arriba lo del día y las acciones en tarjetas iguales
+        const R0 = (state.agenda.reservas||[]).filter(r=>r.estado!=='Cancelada'), AC = { g:['#1d6b35','#e2f4e6'], t:['#0a5a68','#e2f4f6'], a:['#8a5a00','#fff3d6'], p:['#5b3f8f','#efe9f8'], s:['#35616b','#eef5f6'] };
+        return mnHero('📅 Agenda de reservas', admin ? '' : 'Tus reservas asignadas', [[R0.filter(r=>r.fecha===hoy).length, 'hoy', AC.t], [R0.filter(r=>r.fecha>=hoy && r.fecha<=en7).length, 'en 7 días', AC.a], [R0.filter(r=>r.fecha>=hoy && r.estado!=='Confirmada' && r.estado!=='Completada').length, 'por confirmar', AC.p]])
+          + (state.agenda.error ? '<p class="ag-err">'+esc(state.agenda.error)+'</p>' : '')
+          + mnGrid([ admin ? { at:'id="ag-nueva-res"', e:'➕', t:'Nueva reserva', sb:'Cliente, fecha y terapias', c:AC.g } : null,
+            admin ? { at:'id="ag-paquetes"', e:'📦', t:'Paquetes', sb:'Armar y vender', c:AC.a } : null,
+            admin ? { at:'id="ag-programas"', e:'🗓️', t:'Programas', sb:'Por días', c:AC.p } : (state.user.puedeArmarProgramas ? { at:'id="ag-armarprog"', e:'🧩', t:'Armar programa', sb:'Por días', c:AC.p } : null),
+            { at:'id="ag-recargar"', e:'↻', t:'Actualizar', sb:'Traer lo más reciente', c:AC.s } ]); })()}
       ${!admin ? avisoCitaHTML() : ''}
-      <div class="ag-row" style="margin:12px 0 8px;flex-wrap:wrap;gap:6px">
-        ${[['linea','🕒 Día'],['hoy','Hoy'],['semana','7 días'],['proximas','Próximas'],['pasadas','Pasadas'],['canceladas','Canceladas']].map(([k,t])=>`<button class="ag-btn sm ${A.filtro===k?'':'ghost'}" data-ag-filtro="${k}" style="flex:1 1 auto;min-width:0;padding:6px 6px;font-size:12px">${t}</button>`).join('')}
+      <div style="margin:12px 0 8px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+        ${[['linea','🕒 Día'],['hoy','Hoy'],['semana','7 días'],['proximas','Próximas'],['pasadas','Pasadas'],['canceladas','Canceladas']].map(([k,t])=>`<button class="ag-btn sm ${A.filtro===k?'':'ghost'}" data-ag-filtro="${k}" style="min-width:0;padding:8px 4px;font-size:12.5px;border-radius:999px">${t}</button>`).join('')}
       </div>
       ${lista.map(r=>{
         const cab = r.fecha!==fechaPrev ? `<div class="ag-sec-h" style="margin-top:10px">${r.fecha===hoy?'HOY · ':''}${esc(isoToDMY(r.fecha))}</div>` : ''; fechaPrev = r.fecha;
@@ -9635,7 +9634,11 @@ setTimeout(function(){
       '🕛 <strong>Tasa BCV</strong>: la de mañana (que el BCV publica en la tarde) queda guardada y rige sola desde las <strong>12:00 a. m.</strong> Una venta a medianoche ya sale con la tasa nueva. Se ve en Admin → Ventas → 💳 Formas de pago.' ] },
     { v:362, fecha:'6 nov', titulo:'Menús en tarjetas', puntos:[
       '🗂️ <strong>Operaciones</strong>, <strong>Rosita</strong> y la parte de arriba de <strong>Admin</strong> ahora son tarjetas del mismo tamaño, con ícono y una línea de ayuda. Cada una abre su propia pantalla y arriba está «‹ Volver».',
-      '📌 Arriba de cada una se ve lo del día: en Operaciones lo vencido, lo de esta semana y lo que está en reparación; en Rosita las órdenes en curso y las programadas.' ] }
+      '📌 Arriba de cada una se ve lo del día: en Operaciones lo vencido, lo de esta semana y lo que está en reparación; en Rosita las órdenes en curso y las programadas.' ] },
+    { v:363, fecha:'6 nov', titulo:'Tarjetas en toda la app', puntos:[
+      '🗂️ <strong>Agenda</strong>, <strong>Presupuestos</strong> y <strong>Paquetes</strong> también tienen arriba lo del día y sus acciones en tarjetas iguales.',
+      '🎨 En Admin, cada sección abre con una franja de color con su nombre.',
+      '📅 En Admin → Ventas, «Solicitudes» ahora se llama <strong>Confirmar cita</strong>.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -11109,9 +11112,8 @@ setTimeout(function(){
     // Procedimientos que una fisioterapeuta agregó y aún no tienen tarifa.
     const sinTarifa = [...new Set([].concat(...diasIni.map(d=>(d.servicios||[]).filter(x=>x.nuevo).map(x=>x.mostrar||x.servicio))))];
     body.innerHTML = `
-      <button class="ag-btn ghost sm" id="pq-volver">${enVentas() ? '📅 Ir a la agenda' : '← Volver a la agenda'}</button>
-      <button class="ag-btn sm" id="pq-sugerencias" style="width:100%;margin-top:10px">💡 Sugerencias de paquetes (pareja, madre e hija, caballeros, grupos…)</button>
-      <button class="ag-btn sm ghost" id="pq-tarifas" style="width:100%;margin-top:6px">💲 Editar tarifas${ed ? ' (y volver a «' + esc(ed.nombre) + '»)' : ''}</button>
+      ${enVentas() ? '' : mnVolver('id="pq-volver"', 'Agenda')}
+      ${mnGrid([{ at:'id="pq-sugerencias"', e:'💡', t:'Sugerencias', sb:'Pareja, amigas, grupos…', c:['#8a5a00','#fff3d6'] }, { at:'id="pq-tarifas"', e:'💲', t:'Tarifas', sb:ed ? 'Y volver a este paquete' : 'Precios de servicios', c:['#1d6b35','#e2f4e6'] }].concat(enVentas() ? [{ at:'id="pq-volver"', e:'📅', t:'Ir a la agenda', sb:'Reservas', c:['#0a5a68','#e2f4f6'] }] : []))}
       <div class="ag-card" style="margin-top:10px">
         <h3>📦 ${ed?'Editar paquete':'Nuevo paquete'}</h3>
         <label class="f">Nombre</label><input id="pq-nombre" value="${esc(ed?ed.nombre:'')}" placeholder="Ej: Día de spa para 2"/>
@@ -11819,12 +11821,9 @@ setTimeout(function(){
     const lista = state.presupuestos.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
     const colorP = e=> e==='Aceptado' ? 'background:#e2f4e6;color:#1d6b35' : e==='Rechazado' ? 'background:#eee;color:#777' : e==='Enviado' ? 'background:var(--teal-l);color:var(--teal-d)' : e==='Contestó' ? 'background:#efeaff;color:#5b3f8f' : 'background:var(--amber-l);color:var(--amber-d)';
     body.innerHTML = `
-      <div class="ag-card">
-        <h3>🧾 Presupuestos</h3>
-        <p class="ag-muted" style="font-size:12.5px">Arma cotizaciones con terapias, comidas y paquetes; los precios salen de 💲 Tarifas y del menú del Rincón de Rosita.</p>
-        <button class="ag-btn" id="pr-nuevo" style="width:100%;margin-top:8px">+ Nuevo presupuesto</button>
-        <button class="ag-btn ghost" id="pr-catalogo" style="width:100%;margin-top:8px">🛍️ Enviar catálogo al cliente (que elija él)</button>
-      </div>
+      ${(()=>{ const PC = { g:['#1d6b35','#e2f4e6'], t:['#0a5a68','#e2f4f6'], a:['#8a5a00','#fff3d6'], p:['#5b3f8f','#efe9f8'] };   // 🗂️ v363
+        return mnHero('🧾 Presupuestos', 'Terapias, comidas y paquetes', [[lista.filter(p=>!/Aceptado|Rechazado/.test(p.estado||'')).length, 'abiertos', PC.t], [lista.filter(p=>(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado).length, 'pagos por ver', PC.a], [lista.filter(p=>p.estado==='Aceptado').length, 'aceptados', PC.g]])
+          + mnGrid([{ at:'id="pr-nuevo"', e:'➕', t:'Nuevo presupuesto', sb:'Armarlo yo', c:PC.g }, { at:'id="pr-catalogo"', e:'🛍️', t:'Enviar catálogo', sb:'Que elija el cliente', c:PC.t }]); })()}
       ${(()=>{ const pend = lista.filter(p=>(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado); return pend.length ? `<div class="ag-card" style="background:#fff7e6;border-color:#f0d9a8"><div style="font-weight:700;font-size:14.5px">💳 ${pend.length} pago${pend.length>1?'s':''} por verificar</div>${pend.map(p=>`<div class="ag-list-item" data-pr-ver="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px"><div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${p.pagoReportadoPct ? 'Dice que pagó el ' + p.pagoReportadoPct + '% (' + dinero(p.pagoReportadoMonto) + ')' : 'Adjuntó un comprobante'}${p.comprobante ? ' · 📎 con capture' : ' · sin capture'}</div></div><span class="ag-badge" style="background:#fff0cc;color:#8a5a00">Verificar</span></div>`).join('')}</div>` : ''; })()}
       ${lista.map(p=>`<div class="ag-list-item" data-pr-ver="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px">
         <div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${esc(isoToDMY(p.fecha))} · ${p.items.length} concepto${p.items.length!==1?'s':''}${p.beneficiario?' · 🎁 para '+esc(p.beneficiario.nombre.split(' ')[0]):''}${(p.items||[]).some(it=>it.clave)?' · 📲 lo armó el cliente':''}${(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado ? ' · <strong style="color:#8a5a00">💳 pago reportado: verificar</strong>' : ''}</div></div>
@@ -15551,7 +15550,7 @@ setTimeout(function(){
       <div style="font-size:13.5px;margin-top:4px">${diaTxt(x)}${x.personas ? ' · 👥 ' + x.personas + ' persona' + (x.personas === 1 ? '' : 's') : ''}${x.tipo === 'regalo' ? '' : ' · ' + dinero(x.total)}</div>
       ${x.notasCliente ? `<div style="font-size:12.5px;margin-top:2px;white-space:pre-wrap">📝 ${esc(x.notasCliente)}</div>` : ''}${pagoTxt(x)}
       <div class="ag-row" style="margin-top:8px;gap:6px"><button class="ag-btn sm ${atendida ? 'ghost' : ''}" data-sl-abrir="${esc(x.id)}">🧾 ${atendida ? 'Ver presupuesto' : 'Abrir y atender'}</button></div></div>`;
-    cont.innerHTML = `<div class="ag-card"><h3>📬 Solicitudes de clientes</h3>
+    cont.innerHTML = `<div class="ag-card"><h3>📅 Confirmar cita · solicitudes de clientes</h3>
       <p class="ag-muted" style="font-size:12.5px;margin:0">Lo que piden los clientes desde sus enlaces (catálogo, regalos, grupos, menú), en un solo lugar. <strong>${D.pendientes.length}</strong> por atender · <strong>${D.esperando.length}</strong> enlaces esperando respuesta.</p>
       <button class="ag-btn sm ghost" id="sl-recargar" style="margin-top:8px">🔄 Actualizar</button></div>
       <div class="ag-sec-h" style="margin-top:14px">⏳ Por atender (${D.pendientes.length})</div>
@@ -16100,7 +16099,7 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || '';   // 🗂️ v362: sin sección = inicio de Admin (tarjetas de grupos + Staff debajo, como antes)
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📬 Solicitudes', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
     const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || null;
     const hayPagos = (state.pagosPend||[]).length;
@@ -16111,7 +16110,7 @@ setTimeout(function(){
     // 🗂️ v362: menú de tarjetas. Inicio → grupo (sus secciones en tarjetas) → sección en su propia pantalla, con «‹ Volver».
     const GC = { ventas:['#0a5a68','#e2f4f6'], dinero:['#1d6b35','#e2f4e6'], inventario:['#8a5a00','#fff3d6'], equipo:['#5b3f8f','#efe9f8'], sistema:['#35616b','#eef5f6'] };
     const GD = { ventas:'Presupuestos, paquetes, cobros', dinero:'Balance, ingresos, egresos', inventario:'Rosita, spa, compras', equipo:'Staff, propinas, avisos', sistema:'Papelera, limpieza, copias' };
-    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', solicitudes:'Pedidos del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
+    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
       balance:'Resumen del mes', fondo:'Ahorro', ingresos:'Entra dinero', gastos:'Sale dinero', pagosper:'Quincenas y honorarios',
       inv_rosita:'Cocina y bar', inv_personal:'Lo del personal', inv_spa:'Insumos de terapia', inv_oper:'Equipos y ferretería', compras:'Lista de compras',
       staff:'Personas y accesos', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
@@ -16119,9 +16118,12 @@ setTimeout(function(){
     const partes = k=>{ const s = ADM_NOMBRES[k] || k, i = s.indexOf(' '); return [s.slice(0, i), s.slice(i + 1)]; };
     const grpVer = !sub && state.adminGrp ? ADM_GRUPOS.find(g=>g[0] === state.adminGrp) : null;
     let arriba;
-    if(sub && grupoActual){
+    if(sub && grupoActual && sub === 'presupuestos'){
+      arriba = mnVolver(`data-adm-grp="${grupoActual[0]}"`, grupoActual[2]);   // trae su propia franja con números
+    } else if(sub && grupoActual){
       const pt = partes(sub);
-      arriba = mnVolver(`data-adm-grp="${grupoActual[0]}"`, grupoActual[2]) + `<div style="font-size:18px;font-weight:800;color:var(--teal-d);margin:0 0 10px">${pt[0]} ${esc(pt[1])}</div>`;
+      const c0 = (grupoActual[0] === 'dinero' && FIN_COL[sub]) || GC[grupoActual[0]];
+      arriba = mnVolver(`data-adm-grp="${grupoActual[0]}"`, grupoActual[2]) + `<div style="display:flex;align-items:center;gap:10px;background:${c0[1]};color:${c0[0]};border-radius:16px;padding:10px 12px;margin:0 0 12px;font-size:17px;font-weight:800"><span style="width:38px;height:38px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;flex:0 0 auto">${pt[0]}</span>${esc(pt[1])}</div>`;
     } else if(grpVer){
       arriba = mnVolver('data-adm-home="1"', 'Admin') + mnHero(grpVer[1] + ' ' + grpVer[2], GD[grpVer[0]])
         + mnGrid(grpVer[3].map(k=>{ const pt = partes(k); return { at:`data-adm-sub="${k}"`, e:pt[0], t:pt[1], sb:SD[k], c:(grpVer[0] === 'dinero' && FIN_COL[k]) || GC[grpVer[0]], n:k === 'presupuestos' && hayPagos ? hayPagos : 0 }; }));
