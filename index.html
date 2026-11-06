@@ -1209,7 +1209,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v363' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v364' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -5726,6 +5726,23 @@ setTimeout(function(){
 
   // Enlace del menú para que el cliente elija desde su teléfono (con precios).
   // Aquí se marca qué platos se le pueden ofrecer (por si hoy falta algo).
+  // 📱 v364: texto del WhatsApp que acompaña un enlace. Si hay texto propio (de una plantilla o escrito), se usa con
+  // {nombre} y {enlace}; si no trae {enlace}, el enlace se agrega al final para que nunca falte.
+  function waTextoEnlace(propio, porDefecto, nombre, url){
+    const t = String(propio || '').trim();
+    if(!t) return porDefecto;
+    const n = String(nombre || '').split(' ')[0];
+    const r = t.replace(/\{nombre\}/gi, n).replace(/\{enlace\}/gi, url);
+    return /\{enlace\}/i.test(t) ? r : r + '\n\n👉 ' + url;
+  }
+  // Pantalla «enlace listo»: el texto se puede revisar y cambiar antes de enviarlo por WhatsApp.
+  function waEnvioEditable(cont, tel, texto){
+    if(!cont) return;
+    cont.innerHTML = `<label class="f">📱 Mensaje que se enviará (puedes cambiarlo aquí)</label><textarea data-wa-txt rows="7" style="width:100%;font-size:13.5px">${esc(texto)}</textarea>
+      <button type="button" class="ag-btn" data-wa-ir style="width:100%;margin-top:8px">📱 Enviar por WhatsApp</button>`;
+    cont.querySelector('[data-wa-ir]').onclick = ()=>{ const t = cont.querySelector('[data-wa-txt]').value; window.open(tel ? waLink(tel, t) : ('https:' + '/' + '/wa.me/?text=' + encodeURIComponent(t)), '_blank'); };
+  }
+  const WA_AYUDA = 'Escribe {nombre} donde va el nombre del cliente y {enlace} donde va el enlace. Si lo dejas vacío, se envía el texto de siempre.';
   // Plantillas de enlaces (catálogo o menú): elegir una para rellenar el formulario, o guardar la configuración actual con un nombre.
   // tomar() devuelve la configuración de la pantalla; poner(cfg) la aplica. Guardar y borrar son solo para administración.
   function plantillasEnlace(cont, tipo, tomar, poner){
@@ -5782,16 +5799,16 @@ setTimeout(function(){
     const c = state.clientes.find(x=>x.id===E.clienteId);
     if(E.resultado){
       const r = E.resultado;
-      const texto = '🌿✨ ¡Hola ' + String(E.nombre||'').split(' ')[0] + '! Te compartimos el menú de *El Rincón de Rosita* 🍽️ para que elijas con calma lo que te provoque disfrutar' +
-        (E.fecha ? ' el ' + isoToDMY(E.fecha) + (E.hora ? ' a las ' + E.hora : '') : '') + '.\n\n👉 ' + r.url + '\n\nLo preparamos con mucho cariño para ti 💙';
-      const wa = E.telefono ? waLink(E.telefono, texto) : ('https:' + '/' + '/wa.me/?text=' + encodeURIComponent(texto));
+      const texto = waTextoEnlace(E.textoWa, '🌿✨ ¡Hola ' + String(E.nombre||'').split(' ')[0] + '! Te compartimos el menú de *El Rincón de Rosita* 🍽️ para que elijas con calma lo que te provoque disfrutar' +
+        (E.fecha ? ' el ' + isoToDMY(E.fecha) + (E.hora ? ' a las ' + E.hora : '') : '') + '.\n\n👉 ' + r.url + '\n\nLo preparamos con mucho cariño para ti 💙', E.nombre, r.url);
       body.innerHTML = `<button class="ag-btn ghost sm" id="en-volver">← Volver a las órdenes</button>
         <div class="ag-card" style="margin-top:10px">
           <h3>✅ Enlace listo</h3>
           <p style="font-size:13.5px">Envíaselo a <strong>${esc(E.nombre)}</strong>. Cuando elija y envíe su pedido, te llegará el aviso y la orden aparecerá en <strong>En curso</strong> para que la revises.</p>
-          <a class="ag-btn" href="${esc(wa)}" target="_blank" rel="noopener" style="text-decoration:none;display:block;text-align:center;margin-top:8px">📱 Enviar por WhatsApp</a>
+          <div id="en-wa"></div>
           <p class="ag-muted" style="font-size:12px;margin-top:8px">Vence el ${esc(isoToDMY(String(r.vence).slice(0,10)))}. <a href="${esc(r.url)}&previa=1" target="_blank" rel="noopener">👁️ Ver cómo lo verá el cliente (sin avisar)</a></p>
         </div>`;
+      waEnvioEditable(body.querySelector('#en-wa'), E.telefono, texto);
       body.querySelector('#en-volver').onclick = ()=>{ R.vista='lista'; R.enlace = null; render(); };
       return;
     }
@@ -5808,6 +5825,7 @@ setTimeout(function(){
           <label class="f">WhatsApp</label><input id="en-tel" inputmode="tel" value="${esc(E.clienteId?'':E.telefono)}" placeholder="0414-1234567 o +1 305 555 0100"/></div>
         <div class="ag-row"><div><label class="f">Para el día</label><input id="en-fecha" type="date" value="${esc(E.fecha)}"/></div><div><label class="f">Hora</label><input id="en-hora" type="time" value="${esc(E.hora)}"/></div></div>
         ${reservas.length ? `<label class="f">📎 Enlazar a su reserva (opcional)</label><select id="en-reserva"><option value="">— Ninguna —</option>${reservas.map(r=>`<option value="${esc(r.id)}" ${E.reservaId===r.id?'selected':''}>${esc(isoToDMY(r.fecha))} ${esc(r.hora)} · ${esc(r.paqueteNombre || serviciosTexto(r) || 'Reserva')}</option>`).join('')}</select>` : ''}
+        <label class="f">📱 Texto del WhatsApp (opcional)</label><textarea id="en-wa-txt" rows="3" placeholder="Ej: ¡Hola {nombre}! Aquí está el menú del Rincón de Rosita 🍽️ {enlace}">${esc(E.textoWa || '')}</textarea><div class="ag-muted" style="font-size:11.5px">${WA_AYUDA}</div>
         <label class="f">El enlace vence en</label><select id="en-dias">${[1,2,3,4,5,6,7].map(d=>`<option value="${d}" ${E.dias===d?'selected':''}>${d===1?'1 día':d+' días'}</option>`).join('')}</select>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="en-disp" style="width:auto"/> 📅 Que el cliente elija el día y la hora (indicar disponibilidad)</label>
         <div id="en-disp-box" style="display:none;border-left:3px solid #cfe8d5;padding-left:10px;margin-top:6px"><p class="ag-muted" style="font-size:12.5px;margin:0 0 4px">El cliente escogerá el día y la hora en que quiere su pedido, solo dentro de estos horarios (son la ventana para recibirlo, no el tiempo que ocupará). Si no la indicas, el pedido es para el día y la hora de arriba.</p><div id="en-disp-cont"></div></div>
@@ -5830,13 +5848,13 @@ setTimeout(function(){
     const leer = ()=>{
       E.clienteId = val('en-cliente'); const cc = state.clientes.find(x=>x.id===E.clienteId);
       E.nombre = cc ? cc.nombre : val('en-nombre').trim(); E.telefono = cc ? (cc.telefono||cc.telefonoAdicional||'') : limpiarTelefono(val('en-tel'));
-      E.fecha = val('en-fecha'); E.hora = val('en-hora'); E.dias = +val('en-dias') || 3;
+      E.fecha = val('en-fecha'); E.hora = val('en-hora'); E.dias = +val('en-dias') || 3; E.textoWa = val('en-wa-txt').trim();
       const rs = body.querySelector('#en-reserva'); E.reservaId = rs ? rs.value : '';
       body.querySelectorAll('[data-en-item]').forEach(cb=>{ if(cb.checked) delete E.quitar[cb.dataset.enItem]; else E.quitar[cb.dataset.enItem] = true; });
     };
     body.querySelector('#en-volver').onclick = ()=>{ R.vista='lista'; R.enlace = null; render(); };
-    plantillasEnlace(body.querySelector('#en-plantillas'), 'menu', ()=>{ leer(); return { dias:E.dias, hora:E.hora, quitar:E.quitar }; },
-      cfg=>{ Object.assign(E, { dias:+cfg.dias || 3, hora:cfg.hora || '', quitar:cfg.quitar || {} }); render(); });
+    plantillasEnlace(body.querySelector('#en-plantillas'), 'menu', ()=>{ leer(); return { dias:E.dias, hora:E.hora, quitar:E.quitar, textoWa:E.textoWa || '' }; },
+      cfg=>{ leer(); Object.assign(E, { dias:+cfg.dias || 3, hora:cfg.hora || '', quitar:cfg.quitar || {}, textoWa:cfg.textoWa || '' }); render(); });
     const selC = body.querySelector('#en-cliente');
     avisoRegistro(selC, { quien:'Cliente', siNo:'se le envía el enlace sin datos de su ficha' });
     selC.onchange = ()=>{ leer(); if(E.clienteId && !state.agenda){ cargarAgenda().then(()=>{ if(R.vista==='enlace') render(); }); } render(); };
@@ -9638,7 +9656,10 @@ setTimeout(function(){
     { v:363, fecha:'6 nov', titulo:'Tarjetas en toda la app', puntos:[
       '🗂️ <strong>Agenda</strong>, <strong>Presupuestos</strong> y <strong>Paquetes</strong> también tienen arriba lo del día y sus acciones en tarjetas iguales.',
       '🎨 En Admin, cada sección abre con una franja de color con su nombre.',
-      '📅 En Admin → Ventas, «Solicitudes» ahora se llama <strong>Confirmar cita</strong>.' ] }
+      '📅 En Admin → Ventas, «Solicitudes» ahora se llama <strong>Confirmar cita</strong>.' ] },
+    { v:364, fecha:'6 nov', titulo:'Tu propio texto de WhatsApp en los enlaces', puntos:[
+      '📱 Al crear un enlace de catálogo o de menú, la casilla <strong>«Texto del WhatsApp»</strong> pone tu propio texto (usa {nombre} y {enlace}). Se guarda en las plantillas y antes de enviar puedes retocarlo.',
+      '🔗 En <strong>Enlaces ya enviados</strong>: 🔎 buscar por nombre, 📱 reenviar, ✏️ cambiar el mensaje y 🗑️ borrar.' ] }
   ];
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
@@ -11904,19 +11925,19 @@ setTimeout(function(){
     const catsMenu = []; menu.forEach(m=>{ if(!catsMenu.includes(m.categoria)) catsMenu.push(m.categoria); });
     if(E.resultado){
       const r = E.resultado;
-      const texto = E.regaloPag
+      const texto = waTextoEnlace(E.textoWa, E.regaloPag
         ? '🎁✨ ¡Hola ' + String(E.nombre||'').split(' ')[0] + '! Tienes un regalo en *Aguamiel · Centro de Bienestar* 💙\n' + (E.mensaje ? '\n' + E.mensaje + '\n' : '') +
           '\nEn este enlace verás lo que incluye tu regalo y podrás elegir en la agenda el día y la hora que quieras para disfrutarlo:\n\n👉 ' + r.url + '\n\n¡Te esperamos con mucho cariño! 🌿'
         : '🌿✨ ¡Hola ' + String(E.nombre||'').split(' ')[0] + '! Te compartimos nuestro catálogo de *Aguamiel · Centro de Bienestar* 💆‍♀️🍽️\n' +
-        'Elige con calma los servicios de bienestar y lo que te provoque del Rincón de Rosita; con eso te preparamos tu presupuesto. Si es un regalo, también puedes indicarlo ahí 🎁\n\n👉 ' + r.url + '\n\n¡Te esperamos con mucho cariño! 💙';
-      const wa = E.telefono ? waLink(E.telefono, texto) : ('https:' + '/' + '/wa.me/?text=' + encodeURIComponent(texto));
+        'Elige con calma los servicios de bienestar y lo que te provoque del Rincón de Rosita; con eso te preparamos tu presupuesto. Si es un regalo, también puedes indicarlo ahí 🎁\n\n👉 ' + r.url + '\n\n¡Te esperamos con mucho cariño! 💙', E.nombre, r.url);
       body.innerHTML = `<button class="ag-btn ghost sm" id="ce-volver">← Volver</button>
         <div class="ag-card" style="margin-top:10px">
           <h3>✅ Catálogo listo</h3>
           ${E.regaloPag ? `<p style="font-size:13.5px">Envíaselo a <strong>${esc(E.nombre)}</strong>. Verá su regalo (lo que incluye, sin precios; solo «regalo 100% pagado») y elegirá el día y la hora entre los que le diste. Al tocar «Reservar mi lugar» le aparece que su lugar quedó reservado, con día, hora y duración. A ti te llega el aviso y la fecha queda anotada en el presupuesto <strong>${esc(base ? base.numero : '')}</strong>: conviértelo en reserva y asigna a los profesionales para bloquear ese horario.</p>` : `<p style="font-size:13.5px">Envíaselo a <strong>${esc(E.nombre)}</strong>. Cuando elija y lo envíe, te llega el aviso y ${base ? 'lo que elija se suma al presupuesto <strong>' + esc(base.numero) + '</strong>' : 'queda un <strong>presupuesto nuevo</strong> en 🧾 Presupuestos'} para que lo revises, se lo mandes y lo conviertas en reserva cuando abone.</p>`}
-          <a class="ag-btn" href="${esc(wa)}" target="_blank" rel="noopener" style="text-decoration:none;display:block;text-align:center;margin-top:8px">📱 Enviar por WhatsApp</a>
+          <div id="ce-wa"></div>
           <p class="ag-muted" style="font-size:12px;margin-top:8px">Vence el ${esc(isoToDMY(String(r.vence).slice(0,10)))}. <a href="${esc(r.url)}&previa=1" target="_blank" rel="noopener">👁️ Ver cómo lo verá el cliente (sin avisar)</a></p>
         </div>`;
+      waEnvioEditable(body.querySelector('#ce-wa'), E.telefono, texto);
       body.querySelector('#ce-volver').onclick = volver;
       return;
     }
@@ -11930,7 +11951,7 @@ setTimeout(function(){
         </details></div>`; };
     const chk = (attr, key, on, txt, extra)=>`<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 0 3px 22px"><input type="checkbox" ${attr}="${esc(key)}" style="width:auto" ${on?'checked':''}/> <span>${txt}${extra?' <span class="ag-muted" style="font-size:12px">'+extra+'</span>':''}</span></label>`;
     body.innerHTML = `<button class="ag-btn ghost sm" id="ce-volver">← Volver</button>
-      <details class="ag-card" id="ce-env" style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">🔗 Enlaces ya enviados (horarios, costos y caducar)</summary><div id="ce-env-cont" style="margin-top:8px"></div></details>
+      <details class="ag-card" id="ce-env" style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">🔗 Enlaces ya enviados (ver, reenviar, editar o borrar)</summary><div id="ce-env-cont" style="margin-top:8px"></div></details>
       <div class="ag-card" style="margin-top:10px">
         <h3>🛍️ Catálogo para el cliente</h3>
         <p class="ag-muted" style="font-size:12.5px">El cliente abre el enlace, ve los servicios de bienestar, los paquetes y el menú del Rincón de Rosita con sus precios, elige (para él o como regalo), indica qué día le gustaría y lo envía. Con eso queda su presupuesto.</p>
@@ -11943,6 +11964,7 @@ setTimeout(function(){
         <label class="f">Mensaje para el cliente (opcional, sale arriba del catálogo)</label><textarea id="ce-msj" rows="2" placeholder="Ej: ¡Este mes, 10% de descuento en masajes de pareja!">${esc(E.mensaje)}</textarea>
         <div class="ag-row" style="gap:6px;margin-top:4px;align-items:center"><select id="ce-frase-m" style="flex:1">${MOTIVOS_REGALO.filter(([k])=>k).concat([['general','✨ General']]).map(([v,t])=>`<option value="${esc(v)}" ${v==='general'?'selected':''}>${t}</option>`).join('')}</select><button type="button" class="ag-btn sm ghost" id="ce-frase">💬 Traer una frase</button></div>
         <div class="ag-muted" id="ce-frase-info" style="font-size:11.5px">Trae una frase del repertorio y la pone como mensaje; puedes editarla.</div>
+        <label class="f">📱 Texto del WhatsApp que acompaña el enlace (opcional)</label><textarea id="ce-wa-txt" rows="3" placeholder="Ej: ¡Hola {nombre}! 🌿 Te preparamos estas opciones especiales para ti: {enlace}">${esc(E.textoWa || '')}</textarea><div class="ag-muted" style="font-size:11.5px">${WA_AYUDA}</div>
         ${base ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;background:#fdf3f7;border:1px solid #f1c6d8;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-regalo" style="width:auto;margin-top:3px"/> <span>🎁 <strong>Regalo ya pagado:</strong> la persona ve «tienes un regalo» con lo que incluye (sin precios ni datos de pago) y solo elige en la agenda cuándo disfrutarlo. Usa los servicios que ya están en el presupuesto ${esc(base.numero)}.</span></label>
           <label id="ce-reg-extras-w" style="display:none;gap:8px;align-items:flex-start;margin-top:6px;background:#f3f8ff;border:1px solid #d6e6fb;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-reg-extras" checked style="width:auto;margin-top:3px"/> <span>➕ <strong>Permitir que pida cosas adicionales</strong> (pagadas aparte): más servicios o comida para sí misma, para un acompañante o para regalarle a otra persona. Abajo eliges qué se le ofrece.</span></label>` : ''}
         <label class="f">El enlace vence en</label><select id="ce-dias">${plazosOpciones(E.dias)}</select><div class="ag-muted" style="font-size:11.5px;margin-top:3px">Si cambias un precio, el cliente conserva el anterior durante 24 horas y después ve el nuevo. Te aviso 3 días antes de que venza y el día que vence.</div>
@@ -11995,12 +12017,15 @@ setTimeout(function(){
     const pintarEnv = ()=>{
       const L = state.ceEnv || [];
       const dispResumen = x=>`<div style="font-size:12.5px"><div class="ag-muted">${x.disponibilidad.length ? '📅 Horarios (toca ✕ para quitar uno):<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">' + x.disponibilidad.map((d, di)=>d.rangos.map((r, ri)=>`<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;background:#fff;color:var(--ink)">${esc(isoToDMY(d.fecha).slice(0, 5))} ${esc(r.desde)}–${esc(r.hasta)}<button type="button" class="ag-btn sm danger" data-dsp-x="${esc(x.token)}|${di}|${ri}" aria-label="Quitar este horario" style="padding:1px 8px;line-height:1.3">✕</button></span>`).join('')).join('') + '</div>' : '📅 Sin límite de fechas: el cliente elige cualquier día'}</div><button type="button" class="ag-btn sm ghost" data-dsp="${esc(x.token)}" style="margin-top:4px">📅 ${x.disponibilidad.length ? 'Cambiar' : 'Poner'} horarios disponibles</button><div data-dsp-ed="${esc(x.token)}"></div>${(x.tipo === 'menu' || x.regalo) ? '' : `<button type="button" class="ag-btn sm ghost" data-svc="${esc(x.token)}" style="margin-top:4px">🧖 Cambiar lo que ofrece el catálogo (terapias, paquetes y platos)</button><div data-svc-ed="${esc(x.token)}"></div><button type="button" class="ag-btn sm ghost" data-sol="${esc(x.token)}|${x.tipo === 'solicitud' ? '0' : '1'}" style="margin-top:4px">${x.tipo === 'solicitud' ? '📝 Quitar «solicitud de reserva»' : '📝 Convertir en solicitud de reserva'}</button>`}${(x.tipo === 'menu' || x.tipo === 'grupal' || x.tipo === 'compartido') ? '' : (x.regalo ? `<button type="button" class="ag-btn sm ghost" data-reg="${esc(x.token)}|2" style="margin-top:4px">💬 Cambiar el mensaje / frase del regalo</button><button type="button" class="ag-btn sm ghost" data-reg="${esc(x.token)}|0" style="margin-top:4px">🎁 Quitar «regalo ya pagado» (volver a catálogo normal)</button>` : `<button type="button" class="ag-btn sm ghost" data-reg="${esc(x.token)}|1" style="margin-top:4px">🎁 Convertir en «regalo ya pagado» (sin precios ni datos de pago)</button>`) + `<div data-reg-ed="${esc(x.token)}"></div>`}</div>`;
-      envCont.innerHTML = '<p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Aquí puedes poner o cambiar los <strong>horarios disponibles</strong> de un enlace ya enviado, quitarle el costo a una categoría (el cliente la verá «Sin costo») o caducarlo, sin enviar otro enlace.</p>' +
-        (L.length ? L.map(x=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px"><div><strong>${esc(x.clienteNombre)}</strong>${x.evento ? ' · ' + esc(x.evento) : ''} <span class="ag-badge" style="background:#eef5f6;color:#35616b">${x.tipo === 'grupal' ? 'Catálogo para grupos' : (x.tipo === 'compartido' ? 'Enlace compartido' : (x.tipo === 'menu' ? 'Menú de Rosita' : (x.tipo === 'solicitud' ? 'Solicitud de reserva' : 'Individual')))}</span>${x.regalo ? ' <span class="ag-badge" style="background:#fdf3f7;color:#a23a69">🎁 Regalo ya pagado</span>' : ''}</div>
+      envCont.innerHTML = '<p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Aquí ves los enlaces creados: puedes verlos como el cliente, reenviarlos por WhatsApp, cambiar su mensaje, sus horarios o lo que ofrecen, quitar un costo, alargarlos, caducarlos o borrarlos, sin enviar otro enlace.</p>' +
+        (L.length > 3 ? '<input data-env-buscar placeholder="🔎 Buscar por nombre del cliente…" style="width:100%;margin-bottom:6px"/>' : '') +
+        (L.length ? L.map(x=>`<div class="ag-list-item" data-env-n="${esc(String(x.clienteNombre || '').toLowerCase() + ' ' + String(x.evento || '').toLowerCase())}" style="flex-direction:column;align-items:stretch;gap:4px"><div><strong>${esc(x.clienteNombre)}</strong>${x.evento ? ' · ' + esc(x.evento) : ''} <span class="ag-badge" style="background:#eef5f6;color:#35616b">${x.tipo === 'grupal' ? 'Catálogo para grupos' : (x.tipo === 'compartido' ? 'Enlace compartido' : (x.tipo === 'menu' ? 'Menú de Rosita' : (x.tipo === 'solicitud' ? 'Solicitud de reserva' : 'Individual')))}</span>${x.regalo ? ' <span class="ag-badge" style="background:#fdf3f7;color:#a23a69">🎁 Regalo ya pagado</span>' : ''}</div>
           <div class="ag-muted" style="font-size:12px">${x.caducado ? '<span class="ag-badge" style="background:#eee;color:#777">⛔ Caducado</span> ' : ''}${esc(x.estado)} · ${x.caducado ? 'venció' : 'vence'} ${esc(isoToDMY(String(x.vence).slice(0, 10)))} · código …${esc(String(x.token).slice(-5))}</div>
           ${x.caducado ? '' : dispResumen(x)}
           ${x.caducado ? '' : `<div style="display:flex;flex-wrap:wrap;gap:6px">${x.cats.map(c=>(c.gratis ? `<span class="ag-badge" style="background:#e2f4e6;color:#1d6b35">✓ ${esc(c.nombre)}: sin costo</span>` : `<button type="button" class="ag-btn sm ghost" data-qc="${esc(x.token)}|${esc(c.k)}" data-qn="${esc(c.nombre)}" data-qp="${esc(x.clienteNombre)}">Quitar costo: ${esc(c.nombre)} (desde ${dinero(c.desde)})</button>`) + `<button type="button" class="ag-btn sm ghost" data-qk="${esc(x.token)}|${esc(c.k)}" data-qn="${esc(c.nombre)}" style="color:var(--danger)">🗑️ Quitar «${esc(c.nombre)}» del enlace</button>`).join('')}</div>`}
-          ${x.caducado ? `<div class="ag-muted" style="font-size:12px">Se quita de esta lista 15 días después de caducar.</div><div style="display:flex;gap:6px;align-items:center">${x.tipo === 'menu' ? '' : `<select data-extsel="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select>`}<button type="button" class="ag-btn sm" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">♻️ Reactivar</button></div>` : `<div style="display:flex;flex-wrap:wrap;gap:6px"><a class="ag-btn sm ghost" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁️ Ver como cliente (sin avisar)</a>${x.tipo === 'menu' ? '' : `<select data-extsel="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select>`}<button type="button" class="ag-btn sm ghost" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">⏳ Alargar</button><button type="button" class="ag-btn sm danger" data-cad="${esc(x.token)}" data-cadn="${esc(x.clienteNombre)}">⛔ Caducar enlace ahora</button></div>`}</div>`).join('') : '<p class="ag-muted" style="font-size:13px">No hay enlaces vigentes.</p>');
+          ${x.caducado ? `<div class="ag-muted" style="font-size:12px">Se quita de esta lista 15 días después de caducar.</div><div style="display:flex;gap:6px;align-items:center">${x.tipo === 'menu' ? '' : `<select data-extsel="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select>`}<button type="button" class="ag-btn sm" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">♻️ Reactivar</button></div>` : `<div style="display:flex;flex-wrap:wrap;gap:6px"><a class="ag-btn sm ghost" href="${esc(x.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁️ Ver como cliente (sin avisar)</a>${x.tipo === 'menu' ? '' : `<select data-extsel="${esc(x.token)}" style="width:auto">${plazosOpciones(30)}</select>`}<button type="button" class="ag-btn sm ghost" data-ext="${esc(x.token)}" data-extn="${esc(x.clienteNombre)}">⏳ Alargar</button><button type="button" class="ag-btn sm danger" data-cad="${esc(x.token)}" data-cadn="${esc(x.clienteNombre)}">⛔ Caducar enlace ahora</button></div>`}
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${x.caducado ? '' : `<button type="button" class="ag-btn sm ghost" data-env-wa="${esc(x.token)}">📱 Reenviar por WhatsApp</button>${x.tipo === 'menu' ? '' : `<button type="button" class="ag-btn sm ghost" data-env-msj="${esc(x.token)}">✏️ Cambiar mensaje</button>`}`}<button type="button" class="ag-btn sm ghost" data-env-del="${esc(x.token)}" data-env-deln="${esc(x.clienteNombre)}" style="color:var(--danger)">🗑️ Borrar</button></div>
+          <div data-env-ed="${esc(x.token)}"></div></div>`).join('') : '<p class="ag-muted" style="font-size:13px">No hay enlaces vigentes.</p>');
       envCont.querySelectorAll('[data-dsp]').forEach(b=>b.onclick = ()=>{
         const tk = b.dataset.dsp, ed = envCont.querySelector('[data-dsp-ed="' + tk + '"]'); if(!ed) return;
         if(ed.innerHTML){ ed.innerHTML = ''; return; }
@@ -12094,6 +12119,41 @@ setTimeout(function(){
         b.disabled = true;
         try{ state.ceEnv = await gs('extenderEnlace', b.dataset.ext, dias, auth()); pintarEnv(); toast('Listo: el enlace de ' + b.dataset.extn + ' dura ' + plazoNombre(dias) + ' más.'); }
         catch(e){ b.disabled = false; alert('No se pudo extender: ' + (e && e.message ? e.message : e)); }
+      });
+      // 🔎 v364: buscar un enlace por el nombre del cliente.
+      const bus = envCont.querySelector('[data-env-buscar]');
+      if(bus) bus.oninput = ()=>{ const t = bus.value.trim().toLowerCase(); envCont.querySelectorAll('[data-env-n]').forEach(d=>{ d.style.display = !t || d.dataset.envN.includes(t) ? '' : 'none'; }); };
+      const edDe = tk=>envCont.querySelector('[data-env-ed="' + tk + '"]');
+      // 📱 Reenviar: el mismo enlace con el texto de WhatsApp (se puede cambiar antes de enviar).
+      envCont.querySelectorAll('[data-env-wa]').forEach(b=>b.onclick = ()=>{
+        const x = (state.ceEnv || []).find(y=>y.token === b.dataset.envWa), ed = edDe(b.dataset.envWa); if(!x || !ed) return;
+        if(ed.dataset.modo === 'wa'){ ed.innerHTML = ''; ed.dataset.modo = ''; return; }
+        const n = String(x.clienteNombre || '').split(' ')[0];
+        const def = x.tipo === 'menu'
+          ? '🌿✨ ¡Hola ' + n + '! Te compartimos el menú de *El Rincón de Rosita* 🍽️ para que elijas con calma lo que te provoque disfrutar.\n\n👉 ' + x.enviar + '\n\nLo preparamos con mucho cariño para ti 💙'
+          : x.regalo ? '🎁✨ ¡Hola ' + n + '! Tienes un regalo en *Aguamiel · Centro de Bienestar* 💙\n\nEn este enlace verás lo que incluye tu regalo y podrás elegir en la agenda el día y la hora que quieras para disfrutarlo:\n\n👉 ' + x.enviar + '\n\n¡Te esperamos con mucho cariño! 🌿'
+          : '🌿✨ ¡Hola ' + n + '! Te compartimos nuestro catálogo de *Aguamiel · Centro de Bienestar* 💆‍♀️🍽️\nElige con calma los servicios de bienestar y lo que te provoque del Rincón de Rosita; con eso te preparamos tu presupuesto. Si es un regalo, también puedes indicarlo ahí 🎁\n\n👉 ' + x.enviar + '\n\n¡Te esperamos con mucho cariño! 💙';
+        const cl = x.telefono ? null : state.clientes.find(c=>String(c.nombre || '').trim().toLowerCase() === String(x.clienteNombre || '').trim().toLowerCase());
+        ed.dataset.modo = 'wa'; waEnvioEditable(ed, x.telefono || (cl ? pickTelefono(cl) : ''), def);
+      });
+      // ✏️ Cambiar el mensaje que el cliente ve arriba del catálogo (en el mismo enlace).
+      envCont.querySelectorAll('[data-env-msj]').forEach(b=>b.onclick = ()=>{
+        const tk = b.dataset.envMsj, x = (state.ceEnv || []).find(y=>y.token === tk), ed = edDe(tk); if(!x || !ed) return;
+        if(ed.dataset.modo === 'msj'){ ed.innerHTML = ''; ed.dataset.modo = ''; return; }
+        ed.dataset.modo = 'msj';
+        ed.innerHTML = `<label class="f">Mensaje que sale arriba del catálogo</label><textarea data-env-msj-t rows="3" style="width:100%">${esc(x.mensaje || '')}</textarea><button type="button" class="ag-btn sm" data-env-msj-g style="margin-top:6px">💾 Guardar mensaje</button>`;
+        ed.querySelector('[data-env-msj-g]').onclick = async ev=>{
+          ev.target.disabled = true;
+          try{ state.ceEnv = await gs('setMensajeEnlace', tk, ed.querySelector('[data-env-msj-t]').value, auth()); pintarEnv(); toast('Mensaje guardado: el cliente ya lo ve en el mismo enlace.'); }
+          catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+        };
+      });
+      // 🗑️ Borrar: el enlace deja de funcionar y sale de la lista; lo que el cliente ya envió no se toca.
+      envCont.querySelectorAll('[data-env-del]').forEach(b=>b.onclick = async ()=>{
+        if(!confirm('¿Borrar el enlace de ' + b.dataset.envDeln + '? Deja de funcionar y sale de esta lista. Lo que el cliente ya envió (presupuesto u orden) se conserva.')) return;
+        b.disabled = true;
+        try{ state.ceEnv = await gs('borrarEnlace', b.dataset.envDel, auth()); pintarEnv(); toast('Enlace borrado.'); }
+        catch(e){ b.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); }
       });
       envCont.querySelectorAll('[data-cad]').forEach(b=>b.onclick = async ()=>{
         if(!confirm('¿Caducar ahora el enlace de ' + b.dataset.cadn + '? El cliente ya no podrá abrirlo ni enviar nada con él. Lo que ya envió antes no se borra.')) return;
@@ -12211,7 +12271,7 @@ setTimeout(function(){
     };
     // Pasa a E todo lo que está en pantalla (la usan «Crear enlace» y «Guardar plantilla»).
     const leerE = ()=>{
-      E.mensaje = q('#ce-msj').value.trim(); E.dias = +q('#ce-dias').value || 7; E.grupo = q('#ce-grupo').checked; E.grupal = q('#ce-grupal').checked; E.evento = q('#ce-evento').value.trim();
+      E.mensaje = q('#ce-msj').value.trim(); E.textoWa = q('#ce-wa-txt').value.trim(); E.dias = +q('#ce-dias').value || 7; E.grupo = q('#ce-grupo').checked; E.grupal = q('#ce-grupal').checked; E.evento = q('#ce-evento').value.trim();
       E.solicitudChk = q('#ce-solicitud').checked;
       recogerGl();
       E.conPaq = q('#ce-paq').checked; E.conServ = q('#ce-serv').checked; E.conMenu = q('#ce-menu').checked;
@@ -12224,10 +12284,12 @@ setTimeout(function(){
     };
     // Plantillas: guardar esta configuración con un nombre y volver a usarla en otros enlaces.
     plantillasEnlace(q('#ce-plantillas'), 'catalogo',
-      ()=>{ leerE(); return { mensaje:E.mensaje, dias:E.dias, solicitud:!!E.solicitudChk, grupo:!!E.grupo && !E.grupal, grupal:!!E.grupal, evento:E.evento || '', conPaq:E.conPaq, conServ:E.conServ, conMenu:E.conMenu,
+      ()=>{ leerE(); return { mensaje:E.mensaje, textoWa:E.textoWa || '', dias:E.dias, solicitud:!!E.solicitudChk, grupo:!!E.grupo && !E.grupal, grupal:!!E.grupal, evento:E.evento || '', conPaq:E.conPaq, conServ:E.conServ, conMenu:E.conMenu,
         sinPaq:E.sinPaq, sinSrv:E.sinSrv, sinPlato:E.sinPlato, sinCat:E.sinCat, sinMenu:E.sinMenu, gTramos:E.gTramos || null, gHidro:E.gHidro || null, gPisc:E.gPisc || null, gInst:E.gInst || null }; },
       cfg=>{
-        Object.assign(E, { mensaje:cfg.mensaje || '', dias:+cfg.dias || 7, solicitudChk:!!cfg.solicitud, grupo:!!cfg.grupo, grupal:!!cfg.grupal, evento:cfg.evento || '', conPaq:cfg.conPaq !== false, conServ:cfg.conServ !== false, conMenu:cfg.conMenu !== false,
+        // Lo que ya se escribió del cliente no registrado se conserva al aplicar la plantilla.
+        if(!base && !(sel && sel.value)){ const n = q('#ce-nombre'), t = q('#ce-tel'); if(n) E.nombre = n.value; if(t) E.telefono = t.value; }
+        Object.assign(E, { mensaje:cfg.mensaje || '', textoWa:cfg.textoWa || '', dias:+cfg.dias || 7, solicitudChk:!!cfg.solicitud, grupo:!!cfg.grupo, grupal:!!cfg.grupal, evento:cfg.evento || '', conPaq:cfg.conPaq !== false, conServ:cfg.conServ !== false, conMenu:cfg.conMenu !== false,
           sinPaq:cfg.sinPaq || {}, sinSrv:cfg.sinSrv || {}, sinPlato:cfg.sinPlato || {}, sinCat:cfg.sinCat || {}, sinMenu:cfg.sinMenu || {} });
         if(cfg.gTramos){ E.gTramos = cfg.gTramos; E.gHidro = cfg.gHidro; E.gPisc = cfg.gPisc; E.gInst = cfg.gInst; }
         render();
