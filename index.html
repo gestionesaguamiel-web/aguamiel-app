@@ -12680,7 +12680,7 @@ setTimeout(function(){
     body.innerHTML = `
       ${mnVolver('id="pv-volver"', 'Presupuestos')}
       <div class="ag-card" style="margin-top:10px;padding:0;overflow:hidden">${presupuestoHTML(p)}</div>
-      <div style="margin-top:10px">${mnGrid([   // 🗂️ v365: acciones en tarjetas iguales
+      <div style="margin-top:10px">${mnGrid([
         { at:'id="pv-wa"', e:'📱', t:'WhatsApp', sb:'Enviar el enlace', c:['#1d6b35','#e2f4e6'] },
         { at:'id="pv-imprimir"', e:'📤', t:'Imagen o PDF', sb:'Enviar como archivo', c:['#0a5a68','#e2f4f6'] },
         p.reservaId ? { at:'id="pv-ir-reserva"', e:'📅', t:'Ver reserva', sb:'Ya está agendada', c:['#5b3f8f','#efe9f8'] } : { at:'id="pv-reserva"', e:'📅', t:'Convertir en reserva', sb:'Agendar la cita', c:['#5b3f8f','#efe9f8'] },
@@ -16312,7 +16312,7 @@ setTimeout(function(){
         cont.querySelector('#fd-save').onclick = async (ev)=>{
           leer();
           if(!D.desde || !D.hasta){ alert('Escribe las fechas como día-mes, por ejemplo 01-11 (1 de noviembre).'); return; }
-          if(cfg.resenasUrl && !/^https:\/\//.test(cfg.resenasUrl)){ alert('El enlace de reseñas debe empezar por https://'); return; }
+          if(cfg.resenasUrl && !/^https:[/][/]/.test(cfg.resenasUrl)){ alert('El enlace de reseñas debe empezar por https://'); return; }
           S.premios = S.premios.filter(Boolean); if(!S.premios.length){ alert('Escribe al menos un premio en la lista.'); return; }
           ev.target.disabled = true; ev.target.textContent = 'Guardando…';
           try{ const r = await gs('saveFidelCfg', cfg, auth()); state.fidelCfg = r; toast('💧 Guardado.'); renderFidelAdmin(cont); }
