@@ -1218,7 +1218,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v367' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v368' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1843,6 +1843,7 @@ setTimeout(function(){
       if(window.AG_WEB){ setTimeout(precargarSinRed, 2500); setTimeout(colaEnviar, 2500); }   // lo que quedó pendiente (p. ej. antes de salir) se envía al entrar
       setTimeout(avisoChoques, 7000);
       setTimeout(muralRevisar, 1800);   // 📚 v367: lo nuevo del mural educativo, al entrar
+      setTimeout(()=>{ pushAlAbrir(); if(window._agAvisoInicial){ const t = window._agAvisoInicial; window._agAvisoInicial = ''; pushIrA(t); } }, 2500);   // 🔔 v368
       // 📋 Si se estaba mostrando la copia del teléfono, ya llegó lo nuevo: se quita el aviso. Si la persona empezó a llenar algo, no se le redibuja encima.
       if(state.desdeCopia){ terminarCopia(); if(vistaEsFormulario()) return; }
       try{ gs('getEstampaDatos').then(e=>{ ultimaEstampa = String(e || ''); }).catch(()=>{}); }catch(eS){}
@@ -3183,9 +3184,11 @@ setTimeout(function(){
       ${esAdm ? `<div id="home-disp">${dispBannerHTML()}</div>
       <div id="home-cob">${state.cobHome ? coberturaHomeHTML() : ''}</div>
       <div id="home-hoy">${state.agenda ? bannerHoyHTML() + confPendientesHTML() : ''}</div>` : ''}
+      <div id="home-push"></div>
       ${tarjetaTg}
       ${tarjetaCorreo}
     `;
+    pintarTarjetaPush(body.querySelector('#home-push'));
     body.querySelector('#ag-go-clientes').onclick = ()=>{ state.tab='clientes'; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); };
     const bAy = body.querySelector('#ag-ayuda'); if(bAy){ bAy.style.width = '100%'; bAy.onclick = ()=>mostrarManual(); }
     const bTm = body.querySelector('#ag-timer'); if(bTm){ bTm.style.width = '100%'; bTm.onclick = ()=>timerElegir(null); }
@@ -9679,7 +9682,12 @@ setTimeout(function(){
     { v:367, fecha:'6 nov', titulo:'📚 Mural educativo para las fisioterapeutas', puntos:[
       '📚 En <strong>Admin → Equipo → Mural educativo</strong> pegas un enlace de YouTube, Instagram, TikTok o de un artículo y eliges cuántos días dura.',
       '👀 Al entrar, cada fisioterapeuta lo ve en la ventana <strong>«Aprende hoy»</strong> con el video o la foto dentro de la app. «✅ Ya lo vi» lo marca; la ✕ o «⏰ Ver luego» lo deja para la próxima vez.',
-      '⏹️ Cada publicación se puede <strong>alargar, caducar o eliminar</strong>, y ves quién ya la vio.' ] }
+      '⏹️ Cada publicación se puede <strong>alargar, caducar o eliminar</strong>, y ves quién ya la vio.' ] },
+    { v:368, fecha:'6 nov', titulo:'🔔 Avisos en el teléfono con numerito en el ícono', puntos:[
+      '🔔 En la app instalada, toca <strong>«Activar avisos»</strong> en el Inicio (o en ⚙️ Mi cuenta) y te llegan tus <strong>citas</strong>, el <strong>mural educativo</strong> y tus <strong>propinas</strong> aunque la app esté cerrada.',
+      '🔴 El ícono de Aguamiel muestra cuántos avisos tienes sin ver; se borra al abrir la app. Tocar el aviso abre la pantalla que corresponde.',
+      '📱 iPhone: con la app agregada a inicio desde Safari (iOS 16.4 o más nuevo). Android: con Chrome. Telegram sigue llegando igual.',
+      '📋 En Admin → Personal → ¿Quién ya está listo? ves quién ya activó los avisos.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -16703,6 +16711,103 @@ setTimeout(function(){
     };
     pintar();
   }
+  // ---------- 🔔 v368: Avisos al teléfono (notificaciones y numerito en el ícono) ----------
+  // Llegan aunque la app esté cerrada. Solo en la app de la dirección github.io (en la de Google el navegador no lo permite):
+  // iPhone con iOS 16.4 o más nuevo y la app agregada a la pantalla de inicio desde Safari; Android con Chrome.
+  // El aviso llega vacío y el teléfono le pregunta al servidor qué dice (así Google y Apple no ven datos de clientes).
+  const pushIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const pushInstalada = ()=>(window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const pushSoporta = ()=>!!(window.AG_WEB && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
+  const pushB64 = s=>{ s = String(s).replace(/-/g, '+').replace(/_/g, '/'); s += '='.repeat((4 - s.length % 4) % 4); const b = atob(s); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
+  const pushDisp = ()=>(pushIOS ? 'iPhone' : /Android/i.test(navigator.userAgent) ? 'Android' : 'Computadora') + (pushInstalada() ? ' · app' : ' · web');
+  // 'nogoogle' (versión de Google) · 'instalar' (iPhone sin instalar o iOS viejo) · 'nosoporta' · 'bloqueado' · 'activo' · 'apagado'
+  async function pushEstado(){
+    if(!window.AG_WEB) return 'nogoogle';
+    if(!pushSoporta()) return pushIOS ? 'instalar' : 'nosoporta';
+    if(Notification.permission === 'denied') return 'bloqueado';
+    try{ const reg = await navigator.serviceWorker.ready; const s = await reg.pushManager.getSubscription(); return s && Notification.permission === 'granted' ? 'activo' : 'apagado'; }catch(e){ return 'apagado'; }
+  }
+  async function pushActivar(){
+    if(!pushSoporta()) throw new Error(pushIOS ? 'En iPhone primero instala la app: en Safari toca Compartir ⬆️ → «Agregar a inicio» y ábrela desde ese ícono (iOS 16.4 o más nuevo).' : 'Este navegador no permite avisos. Abre la app con Chrome.');
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted') throw new Error('No se dio el permiso. Actívalo en Ajustes del teléfono → Notificaciones → Aguamiel.');
+    const E = await gs('getPushEstado', auth());
+    const reg = await navigator.serviceWorker.ready, clave = pushB64(E.clave);
+    let s = await reg.pushManager.getSubscription();
+    if(s && s.options && s.options.applicationServerKey){ const a = new Uint8Array(s.options.applicationServerKey); if(a.length !== clave.length || a.some((v, i)=>v !== clave[i])){ await s.unsubscribe(); s = null; } }
+    if(!s) s = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:clave });
+    await gs('guardarPushSub', { endpoint:s.endpoint }, pushDisp(), auth());
+    lsSet('ag_push_' + state.user.id, Date.now());
+    return true;
+  }
+  async function pushDesactivar(){
+    try{ const reg = await navigator.serviceWorker.ready; const s = await reg.pushManager.getSubscription(); if(s){ try{ await gs('quitarPushSub', s.endpoint, auth()); }catch(e){} await s.unsubscribe(); } }catch(e){}
+    lsDel('ag_push_' + state.user.id);
+  }
+  // Al abrir la app: se borra el numerito del ícono, se cierran los avisos ya mostrados y se dan por vistos en el servidor.
+  // Si el teléfono tiene avisos pero quedaron a nombre de otra persona (teléfono compartido) o hace días que no se confirman, se vuelven a registrar.
+  let pushVistoAt = 0;
+  async function pushAlAbrir(){
+    if(!window.AG_WEB || !state.user || !pushSoporta()) return;
+    try{ if(navigator.clearAppBadge) navigator.clearAppBadge().catch(()=>{}); }catch(e){}
+    try{ const reg = await navigator.serviceWorker.ready; (await reg.getNotifications()).forEach(n=>n.close()); }catch(e){}
+    if(Date.now() - pushVistoAt < 60000) return; pushVistoAt = Date.now();
+    if(await pushEstado() !== 'activo') return;
+    const k = 'ag_push_' + state.user.id, ult = Number(lsGet(k)) || 0;
+    if(Date.now() - ult > 3 * 86400000){ try{ await pushActivar(); }catch(e){} }
+    gs('marcarAvisosVistos', auth()).catch(()=>{});
+  }
+  // Al tocar un aviso se abre la pantalla que corresponde.
+  function pushIrA(tipo){
+    if(!state.user) return;
+    if(tipo === 'mural' && typeof muralVerTodo === 'function') muralVerTodo();
+    else if(tipo === 'propina'){ openFullscreen('💝 ' + (state.user.admin ? 'Propinas del equipo' : 'Mis propinas'), '<div id="ag-prop"><p class="ag-empty">Cargando…</p></div>'); renderPropinas(document.getElementById('ag-prop')); }
+    else if(tipo === 'cita'){ state.tab = 'home'; render(); }
+  }
+  if(window.AG_WEB && 'serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message', ev=>{ const d = ev.data || {}; if(d.agAviso){ pushIrA(d.agAviso); pushAlAbrir(); } });
+    const mA = /[#&]aviso=(\w+)/.exec(location.hash || '');
+    if(mA){ window._agAvisoInicial = mA[1]; try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){} }
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pushAlAbrir(); });
+  // Tarjeta del Inicio mientras el teléfono no tenga los avisos activados («Ahora no» la esconde 7 días).
+  async function pintarTarjetaPush(box){
+    if(!box || !window.AG_WEB || !state.user) return;
+    const est = await pushEstado(), k = 'ag_push_no_' + state.user.id;
+    if(!box.isConnected || est === 'activo' || est === 'nosoporta' || est === 'nogoogle' || Date.now() - (Number(lsGet(k)) || 0) < 7 * 86400000){ box.innerHTML = ''; return; }
+    const txt = est === 'instalar' ? 'Para recibir tus citas, el mural educativo y tus propinas como notificación, instala la app: en <strong>Safari</strong> toca Compartir ⬆️ → <strong>«Agregar a inicio»</strong> y entra desde ese ícono (iOS 16.4 o más nuevo).'
+      : est === 'bloqueado' ? 'Las notificaciones de Aguamiel están bloqueadas en este teléfono. Actívalas en <strong>Ajustes → Notificaciones → Aguamiel</strong> (o en los permisos del sitio en Chrome) y vuelve aquí.'
+      : 'Te llegan tus <strong>citas</strong>, el <strong>mural educativo</strong> y tus <strong>propinas</strong> aunque la app esté cerrada, con el numerito en el ícono. Un toque y listo.';
+    box.innerHTML = `<div class="ag-sec"><div class="ag-card" style="border:2px solid var(--teal);background:var(--teal-l)"><h3 style="font-size:15px">🔔 Avisos en este teléfono</h3><p style="font-size:13px;margin:4px 0 8px">${txt}</p>
+      <div style="display:flex;gap:6px">${est === 'apagado' ? '<button class="ag-btn" id="ag-push-on" style="flex:2">🔔 Activar avisos</button>' : ''}<button class="ag-btn ghost" id="ag-push-no" style="flex:1">Ahora no</button></div><div id="ag-push-msg" style="font-size:13px;margin-top:6px"></div></div></div>`;
+    box.querySelector('#ag-push-no').onclick = ()=>{ lsSet(k, Date.now()); box.innerHTML = ''; };
+    const on = box.querySelector('#ag-push-on'); if(on) on.onclick = async ()=>{
+      on.disabled = true; const m = box.querySelector('#ag-push-msg'); m.textContent = '⏳ Activando…';
+      try{ await pushActivar(); gs('probarPush', auth()).catch(()=>{}); toast('🔔 ¡Listo! En unos segundos te llega un aviso de prueba.'); box.innerHTML = ''; }
+      catch(e){ on.disabled = false; m.style.color = 'var(--danger)'; m.innerHTML = esc(e && e.message ? e.message : e); }
+    };
+  }
+  // ⚙️ Mi cuenta → 🔔 Avisos en este teléfono
+  async function abrirMisAvisosPush(){
+    openFullscreen('🔔 Avisos en este teléfono', '<p class="ag-empty">Revisando…</p>');
+    const fsb = document.getElementById('ag-fs-body'), est = await pushEstado();
+    const TXT = { nogoogle:'Estás en la versión de Google. Los avisos solo funcionan en la app instalada: entra por <strong>gestionesaguamiel-web.github.io/aguamiel-app</strong> e instálala.',
+      instalar:'En iPhone los avisos solo llegan con la app instalada: en <strong>Safari</strong> toca Compartir ⬆️ → <strong>«Agregar a inicio»</strong> y entra desde ese ícono. Necesita iOS 16.4 o más nuevo.',
+      nosoporta:'Este navegador no permite avisos. En Android abre la app con <strong>Chrome</strong>.',
+      bloqueado:'Las notificaciones están bloqueadas. Actívalas en <strong>Ajustes del teléfono → Notificaciones → Aguamiel</strong> (en Android: Chrome → Configuración del sitio → Notificaciones) y vuelve aquí.',
+      apagado:'Aún no están activados en este teléfono.', activo:'✅ Activados: te llegan aunque la app esté cerrada.' };
+    fsb.innerHTML = `<div class="ag-card"><p style="font-size:14px;margin:0 0 8px">${TXT[est]}</p>
+      <p class="ag-muted" style="font-size:12.5px;margin:0 0 10px">Te avisa de: 📅 tus citas (nuevas, cambios, cancelaciones y 3 horas antes) · 📚 publicaciones nuevas del mural educativo · 💝 propinas recibidas. Siguen llegando también por Telegram.</p>
+      ${est === 'apagado' ? '<button class="ag-btn" id="ap-on" style="width:100%">🔔 Activar avisos</button>' : ''}
+      ${est === 'activo' ? '<div style="display:flex;gap:6px"><button class="ag-btn" id="ap-test" style="flex:1">📨 Enviarme una prueba</button><button class="ag-btn ghost" id="ap-off" style="flex:1;color:var(--danger)">Desactivar</button></div>' : ''}
+      <div id="ap-msg" style="font-size:13px;margin-top:8px"></div></div>`;
+    const m = (t, ok)=>{ const e = fsb.querySelector('#ap-msg'); e.style.color = ok === false ? 'var(--danger)' : '#1d6b35'; e.innerHTML = t; };
+    const on = fsb.querySelector('#ap-on'); if(on) on.onclick = async ()=>{ on.disabled = true; m('⏳ Activando…');
+      try{ await pushActivar(); await gs('probarPush', auth()); toast('🔔 ¡Listo! En unos segundos te llega un aviso de prueba.'); abrirMisAvisosPush(); }catch(e){ on.disabled = false; m(esc(e && e.message ? e.message : e), false); } };
+    const te = fsb.querySelector('#ap-test'); if(te) te.onclick = async ()=>{ te.disabled = true; m('⏳ Enviando…');
+      try{ await pushActivar(); await gs('probarPush', auth()); m('📨 Enviado: cierra la app y en unos segundos debe llegar.'); }catch(e){ m(esc(e && e.message ? e.message : e), false); } te.disabled = false; };
+    const off = fsb.querySelector('#ap-off'); if(off) off.onclick = async ()=>{ if(!confirm('¿Dejar de recibir avisos en este teléfono? (Telegram sigue igual)')) return; off.disabled = true; await pushDesactivar(); toast('Avisos desactivados en este teléfono.'); abrirMisAvisosPush(); };
+  }
   // ---------- ✈️ Mi Telegram para avisos ----------
   // Cada persona se vincula sola: abre el enlace del bot (con un código de un solo uso), toca «Iniciar» y pulsa «Ya lo hice».
   async function abrirMiTelegram(){
@@ -16773,6 +16878,7 @@ setTimeout(function(){
     const fsb = document.getElementById('ag-fs-body');
     let P;
     try{ P = await gs('getMiCuenta', auth()); }catch(e){ fsb.innerHTML = '<p class="ag-err">No se pudo abrir: ' + esc(e && e.message ? e.message : e) + '</p>'; return; }
+    try{ P._push = await pushEstado(); }catch(e){}
     const seccion = (t, html)=>`<div class="ag-card" style="margin-top:12px"><h3 style="font-size:15px;margin-bottom:6px">${t}</h3>${html}</div>`;
     const campo = (id, label, val, extra)=>`<label class="f">${label}</label><input id="mc2-${id}" value="${esc(val || '')}" ${extra || ''}/>`;
     const area = (id, label, val, ph)=>`<label class="f">${label}</label><textarea id="mc2-${id}" rows="3" placeholder="${esc(ph || '')}">${esc(val || '')}</textarea>`;
@@ -16780,7 +16886,8 @@ setTimeout(function(){
     const pintar = ()=>{
       fsb.innerHTML = `<p class="ag-muted" style="font-size:12.5px;margin:0">Solo tú y la administración ven estos datos.</p>
         ${seccion('🔔 Mis avisos', filaAviso('✈️', 'Telegram', P.conTelegram ? (P.tgActivo ? 'Vinculado: tus avisos llegan por aquí' : 'Vinculado, pero pausado') : 'Sin vincular', P.conTelegram && P.tgActivo, 'mc2-tg', P.conTelegram ? 'Ver o cambiar' : 'Vincular')
-          + filaAviso('✉️', 'Correo', P.correo || 'Sin registrar', !!P.correo, 'mc2-correo', P.correo ? 'Ver o cambiar' : 'Registrar'))}
+          + filaAviso('✉️', 'Correo', P.correo || 'Sin registrar', !!P.correo, 'mc2-correo', P.correo ? 'Ver o cambiar' : 'Registrar')
+          + (window.AG_WEB ? filaAviso('📲', 'Avisos en este teléfono', P._push === 'activo' ? 'Activados' : 'Notificaciones y numerito en el ícono', P._push === 'activo', 'mc2-push', P._push === 'activo' ? 'Ver' : 'Activar') : ''))}
         ${seccion('👤 Datos personales', `<div class="ag-row"><div>${campo('nombres', 'Nombre(s) <span style="color:var(--danger)">*</span>', P.nombres)}</div><div>${campo('apellidos', 'Apellido(s)', P.apellidos)}</div></div>
           <div class="ag-row"><div>${campo('cedula', 'Cédula', P.cedula, 'inputmode="numeric"')}</div><div>${campo('telefono', 'Teléfono', P.telefono, 'inputmode="tel"')}</div></div>
           ${campo('fnac', 'Fecha de nacimiento', fnacATexto(P.fnac), 'placeholder="15/03/1990"')}
@@ -16804,6 +16911,7 @@ setTimeout(function(){
       const nota = (sel, t, ok)=>{ const m = $(sel); m.style.color = ok === false ? 'var(--danger)' : '#1d6b35'; m.innerHTML = t; };
       $('#mc2-tg').onclick = ()=>abrirMiTelegram();
       $('#mc2-correo').onclick = ()=>abrirMiCorreo();
+      const bPush = $('#mc2-push'); if(bPush) bPush.onclick = ()=>abrirMisAvisosPush();
       $('#mc2-guardar').onclick = async ev=>{
         const d = {}; ['nombres','apellidos','cedula','telefono','fnac','direccion','titulo','institucion','egreso','colegiatura','especialidades','cursos','experiencia'].forEach(k=>d[k] = val(k));
         if(!d.nombres.trim()){ nota('#mc2-msg', 'Escribe tu nombre.', false); return; }
@@ -16974,7 +17082,7 @@ setTimeout(function(){
     const C = state.eqListo;
     const pinta = L=>{
       const aplicaPago = x=>!/cocina|rosita/i.test(x.cargo || '');
-      const conPago = L.filter(aplicaPago), pagoOk = conPago.filter(x=>x.pago || x.otro), appOk = L.filter(x=>x.app === 'si');
+      const conPago = L.filter(aplicaPago), pagoOk = conPago.filter(x=>x.pago || x.otro), appOk = L.filter(x=>x.app === 'si'), pushOk = L.filter(x=>x.push > 0);
       const faltaPago = conPago.filter(x=>!(x.pago || x.otro)), faltaApp = L.filter(x=>x.app !== 'si');
       const ICO = { si:['📲','App instalada','#1d6b35'], web:['🌐','Página, sin instalar','#8a5a00'], google:['🔗','Solo enlace de Google','#8a5a00'], sindato:['❔','Entró (aún sin dato)','#777'], nunca:['⛔','No ha entrado','#a32b2b'] };
       const fecha = iso=>iso ? new Date(iso).toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit' }) : '';
@@ -16982,15 +17090,15 @@ setTimeout(function(){
       const nom = x=>esc(String(x.nombre).split(' ')[0]);
       box.innerHTML = `<details class="ag-card" style="margin-bottom:10px" ${state.eqListoAb !== false ? 'open' : ''}>
         <summary style="font-weight:700;cursor:pointer">📋 ¿Quién ya está listo?</summary>
-        <div style="display:flex;gap:8px;margin-top:8px">${pill('💳', 'Datos para propinas', pagoOk.length, conPago.length)}${pill('📲', 'App instalada', appOk.length, L.length)}</div>
+        <div style="display:flex;gap:8px;margin-top:8px">${pill('💳', 'Datos para propinas', pagoOk.length, conPago.length)}${pill('📲', 'App instalada', appOk.length, L.length)}${pill('🔔', 'Avisos activos', pushOk.length, L.length)}</div>
         ${faltaPago.length ? `<p style="font-size:13px;margin:8px 0 0">💳 <strong>Faltan datos:</strong> ${faltaPago.map(nom).join(', ')}</p>` : '<p style="font-size:13px;margin:8px 0 0;color:#1d6b35">💳 Todos registraron sus datos para propinas.</p>'}
         ${faltaApp.length ? `<p style="font-size:13px;margin:4px 0 0">📲 <strong>Sin la app instalada:</strong> ${faltaApp.map(nom).join(', ')}</p>` : '<p style="font-size:13px;margin:4px 0 0;color:#1d6b35">📲 Todos usan la app instalada.</p>'}
         <div style="margin-top:8px">${L.slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))).map(x=>{ const i = ICO[x.app] || ICO.nunca;
           const pg = !aplicaPago(x) ? '<span class="ag-muted">—</span>' : (x.pago ? '✅ Pago móvil' : x.otro ? '✅ Otro medio' : '<span style="color:#a32b2b">⏳ Falta</span>');
           return `<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.2fr);gap:6px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);align-items:center">
             <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.nombre)}</strong><span>${pg}</span>
-            <span style="color:${i[2]}">${i[0]} ${i[1]}${x.app === 'si' && x.appUlt ? ' <span class="ag-muted">· ' + fecha(x.appUlt) + '</span>' : ''}</span></div>`; }).join('')}</div>
-        <p class="ag-muted" style="font-size:11.5px;margin:8px 0 0">Los datos de pago los pone cada persona en Inicio → 💝 Mis propinas (aquí no se muestran). «App instalada» se marca la próxima vez que la persona entre desde el ícono de la app en su teléfono.</p>
+            <span style="color:${i[2]}">${i[0]} ${i[1]}${x.app === 'si' && x.appUlt ? ' <span class="ag-muted">· ' + fecha(x.appUlt) + '</span>' : ''}${x.push ? ' · 🔔' : ''}</span></div>`; }).join('')}</div>
+        <p class="ag-muted" style="font-size:11.5px;margin:8px 0 0">Los datos de pago los pone cada persona en Inicio → 💝 Mis propinas (aquí no se muestran). «App instalada» se marca la próxima vez que la persona entre desde el ícono de la app en su teléfono. 🔔 = tiene los avisos al teléfono activados (Inicio o ⚙️ Mi cuenta → Avisos en este teléfono).</p>
         ${faltaPago.length || faltaApp.length ? '<button class="ag-btn sm" id="eql-rec" style="width:100%;margin-top:8px">📢 Enviar un recordatorio al equipo</button>' : ''}
       </details>`;
       const det = box.querySelector('details'); if(det) det.ontoggle = ()=>{ state.eqListoAb = det.open; };
