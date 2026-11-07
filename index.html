@@ -1218,7 +1218,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v369' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v370' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1370,7 +1370,7 @@ setTimeout(function(){
   // en orden, al volver la conexión. Cada cambio lleva un «rid» único: si llegara dos veces, el servidor no lo duplica.
   // Borrar, pagos, verificaciones, fotos y avisos NO se hacen sin conexión (necesitan respuesta segura del servidor).
   // v342: también Disponibilidad, Operaciones (tareas, revisiones, estado de equipos), órdenes de Rosita y reservas nuevas («por confirmar»).
-  const COLA_FN = /^(moverInventario|saveInventarioItem|saveCompra|marcarCompra|setCostoCompra|saveGastoFactura|saveOtroIngreso|savePrecioIngrediente|sumarFacturaInventario|saveMenuItem|savePaquete|savePaqCats|saveTarifas|saveTarifasGrupo|savePresupuesto|setEstadoPresupuesto|saveReceta|saveCliente|saveFicha|updateFicha|registrarTiempoTerapia|guardarDisponibilidad|saveOperacion|guardarChecklistOperacion|cambiarEstadoEquipo|savePedido|marcarCocina|saveReserva)$/;
+  const COLA_FN = /^(moverInventario|saveInventarioItem|saveCompra|marcarCompra|setCostoCompra|saveGastoFactura|saveOtroIngreso|savePrecioIngrediente|sumarFacturaInventario|saveMenuItem|savePaquete|savePaqCats|saveTarifas|saveTarifasGrupo|savePresupuesto|setEstadoPresupuesto|saveReceta|saveCliente|saveFicha|updateFicha|registrarTiempoTerapia|iniciarTerapia|guardarDisponibilidad|saveOperacion|guardarChecklistOperacion|cambiarEstadoEquipo|savePedido|marcarCocina|saveReserva)$/;
   // 📥 Lecturas guardadas en el teléfono (solo web): cada consulta que llega bien se guarda (cifrada); sin señal o con señal muy lenta se muestra la última.
   // La hora del servidor nunca se toma de lo guardado; fotos, comprobantes y perfiles del equipo no se guardan en el teléfono (privacidad y espacio).
   const LECT_FN = /^(get(?!HoraServidor|FotoGasto|ImagenFicha|Comprobante|PerfilStaff)|revisionMenuRosita$)/;
@@ -3952,7 +3952,7 @@ setTimeout(function(){
       const perAct = (resAct.personas||[]).find(x=>x.key===(state.reservaPersona||'c')) || null;
       const terAct = (perAct && esIndividual(resAct)) ? (perAct.terapias && perAct.terapias.length ? perAct.terapias : (perAct.servicios||[]).map(terapiaDeServicio)) : (resAct.terapias||[]);
       const profAct = (perAct && esIndividual(resAct)) ? (perAct.profesionales||[]) : (resAct.profesionales||[]);
-      body.insertAdjacentHTML('afterbegin', `<div class="ag-card" style="margin-bottom:10px;background:var(--teal-l);border-color:var(--teal)"><strong>📅 Atendiendo reserva${perAct && (perAct.rol!=='cliente' || (resAct.personas||[]).length>1) ? ' · ficha de ' + esc(perAct.nombre) : ''}</strong><br/><span style="font-size:13px">${esc(resAct.clienteNombre)} · ${esc(isoToDMY(resAct.fecha))} ${esc(resAct.hora)}${resAct.paqueteNombre?' · '+esc(resAct.paqueteNombre):''}</span><br/><button type="button" class="ag-btn ghost sm" id="nf-salir-reserva" style="margin-top:6px">Salir sin atender</button></div>`);
+      body.insertAdjacentHTML('afterbegin', `<div class="ag-card" style="margin-bottom:10px;background:var(--teal-l);border-color:var(--teal)"><strong>📅 Atendiendo reserva${perAct && (perAct.rol!=='cliente' || (resAct.personas||[]).length>1) ? ' · ficha de ' + esc(perAct.nombre) : ''}</strong><br/><span style="font-size:13px">${esc(resAct.clienteNombre)} · ${esc(isoToDMY(resAct.fecha))} ${esc(resAct.hora)}${resAct.paqueteNombre?' · '+esc(resAct.paqueteNombre):''}</span>${botonTimerCitaHTML(resAct, true)}<br/><button type="button" class="ag-btn ghost sm" id="nf-salir-reserva" style="margin-top:6px">Salir sin atender</button></div>`);
       body.querySelector('#nf-salir-reserva').onclick = ()=>{ state.reservaActual = null; state.reservaPersona = null; state.tab='agenda'; render(); };
       const fe = body.querySelector('#nf-fecha'), ho = body.querySelector('#nf-hora');
       if(fe) fe.value = resAct.fecha; if(ho && resAct.hora) ho.value = resAct.hora;
@@ -8205,7 +8205,7 @@ setTimeout(function(){
       if(p.fichaId) return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13px;background:#eefaf1;border-radius:8px;padding:6px 8px"><span>✅ ${n}: ficha registrada</span><button class="ag-btn sm ghost" data-pa-ver="${esc(r.id)}|${esc(p.key)}">📄 Ver</button></div>`;
       if(r.estado!=='Confirmada') return `<div class="ag-muted" style="font-size:12.5px">${n}: sin ficha${state.user.admin && r.estado==='Completada' ? ' · toca <strong>🔓 Reabrir</strong> para completarla' : ''}</div>`;
       if(p.rol!=='cliente' && !p.clienteId) return `<button class="ag-btn" data-pa-reg="${esc(r.id)}|${esc(p.key)}" style="width:100%">➕ Registrar a ${n} y llenar su ficha</button>`;
-      return `<button class="ag-btn" data-pa-ficha="${esc(r.id)}|${esc(p.key)}" style="width:100%">▶️ Llenar la ficha de ${n}</button>`;
+      return `<button class="ag-btn" data-pa-ficha="${esc(r.id)}|${esc(p.key)}" style="width:100%">📝 Llenar la ficha de ${n}</button>`;
     }).join('') + (r.estado==='Confirmada' && hechas && hechas < ps.length ? `<button class="ag-btn sm ghost" data-pa-terminar="${esc(r.id)}" style="width:100%">✔️ Dar por terminada (alguien no vino o no necesita ficha)</button>` : '') + `</div>`;
   }
   // 🔎 v360: ventana para elegir a un cliente ya registrado (evita fichas duplicadas). Devuelve el cliente, null = «registrar nuevo», undefined = cerró.
@@ -8331,8 +8331,41 @@ setTimeout(function(){
       if(!on && tmWake){ await tmWake.release(); tmWake = null; } }catch(e){}
   }
   // Elegir el tiempo (si viene de una cita, ya trae la persona y la duración planificada).
+  function tmArrancar(o){
+    tmSonar(0);   // desbloquea el sonido (el teléfono solo lo permite después de un toque)
+    try{ if('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }catch(e){}
+    const t0 = Date.now(), idT = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    gs('getHoraServidor').then(sv=>{ const t1 = Date.now(); if(Number(sv) > 0){ const x = tmLeer(); if(x && x.id === idT){ x.off = Number(sv) - Math.round((t0 + t1) / 2); tmPoner(x); } } }).catch(()=>{});
+    const r = o.reservaId ? ((state.agenda && state.agenda.reservas) || []).find(x=>String(x.id) === String(o.reservaId)) : null;
+    tmPoner({ id:idT, reservaId:o.reservaId || '', personaKey:o.personaKey || '', cliente:String(o.cliente || '').slice(0, 80), servicio:String(o.servicio || '').slice(0, 120), minutos:o.minutos,
+      inicio:tmAhora(), pausas:0, pausadoEn:0, aviso5:o.minutos <= 5, alarma:false, quien:String(state.user && state.user.id || ''), extSync:r && r.sesion ? Number(r.sesion.ext) || 0 : 0 });
+    if(o.reservaId){
+      if(r && !(r.sesion && r.sesion.inicio)) r.sesion = { inicio:new Date(t0).toISOString(), ext:0, fin:'' };
+      gs('iniciarTerapia', String(o.reservaId), o.personaKey || '', new Date(t0).toISOString(), auth()).catch(e=>{ if(!/Sin señal/.test(String(e && e.message))) reportarFalla('timer', String(e && e.message || e)); });
+    }
+    try{ closeFullscreen(); }catch(e){} timerAbrir(); tmRefrescarBotones();
+  }
+  // ⏱️ Botón del reloj en la cita de hoy (Inicio) y arriba de la ficha: ▶️ Iniciar, o ver el que ya corre.
+  function botonTimerCitaHTML(r, enFicha){
+    const t = tmLeer();
+    if(t && !t.fin && String(t.reservaId) === String(r.id)) return `<button type="button" class="ag-btn sm" data-tm-ver="${esc(r.id)}" style="margin-top:6px;width:100%;background:#0a5a68;border-color:#0a5a68">⏱️ Terapia en curso · ver reloj</button>`;
+    if(r.fecha !== hoyISO() || r.estado === 'Cancelada' || (r.sesion && r.sesion.inicio)) return '';
+    return `<button type="button" class="ag-btn" data-cita-timer="${esc(r.id)}" style="margin-top:${enFicha ? 8 : 6}px;width:100%;font-size:16px">▶️ Iniciar terapia · ${Math.max(5, Math.min(240, Number(r.duracionMin) || 60))} min</button>`;
+  }
+  function tmRefrescarBotones(){
+    const lista = (state.agenda && state.agenda.reservas) || [];
+    document.querySelectorAll('[data-cita-timer],[data-tm-ver]').forEach(b=>{ const r = lista.find(x=>String(x.id) === String(b.dataset.citaTimer || b.dataset.tmVer)); if(r) b.outerHTML = botonTimerCitaHTML(r) || ''; });
+  }
   function timerElegir(r){
     const act = tmLeer(); if(act && !act.fin){ timerAbrir(); return; }
+    if(r){
+      const cli = esIndividual(r) && !(r.personas||[]).some(p=>p.rol==='cliente') ? 'Grupo de ' + r.clienteNombre : r.clienteNombre;
+      const enFicha = state.tab === 'nueva' && state.reservaActual && String(state.reservaActual.id) === String(r.id);
+      const per = enFicha ? (r.personas || []).find(p=>p.key === (state.reservaPersona || 'c')) : null;
+      tmArrancar({ reservaId:String(r.id), personaKey:enFicha ? (state.reservaPersona || '') : '', cliente:per && per.nombre ? per.nombre : cli,
+        servicio:serviciosTexto(r) || r.paqueteNombre || '', minutos:Math.max(5, Math.min(240, Number(r.duracionMin) || 60)) });
+      return;
+    }
     const cliente = r ? (esIndividual(r) && !(r.personas||[]).some(p=>p.rol==='cliente') ? 'Grupo de ' + r.clienteNombre : r.clienteNombre) : '';
     const serv = r ? (serviciosTexto(r) || r.paqueteNombre || '') : '', plan = r ? Math.max(5, Math.min(240, Number(r.duracionMin) || 60)) : 60;
     const ops = [15, 20, 30, 45, 60, 90, 120];
@@ -8348,13 +8381,7 @@ setTimeout(function(){
     b.querySelectorAll('[data-tm-min]').forEach(x=>x.onclick = ()=>{ b.querySelector('#tm-min').value = x.dataset.tmMin; b.querySelectorAll('[data-tm-min]').forEach(y=>y.classList.toggle('ghost', y !== x)); });
     b.querySelector('#tm-ok').onclick = ()=>{
       const m = Math.round(Number(String(b.querySelector('#tm-min').value).replace(',', '.')) || 0); if(!(m >= 1 && m <= 480)){ alert('Escribe los minutos (entre 1 y 480).'); return; }
-      tmSonar(0);   // desbloquea el sonido (el teléfono solo lo permite después de un toque)
-      try{ if('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }catch(e){}
-      const t0 = Date.now(), idT = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-      gs('getHoraServidor').then(sv=>{ const t1 = Date.now(); if(Number(sv) > 0){ const x = tmLeer(); if(x && x.id === idT){ x.off = Number(sv) - Math.round((t0 + t1) / 2); tmPoner(x); } } }).catch(()=>{});
-      tmPoner({ id:idT, reservaId:r ? String(r.id) : '', cliente:b.querySelector('#tm-cli').value.trim().slice(0, 80),
-        servicio:b.querySelector('#tm-serv').value.trim().slice(0, 120), minutos:m, inicio:tmAhora(), pausas:0, pausadoEn:0, aviso5:m <= 5, alarma:false, quien:String(state.user && state.user.id || '') });
-      closeFullscreen(); timerAbrir();
+      tmArrancar({ cliente:b.querySelector('#tm-cli').value.trim(), servicio:b.querySelector('#tm-serv').value.trim(), minutos:m });
     };
   }
   // Pantalla del temporizador en marcha.
@@ -8372,7 +8399,7 @@ setTimeout(function(){
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:360px">
         <button type="button" class="ag-btn ghost" id="tm-pausa" style="flex:1">${t.pausadoEn ? '▶️ Seguir' : '⏸️ Pausa'}</button>
         <button type="button" class="ag-btn ghost" id="tm-mas" style="flex:1">➕ 5 min</button>
-        <button type="button" class="ag-btn" id="tm-fin" style="flex:1 1 100%;background:#1d6b35;border-color:#1d6b35">⏹️ Terminar terapia</button>
+        <button type="button" class="ag-btn" id="tm-fin" style="flex:1 1 100%;background:#1d6b35;border-color:#1d6b35">⏹️ Finalizar terapia</button>
         <button type="button" class="ag-btn sm ghost" id="tm-minim" style="flex:1 1 100%">⬇️ Minimizar (sigue contando)</button></div>`;
     ov.querySelector('#tm-pausa').onclick = ()=>{ const x = tmLeer(); if(!x) return; if(x.pausadoEn){ x.pausas = (x.pausas || 0) + (tmAhora() - x.pausadoEn); x.pausadoEn = 0; } else x.pausadoEn = tmAhora(); tmPoner(x); timerAbrir(); };
     ov.querySelector('#tm-mas').onclick = ()=>{ const x = tmLeer(); if(!x) return; x.minutos += 5; if(tmRestan(x) > 300000) x.aviso5 = false; x.alarma = false; tmPoner(x); timerAbrir(); };
@@ -8382,22 +8409,32 @@ setTimeout(function(){
   }
   function timerTerminar(){
     const t = tmLeer(); if(!t) return;
-    if(!confirm('¿Terminar la terapia' + (t.cliente ? ' de ' + t.cliente : '') + '?')) return;
+    if(!confirm('¿Finalizar la terapia' + (t.cliente ? ' de ' + t.cliente : '') + '?')) return;
     const fin = tmAhora(), realMs = tmTrans(t), pausaMs = (t.pausas || 0) + (t.pausadoEn ? fin - t.pausadoEn : 0);
     const dato = { id:t.id, reservaId:t.reservaId, cliente:t.cliente, servicio:t.servicio, planeadoMin:t.minutos, realMin:Math.round(realMs / 6000) / 10, pausasMin:Math.round(pausaMs / 6000) / 10,
       inicio:new Date(t.inicio + (t.off || 0)).toISOString(), fin:new Date(fin + (t.off || 0)).toISOString() };
     tmPoner(null); tmPantallaEncendida(false);
     const ov = document.getElementById('ag-tm-ov'); if(ov) ov.remove(); const pl = document.getElementById('ag-tm-pill'); if(pl) pl.remove();
-    toast('✅ Terapia terminada: ' + tmMMSS(realMs).replace('+', '') + ' (planificado ' + t.minutos + ' min).');
-    gs('registrarTiempoTerapia', dato, auth()).catch(e=>{ if(!/Sin señal/.test(String(e && e.message))) reportarFalla('timer', String(e && e.message || e)); });
-    if(t.reservaId){ const r = ((state.agenda && state.agenda.reservas) || []).find(x=>String(x.id) === String(t.reservaId));
-      if(r && r.estado !== 'Completada') setTimeout(()=>{ if(confirm('¿Llenar ahora la ficha de ' + (t.cliente || 'la persona') + '?')){ const b = document.querySelector('[data-cita-atender="' + r.id + '"]'); if(b) b.click(); } }, 400); }
+    toast('✅ Terapia finalizada: ' + tmMMSS(realMs).replace('+', '') + ' (planificado ' + t.minutos + ' min).');
+    const lista = (state.agenda && state.agenda.reservas) || [], rLoc = t.reservaId ? lista.find(x=>String(x.id) === String(t.reservaId)) : null;
+    if(rLoc){ rLoc.sesion = Object.assign({ ext:0 }, rLoc.sesion || {}, { inicio:(rLoc.sesion && rLoc.sesion.inicio) || dato.inicio, fin:dato.fin }); }
+    const ofrecerFicha = ()=>{ if(!rLoc || rLoc.estado === 'Completada') return; if(state.tab === 'nueva' && state.reservaActual && String(state.reservaActual.id) === String(rLoc.id)) return;
+      setTimeout(()=>{ if(confirm('¿Llenar ahora la ficha de ' + (t.cliente || 'la persona') + '?')){ const b = document.querySelector('[data-cita-atender="' + rLoc.id + '"]'); if(b) b.click(); } }, 400); };
+    const repintar = ()=>{ if(state.tab !== 'nueva'){ try{ render(); }catch(eR){} } else tmRefrescarBotones(); };   // en la ficha no se repinta: se perdería lo escrito
+    repintar();
+    gs('registrarTiempoTerapia', dato, auth()).then(res=>{
+      if(res && res.reserva){ const i = lista.findIndex(x=>String(x.id) === String(t.reservaId)); if(i > -1) lista[i] = Object.assign({}, lista[i], res.reserva); repintar(); }
+      if(res && res.texto) alert(res.texto);
+      ofrecerFicha();
+    }).catch(e=>{ if(!/Sin señal/.test(String(e && e.message))) reportarFalla('timer', String(e && e.message || e)); ofrecerFicha(); });
   }
   // Cada segundo: actualiza el reloj (pantalla o pastilla) y lanza los avisos.
   function timerTick(){
     const t = tmLeer(), ov = document.getElementById('ag-tm-ov');
     let pl = document.getElementById('ag-tm-pill');
     if(!t || !state.user || state.view !== 'app'){ if(pl) pl.remove(); if(!t && ov) ov.remove(); return; }
+    if(t.reservaId){ const rr = ((state.agenda && state.agenda.reservas) || []).find(x=>String(x.id) === String(t.reservaId)), ex = rr && rr.sesion ? Number(rr.sesion.ext) || 0 : 0;
+      if(ex > (t.extSync || 0)){ t.minutos += ex - (t.extSync || 0); t.extSync = ex; t.alarma = false; if(tmRestan(t) > 300000) t.aviso5 = false; tmPoner(t); if(ov) timerAbrir(); } }
     const rest = tmRestan(t), fr = Math.max(0, Math.min(1, tmTrans(t) / (t.minutos * 60000)));
     if(ov){
       const rl = ov.querySelector('#tm-reloj'), arco = ov.querySelector('#tm-arco'), sub = ov.querySelector('#tm-sub');
@@ -8419,7 +8456,8 @@ setTimeout(function(){
   }
   setInterval(timerTick, 1000);
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ timerTick(); if(document.getElementById('ag-tm-ov')) tmPantallaEncendida(true); } });
-  document.addEventListener('click', ev=>{ const b = ev.target.closest && ev.target.closest('[data-cita-timer]'); if(!b) return;
+  document.addEventListener('click', ev=>{ if(ev.target.closest && ev.target.closest('[data-tm-ver]')){ timerAbrir(); return; }
+    const b = ev.target.closest && ev.target.closest('[data-cita-timer]'); if(!b) return;
     const r = ((state.agenda && state.agenda.reservas) || []).find(x=>String(x.id) === String(b.dataset.citaTimer)); timerElegir(r || null); });
   function misProximasCitasHTML(){
     const hoy = hoyISO();
@@ -8440,14 +8478,14 @@ setTimeout(function(){
         <div style="font-size:15px;font-weight:600;margin:2px 0">👤 ${esc(esIndividual(r) && !r.personas.some(p=>p.rol==='cliente') ? 'Grupo de ' + r.clienteNombre : r.clienteNombre)}</div>
         ${telefonosCitaHoyHTML(r)}
         ${sesionCitaHTML(r)}
-        ${r.estado!=='Completada' ? `<button class="ag-btn sm" data-cita-timer="${esc(r.id)}" style="margin-top:6px;width:100%;background:#fff;color:var(--teal-d);border:1.5px solid var(--teal)">⏱️ Iniciar terapia</button>` : ''}
+        ${botonTimerCitaHTML(r)}
         ${detalle(r)}
         ${datosPersonasCitaHTML(r)}
         ${personasConFichaCli(r).length ? accionesCitaStaffHTML(r) + fichasPersonasHTML(r) : r.estado==='Completada'
           ? `<div style="font-size:13px;color:#1d6b35;margin-top:6px">✅ Ficha registrada</div>
              <button class="ag-btn sm ghost" data-cita-verficha="${esc(r.id)}" style="margin-top:6px;width:100%">📄 Ver la ficha de hoy</button>`
           : `${accionesCitaStaffHTML(r)}
-             <button class="ag-btn" data-cita-atender="${esc(r.id)}" style="margin-top:8px;width:100%">▶️ Llenar su ficha de hoy</button>`}
+             <button class="ag-btn" data-cita-atender="${esc(r.id)}" style="margin-top:8px;width:100%">📝 Llenar su ficha de hoy</button>`}
         ${!esIndividual(r) || r.personas.some(p=>p.rol==='cliente') ? `<button class="ag-btn sm ghost" data-cita-cliente="${esc(r.clienteId)}" style="margin-top:6px;width:100%">📂 Ver ${(r.personas||[]).length?esc(r.clienteNombre.split(' ')[0]):'cliente'} y sus fichas anteriores</button>` : ''}
       </div>`).join('')}
     </div>` : '';
@@ -9693,7 +9731,12 @@ setTimeout(function(){
       '🎵 En <strong>Admin → Ventas → Fotos, videos y música</strong> hay 3 pistas propias de Aguamiel; puedes subir tu música (MP3) y elegir la que suena por defecto.',
       '📸 <strong>Galería de bienvenida</strong>: fotos y videos de Aguamiel que el cliente ve al abrir el catálogo, si quiere.',
       '💆 Cada servicio, paquete o plato puede tener <strong>sus propias fotos y videos</strong>; el cliente los ve tocando «📸 Ver fotos». Si no tiene, se ve como siempre.',
-      '🔗 Al crear el enlace del catálogo eliges la música (o «Sin música») y si va la galería.' ] }
+      '🔗 Al crear el enlace del catálogo eliges la música (o «Sin música») y si va la galería.' ] },
+    { v:370, fecha:'7 nov', titulo:'⏱️ Un solo reloj de terapia', puntos:[
+      '▶️ La terapia empieza al tocar <strong>«Iniciar terapia»</strong> en la cita de hoy (Inicio) o arriba de la ficha. Un solo toque: ya trae la duración.',
+      '📝 Abrir la ficha <strong>ya no cuenta como inicio</strong>: puedes llenarla antes, durante o después.',
+      '⏹️ <strong>«Finalizar terapia»</strong> guarda el tiempo real, cierra la sesión y te dice qué falta (ficha, datos o la orden de Rosita).',
+      '📴 Funciona sin señal: la hora real se envía cuando vuelve la conexión. Si la sesión se extiende +20 o +30 min, el reloj los suma solo.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -10787,14 +10830,14 @@ setTimeout(function(){
   function avisarInicioAtencion(r, key){
     try{
       if(!r || !state.user) return;
-      // ⏱️ La sesión empieza al abrir la ficha (si es la cita de hoy y aún no había empezado).
-      if(r.fecha === hoyISO() && !(r.sesion && r.sesion.inicio)) r.sesion = { inicio:new Date().toISOString(), ext:0, fin:'' };
-      gs('avisarInicioAtencion', r.id, key || '', auth()).catch(function(){});
+      // ⏱️ v370: abrir la ficha ya NO arranca la sesión: arranca con «▶️ Iniciar terapia» (en la cita o arriba de la ficha).
+      return key;
     }catch(e){}
   }
   // ⏱️ Estado de la sesión de hoy en la tarjeta de la cita: desde cuándo, hasta cuándo, y botones para cerrarla o extenderla.
   function sesionCitaHTML(r){
     const s = r.sesion; if(!s || !s.inicio) return '';
+    const tl = tmLeer(); if(!s.fin && tl && String(tl.reservaId) === String(r.id)) return '';
     const hm = d=>d.toLocaleTimeString('es-VE', { hour:'2-digit', minute:'2-digit' });
     const ini = new Date(s.inicio), fin = new Date(ini.getTime() + ((Number(r.duracionMin) || 60) + (Number(s.ext) || 0)) * 60000);
     if(s.fin) return `<div style="font-size:13px;margin:6px 0;background:#eef8ef;border-radius:8px;padding:6px 8px">✅ Sesión: ${hm(ini)} – ${hm(new Date(s.fin))}${s.ext ? ' (con ' + s.ext + ' min de extensión)' : ''}</div>`;
