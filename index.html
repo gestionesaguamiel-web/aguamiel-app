@@ -1218,7 +1218,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v365' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v367' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1842,6 +1842,7 @@ setTimeout(function(){
       copiaGuardar(data);
       if(window.AG_WEB){ setTimeout(precargarSinRed, 2500); setTimeout(colaEnviar, 2500); }   // lo que quedó pendiente (p. ej. antes de salir) se envía al entrar
       setTimeout(avisoChoques, 7000);
+      setTimeout(muralRevisar, 1800);   // 📚 v367: lo nuevo del mural educativo, al entrar
       // 📋 Si se estaba mostrando la copia del teléfono, ya llegó lo nuevo: se quita el aviso. Si la persona empezó a llenar algo, no se le redibuja encima.
       if(state.desdeCopia){ terminarCopia(); if(vistaEsFormulario()) return; }
       try{ gs('getEstampaDatos').then(e=>{ ultimaEstampa = String(e || ''); }).catch(()=>{}); }catch(eS){}
@@ -2664,6 +2665,8 @@ setTimeout(function(){
     add('📤', 'Exportar', 'Admin → exportar datos', 'exportar descargar respaldo excel datos', ()=>irA({ tab:'adminpanel', sub:'exportar' }), admin);
     add('🛠️', 'Operaciones', 'Pestaña Operaciones: tareas, mantenimiento de equipos, proyectos de mejora y obras', 'operaciones tareas tarea pendientes mantenimiento equipos reparacion proyectos mejoras estimacion construccion obras supervision areas', ()=>irA({ tab:'operaciones' }), admin);
     add('👥', 'Staff (personal)', 'Admin → equipo, permisos, teléfonos y cumpleaños', 'staff personal equipo profesionales pin permisos telefono whatsapp cumpleaños fisioterapeutas editar fichas', ()=>irA({ tab:'adminpanel', sub:'staff' }), admin);
+    add('📚', 'Mural educativo', 'Admin → Equipo → videos, publicaciones y estudios para las fisioterapeutas', 'mural educativo aprende hoy videos youtube instagram tiktok articulos estudios fisioterapeutas capacitacion formacion', ()=>irA({ tab:'adminpanel', sub:'mural' }), admin);
+    add('📚', 'Aprende hoy', 'Videos, publicaciones y estudios del mural educativo', 'mural educativo aprende hoy videos youtube instagram tiktok articulos estudios capacitacion formacion', ()=>muralVerTodo(), !admin && !cocina);
     add('📢', 'Comunicados al equipo', 'Admin → staff → comunicados', 'comunicados comunicado avisos mensaje equipo cumpleaños modelo', ()=>irA({ tab:'adminpanel', sub:'staff', cm:true }), admin);
     return L;
   }
@@ -9672,8 +9675,213 @@ setTimeout(function(){
     { v:365, fecha:'6 nov', titulo:'El nuevo diseño también por dentro', puntos:[
       '🎨 Al entrar a cada pantalla de <strong>Ventas</strong> y <strong>Finanzas</strong> (Presupuestos, Catálogo, Confirmar cita, Por cobrar, Tarifas, Informe, Balance, Ingresos y Gastos) ves arriba una franja de color con lo importante y las acciones en tarjetas.',
       '📅 El cambio de mes es una barra con ◀ ▶ en todas las pantallas de Finanzas.',
-      '📦 Los inventarios abren con la misma franja de color.' ] }
+      '📦 Los inventarios abren con la misma franja de color.' ] },
+    { v:367, fecha:'6 nov', titulo:'📚 Mural educativo para las fisioterapeutas', puntos:[
+      '📚 En <strong>Admin → Equipo → Mural educativo</strong> pegas un enlace de YouTube, Instagram, TikTok o de un artículo y eliges cuántos días dura.',
+      '👀 Al entrar, cada fisioterapeuta lo ve en la ventana <strong>«Aprende hoy»</strong> con el video o la foto dentro de la app. «✅ Ya lo vi» lo marca; la ✕ o «⏰ Ver luego» lo deja para la próxima vez.',
+      '⏹️ Cada publicación se puede <strong>alargar, caducar o eliminar</strong>, y ves quién ya la vio.' ] }
   ];
+  // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
+  // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
+  // para la próxima vez que abra la app; «Ya lo vi» lo marca. La administración lo maneja en Admin → Equipo → 📚 Mural educativo.
+  const MU_WEB = 'https:' + String.fromCharCode(47, 47);   // Google recorta las líneas con doble barra en el texto: las direcciones se arman así
+  const MURAL_T = { yt:['▶ YouTube','#ffe9e9','#b00020'], ig:['📸 Instagram','#fde8f3','#a01870'], tt:['🎵 TikTok','#e9eef5','#1c2733'], art:['📄 Artículo','#eaf1ff','#1f4e79'] };
+  function muralCSS(){
+    if(document.getElementById('mural-css')) return;
+    const st = document.createElement('style'); st.id = 'mural-css';
+    st.textContent = `#ag-mural{position:fixed;inset:0;z-index:9500;background:rgba(10,40,48,.6);display:flex;align-items:stretch;justify-content:center;padding:calc(14px + env(safe-area-inset-top,0px)) 10px calc(12px + env(safe-area-inset-bottom,0px));font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#17323a}
+      #ag-mural .mu-sh{position:relative;background:#fff;border-radius:22px;width:100%;max-width:520px;display:flex;flex-direction:column;gap:10px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+      #ag-mural .mu-x{position:absolute;right:12px;top:12px;width:40px;height:40px;border-radius:50%;background:#eef3f4;border:0;font-size:18px;font-weight:700;color:#17323a;cursor:pointer}
+      #ag-mural h3{margin:0;font-size:19px;padding-right:46px}
+      #ag-mural .mu-box{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+      #ag-mural .mu-cab{display:flex;align-items:flex-start;gap:8px;font-weight:800;font-size:15px;line-height:1.3}
+      .mu-tag{display:inline-block;flex:0 0 auto;font-size:11.5px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap}
+      .mu-media{position:relative;flex:1;min-height:240px;border-radius:14px;overflow:hidden;background:#0a3a44;display:flex}
+      .mu-media iframe{border:0;width:100%;flex:1;min-height:240px;background:#000}
+      .mu-media.ig iframe{background:#fff}
+      .mu-media img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+      .mu-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70px;height:50px;border-radius:14px;border:0;background:#ff0033;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+      .mu-play.tt{background:#111;border:2px solid #25f4ee}
+      .mu-sinfoto{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:54px;color:#fff;background:linear-gradient(135deg,#1c2733,#0a5a68)}
+      .mu-art{flex:1;border:1px solid var(--line,#e4e9ea);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+      .mu-art .mu-img{height:170px;position:relative;background:linear-gradient(135deg,#1f4e79,#3b82c4);flex:0 0 auto}
+      .mu-art .mu-tx{padding:12px;font-size:14px;line-height:1.5}.mu-art .mu-tx b{font-size:16px;display:block;margin-bottom:6px;line-height:1.3}
+      .mu-abrir{display:block;text-align:center;background:var(--teal-l,#e6f7fa);color:var(--teal-d,#0a5a68);border-radius:12px;padding:11px;font-weight:700;text-decoration:none;font-size:14px}
+      .mu-nav{display:flex;align-items:center;justify-content:center;gap:10px}
+      .mu-nav button{background:#eef3f4;border:0;border-radius:999px;width:36px;height:30px;font-size:16px;color:#0a5a68;cursor:pointer}
+      .mu-nav button:disabled{opacity:.35}
+      .mu-dots{display:flex;gap:6px}.mu-dots i{width:8px;height:8px;border-radius:50%;background:#c9d6d8}.mu-dots i.on{background:var(--teal,#0e9fb8);width:20px;border-radius:5px}
+      .mu-btns{display:flex;gap:8px}.mu-btns button{flex:1;border-radius:12px;padding:13px;font-weight:700;font-size:15px;border:0;cursor:pointer}
+      .mu-bp{background:var(--teal,#0e9fb8);color:#fff}.mu-bg{background:#eef3f4;color:var(--teal-d,#0a5a68)}`;
+    document.head.appendChild(st);
+  }
+  function muralAbrirURL(x){ return x.tipo === 'yt' ? MU_WEB + 'www.youtube.com/watch?v=' + x.ref : x.tipo === 'ig' ? MU_WEB + 'www.instagram.com/' + x.ref + '/' : x.url; }
+  function muralFoto(x){ return x.imagen || (x.tipo === 'yt' && x.ref ? MU_WEB + 'i.ytimg.com/vi/' + x.ref + '/hqdefault.jpg' : ''); }
+  // Lo que se ve de cada publicación: el video o la foto dentro de la app; los videos arrancan solo al tocarlos (cuida los datos del teléfono).
+  function muralCuerpoHTML(x){
+    const t = MURAL_T[x.tipo] || MURAL_T.art, foto = muralFoto(x);
+    const img = foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()"/>` : '';
+    const cab = `<div class="mu-cab"><span class="mu-tag" style="background:${t[1]};color:${t[2]}">${t[0]}</span><span>${esc(x.titulo)}</span></div>`;
+    const abrir = `<a class="mu-abrir" href="${esc(muralAbrirURL(x))}" target="_blank" rel="noopener noreferrer">🔗 Abrir en ${esc(x.tipo === 'art' ? (x.fuente || 'el navegador') : t[0].replace(/^\S+\s/, ''))}</a>`;
+    let media;
+    if(x.tipo === 'yt' || x.tipo === 'tt') media = `<div class="mu-media" data-mu-media>${x.tipo === 'tt' ? '<div class="mu-sinfoto">🎵</div>' : ''}${img}<button type="button" class="mu-play${x.tipo === 'tt' ? ' tt' : ''}" data-mu-play aria-label="Ver el video">▶</button></div>`;
+    else if(x.tipo === 'ig') media = `<div class="mu-media ig"><iframe src="${esc(MU_WEB + 'www.instagram.com/' + x.ref + '/embed/captioned/')}" loading="lazy" allowtransparency="true" title="Instagram"></iframe></div>`;
+    else media = `<div class="mu-art"><div class="mu-img">${img}</div><div class="mu-tx"><b>${esc(x.titulo)}</b>${x.resumen ? esc(x.resumen) : ''}${x.fuente ? `<div class="ag-muted" style="font-size:12px;margin-top:6px">${esc(x.fuente)}</div>` : ''}</div></div>`;
+    return (x.tipo === 'art' ? '' : cab) + media + abrir;
+  }
+  function muralPlay(box, x){
+    const m = box.querySelector('[data-mu-media]'); if(!m) return;
+    const src = MU_WEB + (x.tipo === 'yt' ? 'www.youtube.com/embed/' + encodeURIComponent(x.ref) + '?autoplay=1&playsinline=1&rel=0' : 'www.tiktok.com/embed/v2/' + encodeURIComponent(x.ref) + '?autoplay=1');
+    m.innerHTML = `<iframe src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="Video"></iframe>`;
+  }
+  // modo: 'entrar' (lo nuevo, con «Ya lo vi»), 'todo' (lo vigente, desde el buscador) o 'admin' (vista previa, no marca nada).
+  function abrirMural(lista, modo, desde){
+    lista = (lista || []).slice(); if(!lista.length) return;
+    muralCSS();
+    let ov = document.getElementById('ag-mural'); if(ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'ag-mural'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    document.body.appendChild(ov);
+    let i = Math.max(0, Math.min(desde || 0, lista.length - 1));
+    const cerrar = ()=>{ ov.remove(); };
+    const pintar = ()=>{
+      const x = lista[i], n = lista.length, puedeMarcar = modo !== 'admin' && !x.visto;
+      ov.innerHTML = `<div class="mu-sh">
+        <button type="button" class="mu-x" data-mu-x aria-label="Cerrar">✕</button>
+        <div><h3>📚 ${modo === 'admin' ? 'Así lo ve el equipo' : 'Aprende hoy'}</h3><div class="ag-muted" style="font-size:12.5px;margin-top:2px">${n === 1 ? '1 publicación' : n + ' publicaciones'}${modo === 'entrar' ? ' nuevas para ti' : ''} · ${i + 1} de ${n}</div></div>
+        <div class="mu-box">${muralCuerpoHTML(x)}</div>
+        ${n > 1 ? `<div class="mu-nav"><button type="button" data-mu-ant aria-label="Anterior" ${i === 0 ? 'disabled' : ''}>‹</button><div class="mu-dots">${lista.map((_, k)=>`<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><button type="button" data-mu-sig aria-label="Siguiente" ${i === n - 1 ? 'disabled' : ''}>›</button></div>` : ''}
+        <div class="mu-btns">${modo === 'admin' ? '<button type="button" class="mu-bp" data-mu-x>Cerrar</button>'
+          : `<button type="button" class="mu-bg" data-mu-x>⏰ Ver luego</button>${puedeMarcar ? '<button type="button" class="mu-bp" data-mu-ok>✅ Ya lo vi</button>' : '<button type="button" class="mu-bp" disabled style="opacity:.6">✅ Ya lo viste</button>'}`}</div>
+      </div>`;
+      ov.querySelectorAll('[data-mu-x]').forEach(b=>b.onclick = cerrar);
+      const pl = ov.querySelector('[data-mu-play]'); if(pl) pl.onclick = ()=>muralPlay(ov, x);
+      const ba = ov.querySelector('[data-mu-ant]'); if(ba) ba.onclick = ()=>{ i--; pintar(); };
+      const bs = ov.querySelector('[data-mu-sig]'); if(bs) bs.onclick = ()=>{ i++; pintar(); };
+      const ok = ov.querySelector('[data-mu-ok]');
+      if(ok) ok.onclick = ()=>{
+        x.visto = true; gs('marcarMuralVisto', x.id, auth()).catch(()=>{});
+        const v = (state.mural || []).find(m=>m.id === x.id); if(v) v.visto = true;
+        if(modo === 'entrar'){ lista.splice(i, 1); if(!lista.length){ cerrar(); toast('✅ ¡Listo! Lo encuentras otra vez buscando «Aprende hoy».'); return; } if(i >= lista.length) i = lista.length - 1; }
+        else if(i < lista.length - 1) i++;
+        pintar();
+      };
+    };
+    pintar();
+  }
+  // Al entrar (una vez por apertura de la app): solo para el equipo que atiende.
+  let muralRevisado = false;
+  function muralRevisar(){
+    if(muralRevisado || !state.user || state.user.admin || esCocina() || state.view !== 'app') return;
+    if(window.AG_WEB && navigator.onLine === false) return;
+    muralRevisado = true;
+    gs('getMuralEquipo', auth()).then(l=>{
+      state.mural = l || [];
+      const nuevos = state.mural.filter(x=>x.alEntrar && !x.visto);
+      if(nuevos.length && state.user && !document.getElementById('ag-mural')) abrirMural(nuevos, 'entrar');
+    }).catch(()=>{ muralRevisado = false; });
+  }
+  function muralVerTodo(){
+    gs('getMuralEquipo', auth()).then(l=>{ state.mural = l || []; if(!state.mural.length){ toast('📚 Por ahora no hay publicaciones en el mural.'); return; } abrirMural(state.mural, 'todo'); })
+      .catch(e=>alert('No se pudo abrir el mural: ' + (e && e.message ? e.message : e)));
+  }
+  function renderMuralAdmin(body){
+    if(!state.mu) state.mu = { datos:null, ver:'activas', dias:7, abierto:'' };
+    const M = state.mu;
+    if(!M.datos){
+      body.innerHTML = '<p class="ag-empty">Cargando el mural…</p>';
+      gs('getMuralAdmin', auth()).then(d=>{ M.datos = d; if(state.adminSub === 'mural' && document.body.contains(body)) renderMuralAdmin(body); })
+        .catch(e=>{ body.innerHTML = '<p class="ag-err">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</p>'; });
+      return;
+    }
+    const D = M.datos, act = D.lista.filter(x=>x.activo), venc = D.lista.filter(x=>!x.activo), ver = M.ver === 'vencidas' ? venc : act;
+    const fecha = iso=>{ const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('es-VE', { day:'numeric', month:'short' }); };
+    const venceTx = x=>{
+      if(!x.activo) return `<span style="color:#a61b1b;font-weight:700">Venció ${esc(fecha(x.vence))}</span>`;
+      const dd = Math.ceil((new Date(x.vence) - Date.now()) / 86400000);
+      return dd <= 1 ? `<span style="color:#8a5a00;font-weight:700">⚠️ Vence ${dd <= 0 ? 'hoy' : 'mañana'}</span>` : `<span style="color:#1d6b35;font-weight:700">Vence ${esc(fecha(x.vence))}</span>`;
+    };
+    const chips = (attr, sel, ops)=>ops.map(([v, t])=>`<button type="button" class="ag-btn sm ${String(sel) === String(v) ? '' : 'ghost'}" ${attr}="${v}" style="min-width:0;padding:7px 11px;border-radius:999px;font-size:12.5px">${t}</button>`).join('');
+    const item = x=>{
+      const t = MURAL_T[x.tipo] || MURAL_T.art, ab = M.abierto === x.id;
+      return `<div style="border-top:1px solid var(--line);padding:11px 0">
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" data-mu-prev="${esc(x.id)}" aria-label="Ver cómo se ve" style="width:46px;height:46px;border-radius:12px;border:0;background:${t[1]};color:${t[2]};font-size:20px;flex:0 0 auto;cursor:pointer;position:relative;overflow:hidden">${muralFoto(x) ? `<img src="${esc(muralFoto(x))}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>` : ''}<span style="position:relative">${t[0].split(' ')[0]}</span></button>
+          <div style="flex:1;min-width:0"><strong style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.titulo)}</strong>
+            <div class="ag-muted" style="font-size:12px">${venceTx(x)} · <button type="button" data-mu-quien="${esc(x.id)}" style="background:none;border:0;padding:0;color:var(--teal-d);font-size:12px;cursor:pointer;text-decoration:underline">vista por ${x.vieron.length} de ${D.equipo}</button>${x.alEntrar ? '' : ' · no sale al entrar'}</div></div>
+        </div>
+        ${ab ? `<div style="background:#f4f8f8;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:12.5px">✅ <strong>La vieron:</strong> ${x.vieron.length ? esc(x.vieron.join(', ')) : 'nadie todavía'}<br/>⏳ <strong>Falta:</strong> ${x.faltan.length ? esc(x.faltan.join(', ')) : 'nadie 🎉'}</div>` : ''}
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+          <button type="button" class="ag-btn ghost sm" data-mu-prev="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">👀 Ver</button>
+          <button type="button" class="ag-btn ghost sm" data-mu-alargar="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">➕ Alargar</button>
+          ${x.activo ? `<button type="button" class="ag-btn ghost sm" data-mu-cad="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">⏹️ Caducar</button>` : `<span></span>`}
+          <button type="button" class="ag-btn ghost sm" data-mu-del="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px;color:#a61b1b;border-color:#f3c9c9">🗑️ Eliminar</button>
+        </div>
+        ${M.alargar === x.id ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="ag-muted" style="font-size:12px">Alargar:</span>${chips('data-mu-alx', '', [[3,'+3 días'],[7,'+7 días'],[15,'+15 días'],[30,'+30 días']])}</div>` : ''}
+      </div>`;
+    };
+    body.innerHTML = `<div class="ag-card">
+        <h3 style="margin:0 0 4px">➕ Nueva publicación</h3>
+        <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Pega un enlace de YouTube, Instagram, TikTok o de un artículo. Se ve el video o la foto dentro de la app.</p>
+        <input id="mu-url" type="url" inputmode="url" autocomplete="off" placeholder="Pega aquí el enlace" value="${esc(M.url || '')}"/>
+        <div id="mu-tipo" class="ag-muted" style="font-size:12.5px;margin-top:6px;min-height:18px"></div>
+        <label class="f">Título (si lo dejas vacío, se toma del enlace)</label><input id="mu-tit" maxlength="160" value="${esc(M.tit || '')}"/>
+        <label class="f">¿Cuánto tiempo se muestra?</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${chips('data-mu-dias', M.dias, [[3,'3 días'],[7,'7 días'],[15,'15 días'],[30,'30 días'],['otra','📅 Otra']])}</div>
+        ${M.dias === 'otra' ? `<input id="mu-hasta" type="date" min="${esc(hoyISO())}" value="${esc(M.hasta || '')}" style="margin-top:8px"/>` : ''}
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mu-entrar" style="width:auto" ${M.entrar === false ? '' : 'checked'}/> 📌 Que les salga al entrar a la app</label>
+        <button class="ag-btn" id="mu-pub" style="width:100%;margin-top:12px">📚 Publicar al equipo</button>
+      </div>
+      <div class="ag-card" style="margin-top:12px">
+        <h3 style="margin:0 0 8px">📋 Publicaciones</h3>
+        <div style="display:flex;gap:6px">${chips('data-mu-ver', M.ver, [['activas', '🟢 Activas (' + act.length + ')'], ['vencidas', '⏹️ Vencidas (' + venc.length + ')']])}</div>
+        ${ver.length ? ver.map(item).join('') : `<p class="ag-empty" style="margin:12px 0 0">${M.ver === 'vencidas' ? 'No hay publicaciones vencidas.' : 'Todavía no hay publicaciones activas.'}</p>`}
+        ${M.ver === 'vencidas' && venc.length ? '<p class="ag-muted" style="font-size:12px;margin:8px 0 0">Las vencidas ya no le salen al equipo. Con ➕ Alargar vuelven a estar activas.</p>' : ''}
+      </div>`;
+    const $ = s=>body.querySelector(s), buscar = id=>D.lista.find(x=>x.id === id);
+    const guardarForm = ()=>{ M.url = $('#mu-url').value; M.tit = $('#mu-tit').value; M.entrar = $('#mu-entrar').checked; const h = $('#mu-hasta'); if(h) M.hasta = h.value; };
+    const tipoTx = ()=>{
+      const u = $('#mu-url').value.trim(); let t = '';
+      if(/youtu\.?be/i.test(u)) t = '▶ YouTube: se verá el video';
+      else if(/instagram\.com/i.test(u)) t = '📸 Instagram: se verá la foto o el reel (la cuenta debe ser pública)';
+      else if(/tiktok\.com/i.test(u)) t = '🎵 TikTok: se verá el video';
+      else if(/\.pdf(\?|$)/i.test(u)) t = '📄 PDF: saldrá como tarjeta con botón para abrirlo';
+      else if(/^https?:[/][/]/i.test(u)) t = '📄 Artículo: tarjeta con título, imagen y resumen';
+      $('#mu-tipo').textContent = t;
+    };
+    $('#mu-url').oninput = tipoTx; tipoTx();
+    const recargar = d=>{ M.datos = d; renderMuralAdmin(body); };
+    const fallo = (b, e)=>{ if(b) b.disabled = false; alert('No se pudo: ' + (e && e.message ? e.message : e)); };
+    body.querySelectorAll('[data-mu-dias]').forEach(b=>b.onclick = ()=>{ guardarForm(); M.dias = b.dataset.muDias === 'otra' ? 'otra' : Number(b.dataset.muDias); renderMuralAdmin(body); });
+    body.querySelectorAll('[data-mu-ver]').forEach(b=>b.onclick = ()=>{ guardarForm(); M.ver = b.dataset.muVer; M.alargar = ''; renderMuralAdmin(body); });
+    $('#mu-pub').onclick = async ()=>{
+      guardarForm();
+      const url = M.url.trim();
+      if(!/^https?:[/][/]\S+$/i.test(url)){ alert('Pega el enlace completo, tal como lo copias del navegador o de la red social.'); return; }
+      if(M.dias === 'otra' && !M.hasta){ alert('Elige hasta qué fecha se muestra.'); return; }
+      const b = $('#mu-pub'); b.disabled = true; b.textContent = 'Publicando…';
+      try{
+        const d = await gs('saveMural', { url, titulo:M.tit, dias:M.dias === 'otra' ? 0 : M.dias, hasta:M.dias === 'otra' ? M.hasta : '', alEntrar:M.entrar !== false }, auth());
+        M.url = ''; M.tit = ''; M.hasta = ''; M.ver = 'activas'; toast('📚 Publicado: el equipo lo verá al entrar.'); recargar(d);
+      }catch(e){ b.textContent = '📚 Publicar al equipo'; fallo(b, e); }
+    };
+    body.querySelectorAll('[data-mu-prev]').forEach(b=>b.onclick = ()=>{ const k = ver.findIndex(x=>x.id === b.dataset.muPrev); abrirMural(ver, 'admin', k); });
+    body.querySelectorAll('[data-mu-quien]').forEach(b=>b.onclick = ()=>{ guardarForm(); M.abierto = M.abierto === b.dataset.muQuien ? '' : b.dataset.muQuien; renderMuralAdmin(body); });
+    body.querySelectorAll('[data-mu-alargar]').forEach(b=>b.onclick = ()=>{ guardarForm(); M.alargar = M.alargar === b.dataset.muAlargar ? '' : b.dataset.muAlargar; renderMuralAdmin(body); });
+    body.querySelectorAll('[data-mu-alx]').forEach(b=>b.onclick = async ()=>{
+      guardarForm(); b.disabled = true;
+      try{ const d = await gs('setMural', M.alargar, 'alargar', Number(b.dataset.muAlx), auth()); M.alargar = ''; toast('➕ Alargada ' + b.dataset.muAlx + ' días.'); recargar(d); }catch(e){ fallo(b, e); }
+    });
+    body.querySelectorAll('[data-mu-cad]').forEach(b=>b.onclick = async ()=>{
+      const x = buscar(b.dataset.muCad); if(!x || !confirm('⏹️ Caducar «' + x.titulo + '»\n\nDeja de salirle al equipo desde ya. Queda en «Vencidas» y con ➕ Alargar se puede volver a activar.')) return;
+      guardarForm(); b.disabled = true;
+      try{ const d = await gs('setMural', x.id, 'caducar', '', auth()); toast('⏹️ Caducada.'); recargar(d); }catch(e){ fallo(b, e); }
+    });
+    body.querySelectorAll('[data-mu-del]').forEach(b=>b.onclick = async ()=>{
+      const x = buscar(b.dataset.muDel); if(!x || !confirm('🗑️ Eliminar «' + x.titulo + '»\n\nSe quita del mural. Queda 10 días en Admin → Papelera por si hace falta recuperarla.')) return;
+      guardarForm(); b.disabled = true;
+      try{ const d = await gs('deleteMural', x.id, auth()); toast('🗑️ Eliminada (está en la Papelera).'); recargar(d); }catch(e){ fallo(b, e); }
+    });
+  }
   function abrirNovedades(desde, alTerminar){
     let lista = NOVEDADES.filter(n=>n.v > (desde || 0));
     if(!lista.length) lista = NOVEDADES.slice();
@@ -16155,8 +16363,8 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || '';   // 🗂️ v362: sin sección = inicio de Admin (tarjetas de grupos + Staff debajo, como antes)
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', mural:'📚 Mural educativo', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','mural','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || null;
     const hayPagos = (state.pagosPend||[]).length;
     // ⭐ v343: «Lo que más uso»: las 6 secciones que esta persona abre más (se cuentan en este teléfono, nada se envía).
@@ -16169,7 +16377,7 @@ setTimeout(function(){
     const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
       balance:'Resumen del mes', fondo:'Ahorro', ingresos:'Entra dinero', gastos:'Sale dinero', pagosper:'Quincenas y honorarios',
       inv_rosita:'Cocina y bar', inv_personal:'Lo del personal', inv_spa:'Insumos de terapia', inv_oper:'Equipos y ferretería', compras:'Lista de compras',
-      staff:'Personas y accesos', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
+      staff:'Personas y accesos', mural:'Videos y estudios', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
       choques:'Cambios sin señal', papelera:'Recuperar borrados', limpieza:'Hoja liviana', rendimiento:'Velocidad de la app', importar:'Subir datos', exportar:'Descargar copia' };
     const partes = k=>{ const s = ADM_NOMBRES[k] || k, i = s.indexOf(' '); return [s.slice(0, i), s.slice(i + 1)]; };
     const grpVer = !sub && state.adminGrp ? ADM_GRUPOS.find(g=>g[0] === state.adminGrp) : null;
@@ -16188,7 +16396,7 @@ setTimeout(function(){
         + mnGrid(ADM_GRUPOS.map(g=>({ at:`data-adm-grp="${g[0]}"`, e:g[1], t:g[2], sb:GD[g[0]], c:GC[g[0]], n:g[0] === 'ventas' && hayPagos ? hayPagos : 0 })));
     }
     body.innerHTML = `${arriba}<div id="adm-cont"${grpVer ? ' style="display:none"' : ''}></div>`;
-    const irAdmSub = k=>{ state.adminSub = k; state.adminGrp = null; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); try{ window.scrollTo(0, 0); }catch(e){} };
+    const irAdmSub = k=>{ state.adminSub = k; state.adminGrp = null; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='mural' && state.mu) state.mu.datos = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     body.querySelectorAll('[data-adm-sub]').forEach(b=>b.onclick = ()=>irAdmSub(b.dataset.admSub));
     body.querySelectorAll('[data-adm-grp]').forEach(b=>b.onclick = ()=>{ state.adminSub = ''; state.adminGrp = b.dataset.admGrp; render(); try{ window.scrollTo(0, 0); }catch(e){} });
     body.querySelectorAll('[data-adm-home]').forEach(b=>b.onclick = ()=>{ state.adminSub = ''; state.adminGrp = null; render(); });
@@ -16200,6 +16408,7 @@ setTimeout(function(){
     else if(sub==='choques') renderChoques(cont);
     else if(sub==='tiempos') renderTiempos(cont);
     else if(sub==='propinas') renderPropinas(cont);
+    else if(sub==='mural') renderMuralAdmin(cont);
     else if(sub==='inv_spa') renderInventario(cont, 'spa', true);
     else if(sub==='inv_oper') renderInventario(cont, 'operaciones', true);
     else if(sub==='gastos') renderGastos(cont);
