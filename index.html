@@ -1218,7 +1218,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v368' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v369' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2667,6 +2667,7 @@ setTimeout(function(){
     add('🛠️', 'Operaciones', 'Pestaña Operaciones: tareas, mantenimiento de equipos, proyectos de mejora y obras', 'operaciones tareas tarea pendientes mantenimiento equipos reparacion proyectos mejoras estimacion construccion obras supervision areas', ()=>irA({ tab:'operaciones' }), admin);
     add('👥', 'Staff (personal)', 'Admin → equipo, permisos, teléfonos y cumpleaños', 'staff personal equipo profesionales pin permisos telefono whatsapp cumpleaños fisioterapeutas editar fichas', ()=>irA({ tab:'adminpanel', sub:'staff' }), admin);
     add('📚', 'Mural educativo', 'Admin → Equipo → videos, publicaciones y estudios para las fisioterapeutas', 'mural educativo aprende hoy videos youtube instagram tiktok articulos estudios fisioterapeutas capacitacion formacion', ()=>irA({ tab:'adminpanel', sub:'mural' }), admin);
+    add('🎬', 'Fotos, videos y música', 'Admin → Ventas → para los catálogos que se envían a clientes', 'musica fotos videos galeria catalogo multimedia imagenes cancion audio mp3 youtube', ()=>irA({ tab:'adminpanel', sub:'multimedia' }), admin);
     add('📚', 'Aprende hoy', 'Videos, publicaciones y estudios del mural educativo', 'mural educativo aprende hoy videos youtube instagram tiktok articulos estudios capacitacion formacion', ()=>muralVerTodo(), !admin && !cocina);
     add('📢', 'Comunicados al equipo', 'Admin → staff → comunicados', 'comunicados comunicado avisos mensaje equipo cumpleaños modelo', ()=>irA({ tab:'adminpanel', sub:'staff', cm:true }), admin);
     return L;
@@ -3162,6 +3163,7 @@ setTimeout(function(){
       <div id="home-citas" style="min-height:120px">${state.agenda ? misProximasCitasHTML() : '<div class="ag-card" style="margin-top:12px;min-height:110px"><h3 style="font-size:16px">🗓️ Mis próximas citas</h3><p class="ag-muted" style="font-size:13px">Cargando tus citas…</p></div>'}</div>
       <div id="home-disp">${dispBannerHTML()}</div>`;
     body.innerHTML = `
+      <div id="home-push"></div>
       ${citasProf}
       <div id="home-busqueda">${busquedaHTML()}</div>
       ${esAdm ? `<div id="home-atencion">${atencionHoyHTML()}</div>` : ''}
@@ -3184,7 +3186,6 @@ setTimeout(function(){
       ${esAdm ? `<div id="home-disp">${dispBannerHTML()}</div>
       <div id="home-cob">${state.cobHome ? coberturaHomeHTML() : ''}</div>
       <div id="home-hoy">${state.agenda ? bannerHoyHTML() + confPendientesHTML() : ''}</div>` : ''}
-      <div id="home-push"></div>
       ${tarjetaTg}
       ${tarjetaCorreo}
     `;
@@ -9687,7 +9688,12 @@ setTimeout(function(){
       '🔔 En la app instalada, toca <strong>«Activar avisos»</strong> en el Inicio (o en ⚙️ Mi cuenta) y te llegan tus <strong>citas</strong>, el <strong>mural educativo</strong> y tus <strong>propinas</strong> aunque la app esté cerrada.',
       '🔴 El ícono de Aguamiel muestra cuántos avisos tienes sin ver; se borra al abrir la app. Tocar el aviso abre la pantalla que corresponde.',
       '📱 iPhone: con la app agregada a inicio desde Safari (iOS 16.4 o más nuevo). Android: con Chrome. Telegram sigue llegando igual.',
-      '📋 En Admin → Personal → ¿Quién ya está listo? ves quién ya activó los avisos.' ] }
+      '📋 En Admin → Personal → ¿Quién ya está listo? ves quién ya activó los avisos.' ] },
+    { v:369, fecha:'7 nov', titulo:'🎬 Música, fotos y videos en los catálogos', puntos:[
+      '🎵 En <strong>Admin → Ventas → Fotos, videos y música</strong> hay 3 pistas propias de Aguamiel; puedes subir tu música (MP3) y elegir la que suena por defecto.',
+      '📸 <strong>Galería de bienvenida</strong>: fotos y videos de Aguamiel que el cliente ve al abrir el catálogo, si quiere.',
+      '💆 Cada servicio, paquete o plato puede tener <strong>sus propias fotos y videos</strong>; el cliente los ve tocando «📸 Ver fotos». Si no tiene, se ve como siempre.',
+      '🔗 Al crear el enlace del catálogo eliges la música (o «Sin música») y si va la galería.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -9791,6 +9797,152 @@ setTimeout(function(){
   function muralVerTodo(){
     gs('getMuralEquipo', auth()).then(l=>{ state.mural = l || []; if(!state.mural.length){ toast('📚 Por ahora no hay publicaciones en el mural.'); return; } abrirMural(state.mural, 'todo'); })
       .catch(e=>alert('No se pudo abrir el mural: ' + (e && e.message ? e.message : e)));
+  }
+  // ---------- 🎬 v369: Fotos, videos y música de los catálogos (solo administración) ----------
+  // Misma regla que el servidor y el catálogo: así «Masaje relajante» y «masaje  relajante» son el mismo servicio.
+  const MM_H = 'https:' + '/' + '/';   // «https» + dos barras armado por partes: HtmlService borra lo que sigue a dos barras seguidas
+  function mmNorm(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+  function mmImg(id, w){ return '' + MM_H + 'lh3.googleusercontent.com/d/' + encodeURIComponent(id) + '=w' + (w || 400); }
+  function mmMiniatura(x){
+    if(x.t === 'f') return mmImg(x.id, 300);
+    if(x.t === 'yt') return '' + MM_H + 'i.ytimg.com/vi/' + encodeURIComponent(x.id) + '/hqdefault.jpg';
+    if(x.t === 'd') return '' + MM_H + 'drive.google.com/thumbnail?id=' + encodeURIComponent(x.id) + '&sz=w300';
+    return '';
+  }
+  // Lo que se puede ilustrar: servicios del tarifario, paquetes activos y platos del Rincón de Rosita.
+  function mmOpciones(){
+    const out = [], ya = {};
+    try{ arbolTarifas().forEach(c=>(c.servicios || []).forEach(sv=>{ const k = 's:' + mmNorm(sv.nombre); if(ya[k]) return; ya[k] = 1; out.push({ k, g:'💆 Servicios', n:sv.mostrar || sv.nombre }); })); }catch(e){}
+    ((state.agenda && state.agenda.paquetes) || []).filter(p=>p.activo).forEach(p=>out.push({ k:'p:' + p.id, g:'📦 Paquetes', n:p.nombre }));
+    (state.menu || []).filter(m=>m.activo !== false).forEach(m=>out.push({ k:'m:' + m.id, g:'🍽️ Rincón de Rosita', n:m.nombre }));
+    return out;
+  }
+  // Reduce la foto (lado mayor 1600 px, JPEG) para que el catálogo abra rápido incluso con datos móviles.
+  function mmReducirFoto(file){
+    return new Promise((ok, mal)=>{
+      const rd = new FileReader();
+      rd.onerror = ()=>mal(new Error('No se pudo leer la foto.'));
+      rd.onload = ()=>{ const im = new Image(); im.onerror = ()=>mal(new Error('No se pudo abrir esa foto.'));
+        im.onload = ()=>{ const k = Math.min(1, 1600 / Math.max(im.width, im.height)); const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+          cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok(cv.toDataURL('image/jpeg', 0.82)); };
+        im.src = rd.result; };
+      rd.readAsDataURL(file);
+    });
+  }
+  function mmLeerArchivo(file){ return new Promise((ok, mal)=>{ const rd = new FileReader(); rd.onerror = ()=>mal(new Error('No se pudo leer el archivo.')); rd.onload = ()=>ok(String(rd.result)); rd.readAsDataURL(file); }); }
+  function renderMultimediaAdmin(body){
+    if(!state.mm) state.mm = { datos:null, sel:'', ocupado:'' };
+    const M = state.mm;
+    if(!M.datos){
+      body.innerHTML = '<p class="ag-empty">Cargando fotos, videos y música…</p>';
+      Promise.all([ gs('getMultimediaAdmin', auth()), state.tarifas ? null : cargarTarifas().catch(()=>null), state.agenda ? null : cargarAgenda() ])
+        .then(([d])=>{ M.datos = d; if(state.adminSub === 'multimedia' && document.body.contains(body)) renderMultimediaAdmin(body); })
+        .catch(e=>{ body.innerHTML = '<p class="ag-err">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</p>'; });
+      return;
+    }
+    const D = M.datos, ops = mmOpciones(), nPor = {};
+    D.media.forEach(x=>{ nPor[x.clave] = (nPor[x.clave] || 0) + 1; });
+    const recargar = ()=>{ M.datos = null; state.mmCat = undefined; renderMultimediaAdmin(body); };
+    const tile = x=>{
+      const mi = mmMiniatura(x), ic = x.t === 'f' ? '' : (x.t === 'l' ? '🔗' : '▶️');
+      return `<div style="position:relative;border-radius:12px;overflow:hidden;background:#e8f1f2;aspect-ratio:1/1">
+        ${mi ? `<img src="${esc(mi)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'"/>` : ''}
+        ${ic ? `<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;text-shadow:0 1px 4px rgba(0,0,0,.4)">${ic}</span>` : ''}
+        <div style="position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;background:linear-gradient(transparent,rgba(0,0,0,.55));padding:14px 4px 4px">
+          <button type="button" data-mm-mov="${esc(x.mid)}|-1" aria-label="Mover antes" style="border:0;background:rgba(255,255,255,.9);border-radius:8px;width:28px;height:28px;cursor:pointer">◀</button>
+          <button type="button" data-mm-del="${esc(x.mid)}" aria-label="Quitar" style="border:0;background:rgba(255,255,255,.9);border-radius:8px;width:28px;height:28px;cursor:pointer">🗑️</button>
+          <button type="button" data-mm-mov="${esc(x.mid)}|1" aria-label="Mover después" style="border:0;background:rgba(255,255,255,.9);border-radius:8px;width:28px;height:28px;cursor:pointer">▶</button>
+        </div></div>`;
+    };
+    const grid = clave=>{ const l = D.media.filter(x=>x.clave === clave); return l.length ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0">${l.map(tile).join('')}</div>` : '<p class="ag-muted" style="font-size:12.5px;margin:6px 0">Todavía no hay nada aquí.</p>'; };
+    const botonesSubir = clave=>`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <button type="button" class="ag-btn sm" data-mm-fotos="${esc(clave)}" style="min-width:0;padding:9px 2px;font-size:12.5px">📷 Fotos</button>
+        <button type="button" class="ag-btn ghost sm" data-mm-video="${esc(clave)}" style="min-width:0;padding:9px 2px;font-size:12.5px">🎬 Video</button>
+        <button type="button" class="ag-btn ghost sm" data-mm-link="${esc(clave)}" style="min-width:0;padding:9px 2px;font-size:12.5px">🔗 Enlace</button></div>`;
+    const grupos = {}; ops.forEach(o=>{ (grupos[o.g] = grupos[o.g] || []).push(o); });
+    const selOp = ops.find(o=>o.k === M.sel);
+    const conFotos = ops.filter(o=>nPor[o.k]);
+    body.innerHTML = `${M.ocupado ? `<div class="ag-card" role="status" style="background:var(--teal-l);border-color:#bfe6ee;font-weight:700">⏳ ${esc(M.ocupado)}</div>` : ''}
+      <div class="ag-card">
+        <h3 style="margin:0 0 4px">🎵 Música de los catálogos</h3>
+        <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">⭐ = la que suena por defecto en los enlaces nuevos (al crear cada enlace puedes cambiarla). Suena cuando el cliente toca la pantalla; tiene un botón 🎵 para apagarla.</p>
+        ${D.musica.map(m=>`<div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0">
+          <button type="button" data-mm-pred="${esc(m.id)}" aria-label="Usar por defecto" style="border:0;background:none;font-size:20px;cursor:pointer;opacity:${D.pred === m.id ? 1 : .3}">⭐</button>
+          <div style="flex:1;min-width:0"><strong style="font-size:14px">${esc(m.titulo || 'Sin nombre')}</strong>${m.base ? '<div class="ag-muted" style="font-size:11.5px">Pista propia de Aguamiel</div>' : ''}</div>
+          <button type="button" class="ag-btn ghost sm" data-mm-play="${esc(m.url)}" style="min-width:0;padding:7px 10px">▶️</button>
+          ${m.base ? '' : `<button type="button" class="ag-btn ghost sm" data-mm-del="${esc(m.id)}" style="min-width:0;padding:7px 10px;color:#a61b1b">🗑️</button>`}</div>`).join('')}
+        <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0"><button type="button" data-mm-pred="" style="border:0;background:none;font-size:20px;cursor:pointer;opacity:${D.pred === '' ? 1 : .3}">⭐</button><div style="flex:1">🔇 Sin música por defecto</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+          <button type="button" class="ag-btn sm" id="mm-sub-mus" style="min-width:0">📤 Subir música</button>
+          <button type="button" class="ag-btn ghost sm" id="mm-link-mus" style="min-width:0">🔗 Enlace .mp3</button></div>
+        <div class="ag-muted" style="font-size:11.5px;margin-top:6px">Usa solo música libre de derechos (máx. 8 MB). Gratis y legal: Pixabay Music o la Biblioteca de audio de YouTube.</div>
+      </div>
+      <div class="ag-card">
+        <h3 style="margin:0 0 4px">📸 Galería de bienvenida</h3>
+        <p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">Fotos y videos de Aguamiel que el cliente ve arriba al abrir su catálogo (y en grande si toca «Ver experiencias»).</p>
+        <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600"><input type="checkbox" id="mm-gal-on" style="width:auto" ${D.galeriaOn ? 'checked' : ''}/> Mostrar la galería en los catálogos</label>
+        ${grid('')}${botonesSubir('')}
+      </div>
+      <div class="ag-card">
+        <h3 style="margin:0 0 4px">💆 Fotos y videos de cada servicio</h3>
+        <p class="ag-muted" style="font-size:12.5px;margin:0 0 6px">El cliente los ve tocando «📸 Ver fotos» en ese servicio, paquete o plato. Si no tiene, se ve como siempre.</p>
+        <select id="mm-sel"><option value="">— Elige un servicio, paquete o plato —</option>${Object.keys(grupos).map(g=>`<optgroup label="${esc(g)}">${grupos[g].map(o=>`<option value="${esc(o.k)}" ${o.k === M.sel ? 'selected' : ''}>${esc(o.n)}${nPor[o.k] ? ' (' + nPor[o.k] + ')' : ''}</option>`).join('')}</optgroup>`).join('')}</select>
+        ${selOp ? grid(selOp.k) + botonesSubir(selOp.k) : ''}
+        ${conFotos.length ? `<div class="ag-muted" style="font-size:12px;margin-top:10px">Ya tienen fotos o videos:</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${conFotos.map(o=>`<button type="button" class="ag-btn ghost sm" data-mm-ir="${esc(o.k)}" style="min-width:0;padding:6px 10px;border-radius:999px;font-size:12px">${esc(o.n)} · ${nPor[o.k]}</button>`).join('')}</div>` : ''}
+      </div>
+      <input type="file" id="mm-f-foto" accept="image/jpeg,image/png,image/webp" multiple style="display:none"/>
+      <input type="file" id="mm-f-video" accept="video/mp4,video/quicktime,video/webm" style="display:none"/>
+      <input type="file" id="mm-f-mus" accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/aac,.mp3,.m4a" style="display:none"/>`;
+    const q = s=>body.querySelector(s);
+    const ocupado = t=>{ M.ocupado = t; renderMultimediaAdmin(body); };
+    const subir = async (lista, txt)=>{
+      // Una por una, con su progreso: si una falla, las demás siguen.
+      let malas = [];
+      for(let i = 0; i < lista.length; i++){
+        ocupado(txt + (lista.length > 1 ? ' ' + (i + 1) + ' de ' + lista.length : '') + '…');
+        try{ await gsEspera(240000, 'subirMultimedia', await lista[i](), auth()); }catch(e){ malas.push(e && e.message ? e.message : String(e)); }
+      }
+      M.ocupado = ''; toast(malas.length ? '⚠️ ' + malas[0] : '✅ Listo'); recargar();
+    };
+    let destino = '';
+    body.querySelectorAll('[data-mm-fotos]').forEach(b=>b.onclick = ()=>{ destino = b.dataset.mmFotos; q('#mm-f-foto').value = ''; q('#mm-f-foto').click(); });
+    body.querySelectorAll('[data-mm-video]').forEach(b=>b.onclick = ()=>{ destino = b.dataset.mmVideo; q('#mm-f-video').value = ''; q('#mm-f-video').click(); });
+    q('#mm-f-foto').onchange = e=>{ const fs = Array.from(e.target.files || []).slice(0, 20); if(!fs.length) return;
+      subir(fs.map(f=>async ()=>({ tipo:'foto', clave:destino, titulo:'', datos:await mmReducirFoto(f) })), '📷 Subiendo foto'); };
+    q('#mm-f-video').onchange = e=>{ const f = (e.target.files || [])[0]; if(!f) return;
+      if(f.size > 20 * 1024 * 1024){ alert('Ese video pesa ' + (f.size / 1048576).toFixed(1).replace('.', ',') + ' MB y el máximo es 20 MB. Súbelo a YouTube (puede ser «no listado») y usa «🔗 Enlace».'); return; }
+      subir([async ()=>({ tipo:'video', clave:destino, titulo:f.name.replace(/\.[^.]+$/, ''), nombreArchivo:f.name, datos:await mmLeerArchivo(f) })], '🎬 Subiendo video'); };
+    body.querySelectorAll('[data-mm-link]').forEach(b=>b.onclick = ()=>{
+      const u = prompt('Pega el enlace del video (YouTube, TikTok o Instagram):'); if(!u || !u.trim()) return;
+      subir([async ()=>({ tipo:'video', clave:b.dataset.mmLink, titulo:'', url:u.trim() })], '🔗 Guardando enlace'); });
+    q('#mm-sub-mus').onclick = ()=>{ q('#mm-f-mus').value = ''; q('#mm-f-mus').click(); };
+    q('#mm-f-mus').onchange = e=>{ const f = (e.target.files || [])[0]; if(!f) return;
+      if(f.size > 8 * 1024 * 1024){ alert('Esa música pesa ' + (f.size / 1048576).toFixed(1).replace('.', ',') + ' MB y el máximo es 8 MB.'); return; }
+      const t = prompt('Nombre para reconocerla:', '🎶 ' + f.name.replace(/\.[^.]+$/, '').slice(0, 60)); if(t === null) return;
+      subir([async ()=>{ let d = await mmLeerArchivo(f); if(/^data:application\/octet-stream|^data:;/.test(d)) d = d.replace(/^data:[^;]*;/, 'data:audio/mpeg;'); return { tipo:'musica', titulo:t, nombreArchivo:f.name, datos:d }; }], '🎵 Subiendo música'); };
+    q('#mm-link-mus').onclick = ()=>{
+      const u = prompt('Pega el enlace DIRECTO del archivo de música (termina en .mp3):'); if(!u || !u.trim()) return;
+      const t = prompt('Nombre para reconocerla:', '🎶 Mi música'); if(t === null) return;
+      subir([async ()=>({ tipo:'musica', titulo:t, url:u.trim() })], '🔗 Guardando enlace'); };
+    let audio = null;
+    body.querySelectorAll('[data-mm-play]').forEach(b=>b.onclick = ()=>{
+      if(audio && !audio.paused && audio.dataset.u === b.dataset.mmPlay){ audio.pause(); b.textContent = '▶️'; return; }
+      if(audio) audio.pause(); body.querySelectorAll('[data-mm-play]').forEach(x=>x.textContent = '▶️');
+      audio = new Audio(b.dataset.mmPlay); audio.dataset.u = b.dataset.mmPlay; audio.volume = 0.6;
+      audio.play().then(()=>{ b.textContent = '⏸️'; }).catch(()=>alert('No se pudo reproducir esa música en este equipo.'));
+    });
+    body.querySelectorAll('[data-mm-pred]').forEach(b=>b.onclick = async ()=>{ D.pred = b.dataset.mmPred; state.mmCat = undefined; renderMultimediaAdmin(body);
+      try{ await gs('setMultimediaAjustes', { pred:D.pred }, auth()); toast('⭐ Guardado'); }catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); } });
+    q('#mm-gal-on').onchange = async e=>{ D.galeriaOn = e.target.checked; state.mmCat = undefined;
+      try{ await gs('setMultimediaAjustes', { galeriaOn:D.galeriaOn }, auth()); toast(D.galeriaOn ? '📸 La galería sale en los catálogos' : 'Galería apagada'); }catch(er){ alert('No se pudo guardar: ' + (er && er.message ? er.message : er)); } };
+    q('#mm-sel').onchange = e=>{ M.sel = e.target.value; renderMultimediaAdmin(body); };
+    body.querySelectorAll('[data-mm-ir]').forEach(b=>b.onclick = ()=>{ M.sel = b.dataset.mmIr; renderMultimediaAdmin(body); });
+    body.querySelectorAll('[data-mm-del]').forEach(b=>b.onclick = async ()=>{
+      if(!confirm('¿Quitar esto de los catálogos? El archivo se va a la papelera de Drive.')) return;
+      try{ await gs('borrarMultimedia', b.dataset.mmDel, auth()); toast('🗑️ Quitado'); recargar(); }catch(e){ alert('No se pudo quitar: ' + (e && e.message ? e.message : e)); } });
+    body.querySelectorAll('[data-mm-mov]').forEach(b=>b.onclick = async ()=>{
+      const [id, dir] = b.dataset.mmMov.split('|');
+      try{ await gs('moverMultimedia', id, Number(dir), auth()); recargar(); }catch(e){ alert('No se pudo mover: ' + (e && e.message ? e.message : e)); } });
   }
   function renderMuralAdmin(body){
     if(!state.mu) state.mu = { datos:null, ver:'activas', dias:7, abierto:'' };
@@ -12138,6 +12290,30 @@ setTimeout(function(){
       (c.filas||[]).map(r=>`<div class="ag-row" style="gap:6px;margin-top:4px"><input data-gl="${k}" placeholder="Ej: 20 minutos" value="${esc(r.nombre)}"/><input data-gl="${k}" inputmode="decimal" placeholder="factor (vacío = automático)" value="${esc(r.factor)}"/></div>`).join('') +
       `<button type="button" class="ag-btn ghost sm" data-gl-add="${k}" style="margin-top:4px">＋ Otro tiempo</button><div class="ag-muted" data-gp="${k}" style="font-size:11.5px;margin-top:4px;white-space:pre-line"></div></div>`;
   }
+  // 🎬 v369: música y galería del enlace del catálogo. La lista de pistas se carga una vez (la misma de Admin → Ventas → Fotos, videos y música).
+  function mmCeHTML(E){
+    const D = state.mmCat;
+    if(D === undefined){ state.mmCat = null; gs('getMultimediaAdmin', auth()).then(d=>{ state.mmCat = d; if(state.pr && state.pr.cat) render(); }).catch(()=>{ state.mmCat = false; }); }
+    if(!D) return '';
+    if(E.musica === undefined) E.musica = D.pred;
+    if(E.galeria === undefined) E.galeria = true;
+    const hayGal = D.galeriaOn && D.media.some(x=>!x.clave);
+    return `<label class="f">🎵 Música de fondo del catálogo</label><div style="display:flex;gap:6px"><select id="ce-musica" style="flex:1;min-width:0">${D.musica.map(m=>`<option value="${esc(m.id)}" ${E.musica === m.id ? 'selected' : ''}>${esc(m.titulo)}${m.id === D.pred ? ' ⭐' : ''}</option>`).join('')}<option value="" ${E.musica === '' ? 'selected' : ''}>🔇 Sin música</option></select><button type="button" class="ag-btn ghost sm" id="ce-mus-play" style="min-width:0;padding:7px 12px">▶️</button></div>
+      <div class="ag-muted" style="font-size:11.5px">Suena cuando el cliente toca la pantalla; él la puede apagar con el botón 🎵. Para subir tu música: Admin → Ventas → Fotos, videos y música.</div>
+      ${hayGal ? `<label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:8px"><input type="checkbox" id="ce-galeria" style="width:auto" ${E.galeria !== false ? 'checked' : ''}/> 📸 Mostrar la galería de fotos de Aguamiel</label>` : ''}`;
+  }
+  function mmCeConectar(body, E){
+    const s = body.querySelector('#ce-musica'), b = body.querySelector('#ce-mus-play'), g = body.querySelector('#ce-galeria');
+    if(s) s.onchange = ()=>{ E.musica = s.value; if(state.mmAudio){ state.mmAudio.pause(); if(b) b.textContent = '▶️'; } };
+    if(g) g.onchange = ()=>{ E.galeria = g.checked; };
+    if(b) b.onclick = ()=>{
+      const m = (state.mmCat && state.mmCat.musica || []).find(x=>x.id === s.value);
+      if(state.mmAudio && !state.mmAudio.paused){ state.mmAudio.pause(); b.textContent = '▶️'; return; }
+      if(!m){ alert('Elegiste «Sin música».'); return; }
+      state.mmAudio = new Audio(m.url); state.mmAudio.volume = 0.6;
+      state.mmAudio.play().then(()=>{ b.textContent = '⏸️'; }).catch(()=>alert('No se pudo reproducir en este equipo.'));
+    };
+  }
   function renderCatalogoEnlace(body){
     const P = state.pr;
     const base = P.catPresu ? state.presupuestos.find(x=>x.id===P.catPresu) : null;
@@ -12192,6 +12368,7 @@ setTimeout(function(){
         <div class="ag-row" style="gap:6px;margin-top:4px;align-items:center"><select id="ce-frase-m" style="flex:1">${MOTIVOS_REGALO.filter(([k])=>k).concat([['general','✨ General']]).map(([v,t])=>`<option value="${esc(v)}" ${v==='general'?'selected':''}>${t}</option>`).join('')}</select><button type="button" class="ag-btn sm ghost" id="ce-frase">💬 Traer una frase</button></div>
         <div class="ag-muted" id="ce-frase-info" style="font-size:11.5px">Trae una frase del repertorio y la pone como mensaje; puedes editarla.</div>
         <label class="f">📱 Texto del WhatsApp que acompaña el enlace (opcional)</label><textarea id="ce-wa-txt" rows="3" placeholder="Ej: ¡Hola {nombre}! 🌿 Te preparamos estas opciones especiales para ti: {enlace}">${esc(E.textoWa || '')}</textarea><div class="ag-muted" style="font-size:11.5px">${WA_AYUDA}</div>
+        ${mmCeHTML(E)}
         ${base ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;background:#fdf3f7;border:1px solid #f1c6d8;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-regalo" style="width:auto;margin-top:3px"/> <span>🎁 <strong>Regalo ya pagado:</strong> la persona ve «tienes un regalo» con lo que incluye (sin precios ni datos de pago) y solo elige en la agenda cuándo disfrutarlo. Usa los servicios que ya están en el presupuesto ${esc(base.numero)}.</span></label>
           <label id="ce-reg-extras-w" style="display:none;gap:8px;align-items:flex-start;margin-top:6px;background:#f3f8ff;border:1px solid #d6e6fb;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-reg-extras" checked style="width:auto;margin-top:3px"/> <span>➕ <strong>Permitir que pida cosas adicionales</strong> (pagadas aparte): más servicios o comida para sí misma, para un acompañante o para regalarle a otra persona. Abajo eliges qué se le ofrece.</span></label>` : ''}
         <label class="f">El enlace vence en</label><select id="ce-dias">${plazosOpciones(E.dias)}</select><div class="ag-muted" style="font-size:11.5px;margin-top:3px">Si cambias un precio, el cliente conserva el anterior durante 24 horas y después ve el nuevo. Te aviso 3 días antes de que venza y el día que vence.</div>
@@ -12500,6 +12677,7 @@ setTimeout(function(){
     const leerE = ()=>{
       E.mensaje = q('#ce-msj').value.trim(); E.textoWa = q('#ce-wa-txt').value.trim(); E.dias = +q('#ce-dias').value || 7; E.grupo = q('#ce-grupo').checked; E.grupal = q('#ce-grupal').checked; E.evento = q('#ce-evento').value.trim();
       E.solicitudChk = q('#ce-solicitud').checked;
+      if(q('#ce-musica')) E.musica = q('#ce-musica').value; if(q('#ce-galeria')) E.galeria = q('#ce-galeria').checked;
       recogerGl();
       E.conPaq = q('#ce-paq').checked; E.conServ = q('#ce-serv').checked; E.conMenu = q('#ce-menu').checked;
       body.querySelectorAll('[data-ce-paq]').forEach(cb=>{ if(cb.checked) delete E.sinPaq[cb.dataset.cePaq]; else E.sinPaq[cb.dataset.cePaq] = true; });
@@ -12512,15 +12690,17 @@ setTimeout(function(){
     // Plantillas: guardar esta configuración con un nombre y volver a usarla en otros enlaces.
     plantillasEnlace(q('#ce-plantillas'), 'catalogo',
       ()=>{ leerE(); return { mensaje:E.mensaje, textoWa:E.textoWa || '', dias:E.dias, solicitud:!!E.solicitudChk, grupo:!!E.grupo && !E.grupal, grupal:!!E.grupal, evento:E.evento || '', conPaq:E.conPaq, conServ:E.conServ, conMenu:E.conMenu,
-        sinPaq:E.sinPaq, sinSrv:E.sinSrv, sinPlato:E.sinPlato, sinCat:E.sinCat, sinMenu:E.sinMenu, gTramos:E.gTramos || null, gHidro:E.gHidro || null, gPisc:E.gPisc || null, gInst:E.gInst || null }; },
+        sinPaq:E.sinPaq, sinSrv:E.sinSrv, sinPlato:E.sinPlato, sinCat:E.sinCat, sinMenu:E.sinMenu, musica:E.musica, galeria:E.galeria, gTramos:E.gTramos || null, gHidro:E.gHidro || null, gPisc:E.gPisc || null, gInst:E.gInst || null }; },
       cfg=>{
         // Lo que ya se escribió del cliente no registrado se conserva al aplicar la plantilla.
         if(!base && !(sel && sel.value)){ const n = q('#ce-nombre'), t = q('#ce-tel'); if(n) E.nombre = n.value; if(t) E.telefono = t.value; }
         Object.assign(E, { mensaje:cfg.mensaje || '', textoWa:cfg.textoWa || '', dias:+cfg.dias || 7, solicitudChk:!!cfg.solicitud, grupo:!!cfg.grupo, grupal:!!cfg.grupal, evento:cfg.evento || '', conPaq:cfg.conPaq !== false, conServ:cfg.conServ !== false, conMenu:cfg.conMenu !== false,
           sinPaq:cfg.sinPaq || {}, sinSrv:cfg.sinSrv || {}, sinPlato:cfg.sinPlato || {}, sinCat:cfg.sinCat || {}, sinMenu:cfg.sinMenu || {} });
+        if(cfg.musica !== undefined) E.musica = cfg.musica; if(cfg.galeria !== undefined) E.galeria = cfg.galeria;
         if(cfg.gTramos){ E.gTramos = cfg.gTramos; E.gHidro = cfg.gHidro; E.gPisc = cfg.gPisc; E.gInst = cfg.gInst; }
         render();
       });
+    mmCeConectar(body, E);
     q('#ce-crear').onclick = async ()=>{
       leerE();
       const esRegalo = !!(chkReg && chkReg.checked); E.regaloPag = esRegalo;
@@ -12543,6 +12723,7 @@ setTimeout(function(){
         menu: E.conMenu ? menu.filter(m=>!E.sinPlato[m.id]).map(m=>({ id:m.id, nombre:m.nombre, descripcion:m.descripcion||'', categoria:m.categoria, precio:m.precio, unidad:m.unidad||'', piezas:m.piezas||'', personas:m.personas||'',
           grupos: opcionesDe(m).map(g=>({ nombre:g.nombre, multiple:!!g.multiple, max:maxGrupo(g), valores:g.valores })) })) : [] };
       cfg.solicitud = q('#ce-solicitud').checked;
+      if(E.musica !== undefined) cfg.musica = E.musica; cfg.galeria = E.galeria !== false;
       E.sinPagoNo = !q('#ce-sinpago').checked; cfg.sinPago = !E.sinPagoNo;
       if(esRegalo){
         // Con «adicionales», quien recibe el regalo ve también lo que se le ofrece (con precios) y puede comprarlo aparte.
@@ -16366,13 +16547,13 @@ setTimeout(function(){
     });
     cont.querySelectorAll('[data-iv-ver]').forEach(b=>b.onclick = ()=>{ state.pr = { vista:'ver', editId:b.dataset.ivVer }; state.presupuestos = null; state.adminSub = 'presupuestos'; render(); window.scrollTo(0, 0); });
   }
-  function admGrupoDe(k){ return ({ presupuestos:'ventas', informe:'ventas', paquetes:'ventas', fidel:'ventas', solicitudes:'ventas', cobrar:'ventas', pagos:'ventas', tarifas:'ventas', balance:'dinero', fondo:'dinero', ingresos:'dinero', gastos:'dinero', pagosper:'dinero', inv_rosita:'inventario', inv_personal:'inventario', inv_spa:'inventario', inv_oper:'inventario', compras:'inventario', choques:'sistema', papelera:'sistema', limpieza:'sistema', rendimiento:'sistema', importar:'sistema', exportar:'sistema' })[k] || (k ? 'equipo' : null); }
+  function admGrupoDe(k){ return ({ multimedia:'ventas', presupuestos:'ventas', informe:'ventas', paquetes:'ventas', fidel:'ventas', solicitudes:'ventas', cobrar:'ventas', pagos:'ventas', tarifas:'ventas', balance:'dinero', fondo:'dinero', ingresos:'dinero', gastos:'dinero', pagosper:'dinero', inv_rosita:'inventario', inv_personal:'inventario', inv_spa:'inventario', inv_oper:'inventario', compras:'inventario', choques:'sistema', papelera:'sistema', limpieza:'sistema', rendimiento:'sistema', importar:'sistema', exportar:'sistema' })[k] || (k ? 'equipo' : null); }
   function renderAdminPanel(body){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || '';   // 🗂️ v362: sin sección = inicio de Admin (tarjetas de grupos + Staff debajo, como antes)
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', mural:'📚 Mural educativo', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
-    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','mural','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', mural:'📚 Mural educativo', multimedia:'🎬 Fotos, videos y música', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','multimedia','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','mural','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || null;
     const hayPagos = (state.pagosPend||[]).length;
     // ⭐ v343: «Lo que más uso»: las 6 secciones que esta persona abre más (se cuentan en este teléfono, nada se envía).
@@ -16382,7 +16563,7 @@ setTimeout(function(){
     // 🗂️ v362: menú de tarjetas. Inicio → grupo (sus secciones en tarjetas) → sección en su propia pantalla, con «‹ Volver».
     const GC = { ventas:['#0a5a68','#e2f4f6'], dinero:['#1d6b35','#e2f4e6'], inventario:['#8a5a00','#fff3d6'], equipo:['#5b3f8f','#efe9f8'], sistema:['#35616b','#eef5f6'] };
     const GD = { ventas:'Presupuestos, paquetes, cobros', dinero:'Balance, ingresos, egresos', inventario:'Rosita, spa, compras', equipo:'Staff, propinas, avisos', sistema:'Papelera, limpieza, copias' };
-    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
+    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', multimedia:'Para los catálogos', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
       balance:'Resumen del mes', fondo:'Ahorro', ingresos:'Entra dinero', gastos:'Sale dinero', pagosper:'Quincenas y honorarios',
       inv_rosita:'Cocina y bar', inv_personal:'Lo del personal', inv_spa:'Insumos de terapia', inv_oper:'Equipos y ferretería', compras:'Lista de compras',
       staff:'Personas y accesos', mural:'Videos y estudios', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
@@ -16404,7 +16585,7 @@ setTimeout(function(){
         + mnGrid(ADM_GRUPOS.map(g=>({ at:`data-adm-grp="${g[0]}"`, e:g[1], t:g[2], sb:GD[g[0]], c:GC[g[0]], n:g[0] === 'ventas' && hayPagos ? hayPagos : 0 })));
     }
     body.innerHTML = `${arriba}<div id="adm-cont"${grpVer ? ' style="display:none"' : ''}></div>`;
-    const irAdmSub = k=>{ state.adminSub = k; state.adminGrp = null; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='mural' && state.mu) state.mu.datos = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); try{ window.scrollTo(0, 0); }catch(e){} };
+    const irAdmSub = k=>{ state.adminSub = k; state.adminGrp = null; if(k==='informe' && state.iv) state.iv.datos = null; if(k !== 'tarifas') state.volverPaquete = null; if(k === 'paquetes' && state.ag){ state.ag.vista = 'paquetes'; } if(state.cxc && k==='cobrar') state.cxc.datos = null; if(k==='pagos') state.fpEdit = null; if(k==='frases') state.frases = null; if(k==='mural' && state.mu) state.mu.datos = null; if(k==='multimedia' && state.mm) state.mm.datos = null; if(k==='compras') state.cp = null; if(k==='papelera') state.pp = null; if(k==='limpieza') state.lm = null; if(k==='solicitudes') state.sl = null; if(k==='gastos' && state.gs){ state.gs.datos = null; state.gs.vista = 'lista'; } if(k==='pagosper'){ if(state.gs) state.gs.datos = null; if(state.ppl) state.ppl.form = null; } if((k==='balance' || k==='ingresos') && state.fin) state.fin.datos = null; if(k==='fondo') state.fondo = null; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     body.querySelectorAll('[data-adm-sub]').forEach(b=>b.onclick = ()=>irAdmSub(b.dataset.admSub));
     body.querySelectorAll('[data-adm-grp]').forEach(b=>b.onclick = ()=>{ state.adminSub = ''; state.adminGrp = b.dataset.admGrp; render(); try{ window.scrollTo(0, 0); }catch(e){} });
     body.querySelectorAll('[data-adm-home]').forEach(b=>b.onclick = ()=>{ state.adminSub = ''; state.adminGrp = null; render(); });
@@ -16417,6 +16598,7 @@ setTimeout(function(){
     else if(sub==='tiempos') renderTiempos(cont);
     else if(sub==='propinas') renderPropinas(cont);
     else if(sub==='mural') renderMuralAdmin(cont);
+    else if(sub==='multimedia') renderMultimediaAdmin(cont);
     else if(sub==='inv_spa') renderInventario(cont, 'spa', true);
     else if(sub==='inv_oper') renderInventario(cont, 'operaciones', true);
     else if(sub==='gastos') renderGastos(cont);
@@ -16737,12 +16919,12 @@ setTimeout(function(){
     if(s && s.options && s.options.applicationServerKey){ const a = new Uint8Array(s.options.applicationServerKey); if(a.length !== clave.length || a.some((v, i)=>v !== clave[i])){ await s.unsubscribe(); s = null; } }
     if(!s) s = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:clave });
     await gs('guardarPushSub', { endpoint:s.endpoint }, pushDisp(), auth());
-    lsSet('ag_push_' + state.user.id, Date.now());
+    lsSet('ag_push_' + state.user.id, Date.now()); lsSet('ag_push_dueno', String(state.user.id));
     return true;
   }
   async function pushDesactivar(){
     try{ const reg = await navigator.serviceWorker.ready; const s = await reg.pushManager.getSubscription(); if(s){ try{ await gs('quitarPushSub', s.endpoint, auth()); }catch(e){} await s.unsubscribe(); } }catch(e){}
-    lsDel('ag_push_' + state.user.id);
+    lsDel('ag_push_' + state.user.id); lsDel('ag_push_dueno');
   }
   // Al abrir la app: se borra el numerito del ícono, se cierran los avisos ya mostrados y se dan por vistos en el servidor.
   // Si el teléfono tiene avisos pero quedaron a nombre de otra persona (teléfono compartido) o hace días que no se confirman, se vuelven a registrar.
@@ -16751,10 +16933,12 @@ setTimeout(function(){
     if(!window.AG_WEB || !state.user || !pushSoporta()) return;
     try{ if(navigator.clearAppBadge) navigator.clearAppBadge().catch(()=>{}); }catch(e){}
     try{ const reg = await navigator.serviceWorker.ready; (await reg.getNotifications()).forEach(n=>n.close()); }catch(e){}
-    if(Date.now() - pushVistoAt < 60000) return; pushVistoAt = Date.now();
     if(await pushEstado() !== 'activo') return;
+    // Teléfono compartido: los avisos son de quien entró de último (antes quedaban a nombre de la otra persona).
+    const otro = String(lsGet('ag_push_dueno') || '') !== String(state.user.id);
+    if(!otro && Date.now() - pushVistoAt < 60000) return; pushVistoAt = Date.now();
     const k = 'ag_push_' + state.user.id, ult = Number(lsGet(k)) || 0;
-    if(Date.now() - ult > 3 * 86400000){ try{ await pushActivar(); }catch(e){} }
+    if(otro || Date.now() - ult > 3 * 86400000){ try{ await pushActivar(); }catch(e){} }
     gs('marcarAvisosVistos', auth()).catch(()=>{});
   }
   // Al tocar un aviso se abre la pantalla que corresponde.
