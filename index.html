@@ -252,6 +252,64 @@
   .iv-paso{font-size:13.5px;font-weight:700;color:var(--teal-d);margin:14px 0 6px;display:flex;align-items:center;gap:6px}
   .iv-paso i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--teal);color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center}
   .iv-dup{margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff7e6;border:1px solid #f0d9a8;font-size:12.5px;color:#6b4700}
+  /* 🎨 v372: cada inventario con su color y una jerarquía clara (inventario → categoría → producto). Personal = miel, Rosita = terracota, spa = lavanda, operaciones = azul acero. */
+  .iv-ar{--ivc:#0e9fb8;--ivc-d:#0a5866;--ivc-l:#e6f7fa}
+  .iv-ar[data-iv-a="personal"]{--ivc:#c27c0e;--ivc-d:#6f4305;--ivc-l:#fff3dc}
+  .iv-ar[data-iv-a="rosita"]{--ivc:#d0563b;--ivc-d:#7f2a18;--ivc-l:#fdebe5}
+  .iv-ar[data-iv-a="spa"]{--ivc:#8a63c9;--ivc-d:#4d2f80;--ivc-l:#f1eafb}
+  .iv-ar[data-iv-a="operaciones"]{--ivc:#3f6e9e;--ivc-d:#1f3a56;--ivc-l:#e7eff8}
+  .iv-ar .ag-card.iv-main{background:transparent;border:0;box-shadow:none;padding:0;margin-top:0}
+  .iv-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 10px;padding:2px}
+  .iv-tabs button.on{color:#fff}
+  .iv-tabs button{flex:0 0 auto;border:0;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:#fff;color:var(--sub);box-shadow:0 1px 3px rgba(16,40,46,.10)}
+  .iv-ar .iv-top{display:block;background:linear-gradient(140deg,var(--ivc) 0%,var(--ivc-d) 100%);border-radius:22px;padding:16px 14px 14px;margin:0 0 12px;box-shadow:0 12px 26px -12px var(--ivc-d);position:relative;overflow:hidden}
+  .iv-ar .iv-top:before{content:'';position:absolute;right:-36px;top:-46px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.10)}
+  .iv-ar .iv-top:after{content:'';position:absolute;right:40px;bottom:-60px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.07)}
+  .iv-toprow{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative;z-index:1}
+  .iv-ar .iv-tit{font-size:21px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  .iv-ar .iv-tit i{font-style:normal;width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.2);display:inline-flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto}
+  .iv-ar .iv-sub{margin-left:54px;margin-top:-4px}
+  .iv-ar .iv-top .iv-ico{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35)}
+  .iv-ar .iv-top .iv-ico.on{background:#fff}
+  .iv-ar .iv-top .iv-sem{position:relative;z-index:1;margin-top:14px;gap:8px}
+  .iv-ar .iv-top .iv-sem button{border:0!important;background:rgba(255,255,255,.96)!important;border-radius:14px;min-height:0;padding:8px 10px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .iv-ar .iv-top .iv-sem button b{font-size:22px;line-height:1.05}
+  .iv-ar .iv-top #iv-a-compras{position:relative;z-index:1;background:rgba(255,255,255,.18)!important;border:1px solid rgba(255,255,255,.4)!important;color:#fff!important;box-shadow:none}
+  .iv-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+  .iv-act{border:0;border-radius:16px;background:#fff;padding:10px 4px 9px;cursor:pointer;font-family:inherit;color:var(--ivc-d);font-weight:700;font-size:12.5px;line-height:1.2;box-shadow:0 1px 3px rgba(16,40,46,.10);display:flex;flex-direction:column;align-items:center;gap:4px}
+  .iv-act span{font-size:22px;width:40px;height:40px;border-radius:13px;background:var(--ivc-l);display:inline-flex;align-items:center;justify-content:center}
+  .iv-act.pri{background:var(--ivc);color:#fff}.iv-act.pri span{background:rgba(255,255,255,.22)}
+  .iv-act.on{outline:2px solid var(--ivc)}
+  .iv-ar .iv-bus{border:0;box-shadow:0 1px 3px rgba(16,40,46,.10);border-radius:16px;margin-top:12px}
+  .iv-ar .iv-chips button{border:0;box-shadow:0 1px 2px rgba(16,40,46,.10);font-weight:600}
+  .iv-ar .iv-chips button.on{background:var(--ivc);color:#fff}
+  .iv-ar .iv-tiles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+  .iv-ar .iv-tile{border:0;box-shadow:0 1px 3px rgba(16,40,46,.10);border-radius:16px}
+  .iv-ar .iv-tile.on{background:var(--ivc-l);outline:2px solid var(--ivc)}
+  .iv-ar .iv-tile b{font-size:20px;color:var(--ivc-d)}
+  .iv-ar .iv-tile.atn{background:#fff7e6}
+  .iv-mas{margin-top:10px;background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(16,40,46,.10);padding:10px 12px}
+  .iv-mas>summary{cursor:pointer;font-weight:700;font-size:13.5px;color:var(--ivc-d);list-style:none}
+  .iv-mas>summary::-webkit-details-marker{display:none}
+  .iv-mas>summary:after{content:' ▾';color:var(--sub)}
+  .iv-mas[open]>summary:after{content:' ▴'}
+  .iv-grp{display:flex;align-items:center;gap:8px;margin:18px 2px 2px;font-size:13px;font-weight:800;color:var(--ivc-d);text-transform:uppercase;letter-spacing:.04em}
+  .iv-grp:after{content:'';flex:1;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--ivc-l),transparent)}
+  .iv-grp b{background:var(--ivc-l);color:var(--ivc-d);border-radius:999px;padding:1px 8px;font-size:11.5px;letter-spacing:0}
+  .iv-ar .iv-card{border:0!important;border-radius:18px;box-shadow:0 1px 2px rgba(16,40,46,.05),0 4px 14px rgba(16,40,46,.07);padding:12px 12px 10px}
+  .iv-ar .iv-card.mal{background:#fff8f7;box-shadow:inset 0 0 0 1.5px #f2c4c0}
+  .iv-ar .iv-card.bajo{background:#fffbf2;box-shadow:inset 0 0 0 1.5px #f3dca8}
+  .iv-ar .iv-c1{align-items:center;justify-content:flex-start}
+  .iv-av{flex:0 0 auto;width:42px;height:42px;border-radius:14px;background:var(--ivc-l);color:var(--ivc-d);display:inline-flex;align-items:center;justify-content:center;font-size:21px;font-weight:800}
+  .iv-ar .iv-nom{font-size:15.5px}
+  .iv-ar .iv-cat{font-size:12px}
+  .iv-ar .iv-c2{margin-top:8px}
+  .iv-ar .iv-step{border:0;background:var(--ivc-l);border-radius:12px}
+  .iv-ar .iv-step button{background:transparent;color:var(--ivc-d);width:38px;height:38px}
+  .iv-ar .iv-step .iv-cant{background:#fff;height:32px;border-radius:9px;margin:3px 0}
+  .iv-ar .iv-acc button{background:#f5f7f7;border-radius:11px}
+  .iv-ar .iv-acc button.iv-dar{background:var(--ivc-l)}
+  .iv-ar .iv-barra{height:5px;margin-top:9px}
   .ag-chip{border-radius:12px;border-color:#e0e8ea}
   .ag-day{border-radius:14px;background:#fff}
   .ag-pinpad button{border-radius:16px;box-shadow:0 1px 3px rgba(16,40,46,.06)}
@@ -905,7 +963,7 @@ setTimeout(function(){
       if(nom.length) hechos.push('en conjunto con ' + nom.join(', ')); }
     if(setV('fx-peso', r.peso)) hechos.push('peso');
     if(setV('fx-talla', r.talla)) hechos.push('talla');
-    if(r.peso || r.talla){ const p = parseFloat((container.querySelector('#fx-peso')||{}).value), tl = parseFloat((container.querySelector('#fx-talla')||{}).value), imc = container.querySelector('#fx-imc'); if(imc && p > 0 && tl > 0){ imc.value = (p / (tl * tl)).toFixed(2); hechos.push('IMC'); } }
+    if(r.peso || r.talla){ const v = imcDe((container.querySelector('#fx-peso')||{}).value, (container.querySelector('#fx-talla')||{}).value), imc = container.querySelector('#fx-imc'); if(imc && v){ imc.value = v; hechos.push('IMC'); } }
     [['fx-ta-inicio', r.taIni, 'TA de inicio'], ['fx-ta-final', r.taFin, 'TA final']].forEach(([id, ta, nombre])=>{ if(!ta) return; const s = container.querySelector('#' + id + '-sis'), d = container.querySelector('#' + id + '-dia'); if(s && d){ s.value = ta.sis; d.value = ta.dia; s.dispatchEvent(new Event('input', { bubbles:true })); d.dispatchEvent(new Event('input', { bubbles:true })); hechos.push(nombre); } });
     // Terapias, otras técnicas y servicios extras: se reconocen por su nombre (y la duración que se diga después).
     const negado = i=>/\b(no|sin|nunca|no se)\b[^,.;]*$/.test(r.util.slice(Math.max(0, i - 25), i));
@@ -1114,12 +1172,18 @@ setTimeout(function(){
     if(f.datos && f.datos['Terapias'] && f.datos['Terapias'].length) return `<div class="pf-row"><div>${esc(f.datos['Terapias'].join(', '))}</div></div>`;
     return `<div class="pf-row"><div>—</div></div>`;
   }
+  // ⚖️ IMC con la regla única de números (aNum: la coma es decimal, «1,65» = 1.65). Talla en centímetros (165) también vale.
+  // Fuera de rango (peso 2–400 kg, talla 0,40–2,50 m) no se calcula, para no dejar un IMC absurdo (antes «1,65» daba 62.00).
+  function imcDe(peso, talla){
+    const p = aNum(peso); let t = aNum(talla); if(t > 3) t = t / 100;
+    return (p > 2 && p < 400 && t > 0.4 && t < 2.5) ? (p / (t * t)).toFixed(2) : '';
+  }
   function wireIMCCalc(container, pesoId, tallaId, imcId){
     const peso = container.querySelector('#'+pesoId), talla = container.querySelector('#'+tallaId), imc = container.querySelector('#'+imcId);
     if(!peso || !talla || !imc) return;
     function calc(){
-      const p = parseFloat(peso.value), t = parseFloat(talla.value);
-      if(p>0 && t>0) imc.value = (p/(t*t)).toFixed(2);
+      const v = imcDe(peso.value, talla.value);
+      if(v) imc.value = v;
     }
     peso.addEventListener('input', calc); talla.addEventListener('input', calc);
   }
@@ -1218,7 +1282,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v371' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v372' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1708,7 +1772,7 @@ setTimeout(function(){
   function lectFresco(fn, args, v){
     try{
       const ae = document.activeElement; if(vistaEsFormulario() || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
-      if(fn === 'getInventario'){ if(colaLeer(COLA_K).some(c=>/Inventario/.test(c.fn))) return; const I = estadoInv(); if(!I.cargado || !v) return; I.items = v.items || []; I.movs = v.movs || []; if(v.listas) I.listas = v.listas; }
+      if(fn === 'getInventario'){ if(colaLeer(COLA_K).some(c=>/Inventario/.test(c.fn))) return; const I = estadoInv(); if(!I.cargado || !v) return; I.items = v.items || []; I.movs = v.movs || []; if(v.gente) I.gente = v.gente; if(v.listas) I.listas = v.listas; }
       else if(fn === 'getCompras'){ if(!state.cp || !state.cp.datos) return; state.cp.datos = v; }
       else if(fn === 'getGastos'){ const G = state.gs; if(!G || !G.datos || G.mes !== args[0]) return; G.datos = v; }
       else if(fn === 'getTarifas'){ if(!Array.isArray(v)) return; state.tarifas = v; state.tarifasAt = Date.now(); }
@@ -6324,12 +6388,105 @@ setTimeout(function(){
     operaciones: { nombre:'Operaciones y logística', icono:'🛠️', cats:['Equipos','Herramientas','Ferretería','Tornillería y ferretería','Electricidad','Plomería','Pintura','Repuestos de equipos','Jardinería','Logística y transporte','Otros'], ejNombre:'Ej: Tornillos 1/4, Teflón, Bombillo LED', ejCat:'Ej: Tornillería y ferretería', ejUbi:'Ej: Taller, estante 2, gaveta azul',
       ayuda:()=>'Equipos, herramientas, tornillos, tuercas, repuestos y todo lo del área operativa y de logística.' }
   };
+  // 🎨 v372: color, nombre corto y dibujito de cada producto (según su categoría o nombre) para distinguirlos de un vistazo.
+  const INV_COLOR = { personal:'#c27c0e', rosita:'#d0563b', spa:'#8a63c9', operaciones:'#3f6e9e' };
+  const INV_CORTO = { personal:'Personal', rosita:'Rosita', spa:'Spa', operaciones:'Operaciones' };
+  const INV_EMOJIS = [[/cigarr/, '🚬'], [/caf[eé]/, '☕'], [/pollo|carne|res\b|cerdo|chuleta|embutid|jam[oó]n|salchich/, '🍗'], [/pescad|camar|mariscos|at[uú]n|sardina/, '🐟'], [/queso|l[aá]cteo|leche|yogur|mantequilla/, '🧀'],
+    [/huevo/, '🥚'], [/pan\b|harina|arroz|pasta|v[ií]veres|grano|caraota|az[uú]car|avena/, '🌾'], [/fruta|verdura|tomate|cebolla|papa|lechuga|hortaliza/, '🥬'], [/bebida|refresco|jugo|agua|cerveza|licor|ron|vino/, '🥤'],
+    [/salsa|condiment|especia|sal\b|aceite de cocina|vinagre/, '🧂'], [/preparaci|tequeñ|sopa|asado/, '🍲'], [/dulce|postre|chocolate|galleta/, '🍪'], [/jab[oó]n|aseo|higiene|champ|desodorante|pasta dental|papel/, '🧼'],
+    [/limpieza|cloro|desinfect|detergente|coleto|escoba/, '🧽'], [/aceite|crema|loci[oó]n|exfolia|mascarilla/, '🧴'], [/toalla|s[aá]bana|lencer|bata/, '🧺'], [/desechable|guante|tapaboca/, '🧤'], [/vela|esencia|aroma/, '🕯️'],
+    [/piscina|cloro de piscina|qu[ií]mico/, '🏊'], [/equipo|m[aá]quina|taladro|esmeril|bomba|compresor/, '🔧'], [/herramient|llave|martillo|alicate|destornillador/, '🛠️'], [/tornill|tuerca|clavo|ferreter/, '🔩'],
+    [/electric|bombillo|cable|enchufe/, '💡'], [/plomer|tubo|pvc|codo|grifo/, '🚰'], [/pintura|brocha|rodillo/, '🎨'], [/jard|planta|abono|tierra|semilla/, '🌱'], [/transporte|log[ií]stica|gasolina|caucho/, '🚚']];
+  function invEmoji(it){ const t = String((it.nombre || '') + ' ' + (it.categoria || '')).toLowerCase(); const e = INV_EMOJIS.find(x=>x[0].test(t));
+    return e ? e[1] : esc(String(it.nombre || '?').trim().charAt(0).toUpperCase() || '?'); }
   const INV_TIPO = { entrada:'➕ Entrada', consumo:'➖ Consumo', merma:'🗑️ Merma', conteo:'🔢 Conteo', venta:'🧾 Venta', devolucion:'↩️ Devolución', ajuste:'⚙️ Ajuste' };
   function fmtInv(n){ return String(Math.round((Number(n)||0)*1000)/1000).replace('.', ','); }
+  // «200 g», «0,5 kg», «500 ml» o un número solo, pasado a la unidad del producto (NaN si no se puede). v372: compartida.
+  function invCantTexto(txt, it){
+    const U = u=>{ u = String(u || '').toLowerCase(); if(/^k/.test(u)) return ['g', 1000]; if(/^g/.test(u)) return ['g', 1]; if(u === 'ml') return ['ml', 1]; if(/^(l|lt|lts|litros?)$/.test(u)) return ['ml', 1000]; return null; };
+    const m = String(txt || '').trim().replace(',', '.').match(/^(\d+(?:\.\d+)?)\s*(kg|kgs|kilos?|g|gr|grs|gramos?|ml|l|lt|lts|litros?)?\.?$/i);
+    if(!m) return NaN; const v = Number(m[1]); if(!m[2]) return v;
+    const [b, f] = U(m[2]), ui = U(String(it.unidad || '').trim());
+    if(ui) return ui[0] === b ? v * f / ui[1] : NaN;
+    const t = String(it.nombre || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*(kg|kgs|g|gr|grs|ml|l|lt|lts|litros?)\b/i), ut = t && U(t[2]);
+    return ut && ut[0] === b ? v * f / (Number(t[1]) * ut[1]) : NaN;
+  }
+  // «200» sin unidad en un producto en kg (o L) del que hay menos de eso: casi seguro eran gramos (o ml). Se pregunta antes de seguir.
+  function invQuisoDecir(escrito, n, it){ const r3 = x=>Math.round(x * 1000) / 1000, cantInvTexto = invCantTexto;
+    if(!(n > it.stock) || !/^\d+(?:[.,]\d+)?$/.test(escrito)) return n;
+    const g = r3(cantInvTexto(escrito + ' g', it)), ml = r3(cantInvTexto(escrito + ' ml', it)), alt = !isNaN(g) && g !== n ? [g, 'g'] : (!isNaN(ml) && ml !== n ? [ml, 'ml'] : null);
+    return alt && alt[0] <= it.stock && confirm('Hay ' + fmtInv(it.stock) + ' ' + it.unidad + '. ¿Quisiste decir ' + escrito + ' ' + alt[1] + ' (= ' + fmtInv(alt[0]) + ' ' + it.unidad + ')?') ? alt[0] : n;
+  }
+  // 🤲🔀 v372: una sola pantalla para ENTREGAR varios productos del Stock del personal a una persona (con un toque en su nombre)
+  // o para PASAR varios productos a otro inventario. Se escribe la cantidad de cada uno (acepta «200 g», «0,5 kg», «500 ml») y se guarda una vez.
+  function abrirInvVarios(modo, area, idIni){
+    const I = estadoInv(), ent = modo === 'entrega', A = INV_AREAS[area] || INV_AREAS.rosita;
+    const V = { dest:'', para:'', cant:{}, q:'' }; if(idIni) V.cant[idIni] = '';
+    const gente = (I.gente || []).concat(['Todo el equipo']).filter((v, i, a)=>v && a.indexOf(v) === i);
+    const prods = ()=>I.items.filter(i=>(i.area || 'rosita') === area && i.activo !== false && !i.equipo && (!ent || invEsPersonal(i)))
+      .sort((a, b)=>(V.cant[b.id] !== undefined) - (V.cant[a.id] !== undefined) || a.nombre.localeCompare(b.nombre));
+    const ultima = id=>ent ? invEntregas(I.movs).find(m=>m.inventarioId === id) : null;
+    const chip = (attr, val, txt, on)=>`<button type="button" ${attr}="${esc(val)}" style="border:2px solid ${on ? 'var(--teal)' : 'var(--line)'};background:${on ? 'var(--teal-l)' : '#fff'};border-radius:18px;padding:8px 13px;font-size:14px;font-weight:${on ? 700 : 400};cursor:pointer;font-family:inherit">${txt}</button>`;
+    const leer = ()=>{ const out = [], malos = [];
+      prods().forEach(it=>{ const t = String(V.cant[it.id] || '').trim(); if(!t) return; let n = invCantTexto(t, it);
+        if(isNaN(n) || !(n > 0)){ malos.push(it.nombre + ' («' + t + '»)'); return; }
+        n = Math.round(invQuisoDecir(t, n, it) * 1000) / 1000; out.push({ id:it.id, nombre:it.nombre, cantidad:n, it }); });
+      return { out, malos }; };
+    const pintar = ()=>{
+      const c = document.getElementById('ag-fs-body'); if(!c) return;
+      const L = prods(), n = L.filter(i=>String(V.cant[i.id] || '').trim()).length, otros = Object.keys(INV_AREAS).filter(a=>a !== area);
+      const listo = n && (ent ? V.para : V.dest);
+      c.innerHTML = `
+        ${ent ? `<div style="font-weight:700;font-size:14.5px">① ¿A quién le entregas?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${gente.map(g=>chip('data-vv-para', g, (g === 'Todo el equipo' ? '👥 ' : '👤 ') + esc(g), V.para === g)).join('')}${V.para && !gente.includes(V.para) ? chip('data-vv-para', V.para, '👤 ' + esc(V.para), true) : ''}${chip('data-vv-otro', '1', '✏️ Otra persona', false)}</div>
+          <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Los nombres salen de Egresos → Pago del personal. Agrega ahí a quien falte.</div>`
+        : `<div style="font-weight:700;font-size:14.5px">① ¿A qué inventario lo pasas? <span class="ag-muted" style="font-weight:400">(sale de ${esc(A.icono + ' ' + A.nombre)})</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${otros.map(a=>chip('data-vv-dest', a, INV_AREAS[a].icono + ' ' + esc(INV_AREAS[a].nombre), V.dest === a)).join('')}</div>`}
+        <div style="font-weight:700;font-size:14.5px;margin-top:14px">② ¿Cuánto de cada producto? <span class="ag-muted" style="font-weight:400">(deja vacío lo que no va)</span></div>
+        <label class="iv-bus" style="margin-top:6px"><span style="font-size:17px">🔎</span><input id="vv-q" type="search" placeholder="Buscar producto" value="${esc(V.q)}" autocomplete="off"/></label>
+        <div id="vv-lista" style="margin-top:6px">${L.map(it=>{ const u = ultima(it.id), v = V.cant[it.id] || '';
+          return `<div data-vv-row="${esc(it.id)}" data-vv-txt="${esc(String(it.nombre).toLowerCase())}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid ${v ? 'var(--teal)' : 'var(--line)'};background:${v ? 'var(--teal-l)' : '#fff'};border-radius:12px;margin-top:6px">
+            <div style="flex:1;min-width:0"><strong style="font-size:13.5px">${esc(it.nombre)}</strong><div class="ag-muted" style="font-size:11.5px">Hay ${esc(fmtInv(it.stock))} ${esc(it.unidad)}${u ? ' · última: ' + esc(fmtInv(-u.cantidad)) + (u.para ? ' a ' + esc(u.para) : '') + ', hace ' + esc(diasDesde(u.fecha)) : ''}</div></div>
+            <input data-vv-cant="${esc(it.id)}" value="${esc(v)}" inputmode="decimal" placeholder="0" style="width:92px;font-size:16px;text-align:center" title="Cantidad en ${esc(it.unidad)} (o escribe 200 g, 0,5 kg, 500 ml)"/></div>`; }).join('') || `<p class="ag-empty">No hay productos en ${esc(A.nombre)}.</p>`}</div>
+        <div style="position:sticky;bottom:0;background:#fff;padding:10px 0 4px;margin-top:8px">
+          <button type="button" class="ag-btn" id="vv-ok" style="width:100%;${ent ? 'background:#8a5a00;border-color:#8a5a00;' : ''}" ${listo ? '' : 'disabled'}>${ent ? '🤲 Entregar ' + (n || '') + ' producto' + (n === 1 ? '' : 's') + (V.para ? ' a ' + esc(V.para) : '') : '🔀 Pasar ' + (n || '') + ' producto' + (n === 1 ? '' : 's') + (V.dest ? ' a ' + esc(INV_AREAS[V.dest].nombre) : '')}</button>
+          ${listo ? '' : `<div class="ag-muted" style="font-size:11.5px;text-align:center;margin-top:4px">${!(ent ? V.para : V.dest) ? (ent ? 'Elige a quién (paso ①).' : 'Elige a qué inventario (paso ①).') : 'Escribe la cantidad de al menos un producto.'}</div>`}</div>`;
+      c.querySelectorAll('[data-vv-para]').forEach(b=>b.onclick = ()=>{ V.para = b.dataset.vvPara; pintar(); });
+      c.querySelectorAll('[data-vv-otro]').forEach(b=>b.onclick = ()=>{ const x = (prompt('¿A quién le entregas? (nombre)') || '').trim().replace(/\s+/g, ' ').slice(0, 60); if(x){ V.para = x; pintar(); } });
+      c.querySelectorAll('[data-vv-dest]').forEach(b=>b.onclick = ()=>{ V.dest = b.dataset.vvDest; pintar(); });
+      const q = c.querySelector('#vv-q'); q.oninput = ()=>{ V.q = q.value; const w = V.q.toLowerCase().trim(); c.querySelectorAll('[data-vv-row]').forEach(r=>{ r.style.display = !w || r.dataset.vvTxt.includes(w) ? '' : 'none'; }); };
+      if(V.q) q.oninput();
+      c.querySelectorAll('[data-vv-cant]').forEach(inp=>{
+        inp.oninput = ()=>{ V.cant[inp.dataset.vvCant] = inp.value; const r = inp.closest('[data-vv-row]'), on = !!inp.value.trim(); r.style.borderColor = on ? 'var(--teal)' : 'var(--line)'; r.style.background = on ? 'var(--teal-l)' : '#fff'; };
+        inp.onchange = ()=>{ pintar(); };   // al salir de la casilla se actualiza el botón (cuántos productos)
+      });
+      if(idIni){ const f = c.querySelector(`[data-vv-cant="${CSS.escape(idIni)}"]`); if(f && !ent) f.focus(); idIni = ''; }
+      const ok = c.querySelector('#vv-ok'); ok.onclick = async ()=>{
+        const { out, malos } = leer();
+        if(malos.length){ alert('No entendí la cantidad de:\n\n• ' + malos.join('\n• ') + '\n\nEscribe un número o algo como 200 g, 0,5 kg o 500 ml.'); return; }
+        if(!out.length){ alert('Escribe la cantidad de al menos un producto.'); return; }
+        const mas = out.filter(x=>x.cantidad > x.it.stock + 1e-9);
+        if(!ent && mas.length){ alert('No alcanza:\n\n• ' + mas.map(x=>x.nombre + ': hay ' + fmtInv(x.it.stock) + ' ' + x.it.unidad).join('\n• ')); return; }
+        const txt = out.map(x=>'• ' + x.nombre + ': ' + fmtInv(x.cantidad) + ' ' + x.it.unidad).join('\n');
+        if(!confirm((ent ? '🤲 Entregar a ' + V.para : '🔀 Pasar a ' + INV_AREAS[V.dest].nombre) + ':\n\n' + txt + (ent && mas.length ? '\n\n⚠️ De ' + mas.map(x=>x.nombre).join(', ') + ' hay menos registrado: quedará en 0.' : '') + '\n\n¿Confirmas?')) return;
+        ok.disabled = true; ok.textContent = '⏳ Guardando…';
+        try{
+          const lin = out.map(x=>({ id:x.id, nombre:x.nombre, cantidad:String(x.cantidad) }));
+          const r = ent ? await gsEspera(60000, 'entregarPersonalVarios', V.para, lin, auth()) : await gsEspera(90000, 'transferirInventarioVarios', lin, V.dest, auth());
+          I.cargado = false; await cargarInv().catch(()=>{}); if(r.movs) I.movs = r.movs;
+          closeFullscreen(); render();
+          if(!ent && r.fallas && r.fallas.length) alert('🔀 Pasado: ' + (r.ok.length ? r.ok.join(', ') : 'nada') + '\n\n⚠️ No se pudo:\n• ' + r.fallas.join('\n• '));
+          else toast(ent ? '🤲 Entregado a ' + V.para + ': ' + r.hechos.join(', ') : '🔀 Pasado a ' + INV_AREAS[V.dest].nombre + ': ' + r.ok.join(', '));
+        }catch(e){ ok.disabled = false; ok.textContent = ent ? '🤲 Entregar' : '🔀 Pasar'; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+      };
+    };
+    openFullscreen(ent ? '🤲 Entregar al personal' : '🔀 Pasar a otro inventario', '<p class="ag-empty">Cargando…</p>');
+    pintar();
+  }
   function estadoInv(){ if(!state.inv) state.inv = { items:[], movs:[], cargado:false, cat:'', q:'', archivados:false, admin:false }; return state.inv; }
   function cargarInv(){
     const I = estadoInv(); if(I.prom) return I.prom;
-    I.prom = gs('getInventario', auth()).then(d=>{ I.items = d.items||[]; I.movs = d.movs||[]; I.admin = !!d.admin; I.listas = d.listas || { cats:{}, ubis:{} }; I.cargado = true; I.error = ''; })
+    I.prom = gs('getInventario', auth()).then(d=>{ I.items = d.items||[]; I.movs = d.movs||[]; I.admin = !!d.admin; I.listas = d.listas || { cats:{}, ubis:{} }; I.gente = d.gente || []; I.cargado = true; I.error = ''; })
       .catch(e=>{ I.error = String(e && e.message ? e.message : e); throw e; }).finally(()=>{ I.prom = null; });
     return I.prom;
   }
@@ -6669,30 +6826,32 @@ setTimeout(function(){
     const atnTxt = [bajos.length ? bajos.length + ' se agota' + (bajos.length===1?'':'n') : '', nMal ? nMal + ' por reparar o reemplazar' : '', nSinU ? nSinU + ' sin ubicación' : ''].filter(Boolean).join(' · ');
     body.innerHTML = `
       ${enAdmin ? '' : '<button class="ag-btn ghost sm" id="iv-volver" style="margin-bottom:8px">← Volver a las órdenes</button>'}
-      <div class="ag-card" style="margin-top:4px">
-        <div class="iv-top"><div style="min-width:0"><div class="iv-tit">${A.icono} ${esc(A.nombre)}</div><div class="iv-sub">${nProd} producto${nProd===1?'':'s'}${conEq ? ' · ' + nEq + ' equipo' + (nEq===1?'':'s') : ''}</div></div>
-          <div class="iv-icos"><button class="iv-ico" id="iv-compras" title="Lista de compras" aria-label="Lista de compras">🛒${bajos.length ? '<span class="iv-n">' + bajos.length + '</span>' : ''}</button><button class="iv-ico ${I.panel==='ajustes'?'on':''}" id="iv-ajustes" title="Más opciones" aria-label="Más opciones">⚙️</button></div></div>
+      ${enAdmin ? `<div class="iv-tabs">${[['personal','inv_personal'],['rosita','inv_rosita'],['spa','inv_spa'],['operaciones','inv_oper']].map(([a, k])=>`<button type="button" data-iv-ir="${k}" class="${a === area ? 'on' : ''}" style="${a === area ? 'background:' + INV_COLOR[a] : ''}">${INV_AREAS[a].icono} ${esc(INV_CORTO[a])}</button>`).join('')}</div>` : ''}
+      <div class="ag-card iv-main">
+        <div class="iv-top"><div class="iv-toprow"><div style="min-width:0"><div class="iv-tit"><i>${A.icono}</i>${esc(A.nombre)}</div><div class="iv-sub">${nProd} producto${nProd===1?'':'s'}${conEq ? ' · ' + nEq + ' equipo' + (nEq===1?'':'s') : ''}</div></div>
+          <div class="iv-icos"><button class="iv-ico" id="iv-compras" title="Lista de compras" aria-label="Lista de compras">🛒${bajos.length ? '<span class="iv-n">' + bajos.length + '</span>' : ''}</button><button class="iv-ico ${I.panel==='ajustes'?'on':''}" id="iv-ajustes" title="Más opciones" aria-label="Más opciones">⚙️</button></div></div>${semHTML}</div>
         ${I.panel==='ajustes' ? ajustesHTML : ''}
         <label class="iv-bus"><span style="font-size:17px">🔎</span><input id="iv-buscar" type="search" placeholder="¿Qué buscas? Nombre, lugar o nota" value="${esc(I.q)}" autocomplete="off"/></label>
+        ${admin ? `<div class="iv-acts" style="${modoPers ? '' : 'grid-template-columns:repeat(2,minmax(0,1fr))'}"><button type="button" class="iv-act ${modoPers ? '' : 'pri'} ${I.panel==='nuevo' ? 'on' : ''}" id="iv-nuevo"><span>${I.panel==='nuevo' ? '✕' : '➕'}</span>${I.panel==='nuevo' ? 'Cerrar' : 'Registrar'}</button>${modoPers ? '<button type="button" class="iv-act pri" id="iv-entregar-v"><span>🤲</span>Entregar</button>' : ''}<button type="button" class="iv-act" id="iv-pasar-v"><span>🔀</span>Pasar</button></div>${I.panel==='nuevo' ? nuevoHTML : ''}` : ''}
         <div class="iv-tiles">
-          <button class="iv-tile ${I.vista==='productos'?'on':''}" data-iv-vista="productos" style="${conEq?'':'grid-column:1/-1'}"><b>${nProd}</b><span>${conEq ? '🔢 Productos' : '📦 Productos'}</span></button>
+          ${conEq || conPers || I.vista !== 'productos' ? `<button class="iv-tile ${I.vista==='productos'?'on':''}" data-iv-vista="productos" style="${conEq?'':'grid-column:1/-1'}"><b>${nProd}</b><span>${conEq ? '🔢 Productos' : '📦 Productos'}</span></button>` : ''}
           ${conEq ? `<button class="iv-tile ${I.vista==='equipos'?'on':''}" data-iv-vista="equipos"><b>${nEq}</b><span>🔧 Equipos</span></button>` : ''}
           ${conPers ? `<button class="iv-tile ${I.vista==='preparados'?'on':''}" data-iv-vista="preparados" style="grid-column:1/-1"><b>${nPrep}</b><span>🍲 Preparaciones listas <small style="font-weight:400;opacity:.8">· hechas en la cocina (su costo sale de la receta)</small></span></button>` : ''}
           ${conPers && nPers ? `<button class="iv-tile atn" id="iv-pasar-pers" style="grid-column:1/-1"><div><b>🤲 ${nPers} producto${nPers === 1 ? '' : 's'} del personal siguen aquí</b><span>Tócalo para pasarlos al Stock del personal (así no se mezclan con la cocina)</span></div><span style="font-size:22px;color:#8a5a00">›</span></button>` : ''}
           ${nAtn ? `<button class="iv-tile atn ${I.vista==='atender'?'on':''}" data-iv-vista="atender"><div><b>⚠️ ${nAtn} por atender</b><span>${esc(atnTxt)}</span></div><span style="font-size:22px;color:#8a5a00">›</span></button>` : ''}
         </div>
-        ${semHTML}
+        <details class="iv-mas" id="iv-mas" ${I.verMas || I.panel === 'ordpers' ? 'open' : ''}><summary>🧰 Más herramientas</summary>
         ${(conPers || modoPers) && admin && I.vista === 'productos' ? `<button type="button" class="ag-btn sm ghost" id="iv-ordpers" style="width:100%;margin-top:8px">${I.panel === 'ordpers' ? '✕ Cerrar' : (modoPers ? '🔀 Devolver productos a Rosita' : '🔀 Pasar productos al Stock del personal')}</button>${ordPersHTML}` : ''}
         ${catsVista.length > 1 ? `<div class="iv-chips"><button class="${I.cat?'':'on'}" data-iv-cat="">Todo</button>${catsVista.map(c=>`<button class="${I.cat===c?'on':''}" data-iv-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
         ${ubisUsadas.length ? `<select id="iv-ubi-f" style="margin-top:8px"><option value="">📍 Todas las ubicaciones</option>${ubisUsadas.map(u=>`<option value="${esc(u)}" ${I.ubi===u?'selected':''}>📍 ${esc(u)}</option>`).join('')}</select>` : ''}
-        ${admin ? `<button class="ag-btn ${I.panel==='nuevo'?'ghost':''}" id="iv-nuevo" style="width:100%;margin-top:10px">${I.panel==='nuevo' ? '✕ Cerrar registro' : '➕ Registrar ' + (I.vista==='equipos' ? 'equipo' : modoPers ? 'producto del personal' : conEq && I.vista!=='productos' ? 'producto o equipo' : 'producto')}</button>${I.panel==='nuevo' ? nuevoHTML : ''}` : ''}
         ${dictHTML}
         ${modoPers ? (()=>{ const idsP = new Set(AI.filter(puedeEntregar).map(i=>i.id)), ent = invEntregas(I.movs).filter(m=>idsP.has(m.inventarioId)).slice(0, 25), un = id=>(AI.find(i=>i.id === id) || {}).unidad || '';
           return `<button type="button" data-res-pers class="ag-btn" style="width:100%;margin-top:10px;background:#8a5a00;border-color:#8a5a00">📅 Entregas al personal por semana (y lo gastado)</button>
 <details style="margin-top:10px;background:#fff8e6;border:1px solid #f0d9a8;border-radius:12px;padding:8px 10px" ${I.verEnt ? 'open' : ''} id="iv-ent-box"><summary style="cursor:pointer;font-weight:700;font-size:13.5px">📒 Entregas al personal ${ent.length ? '(' + ent.length + ')' : ''}</summary>
-            <div class="ag-muted" style="font-size:11.5px;margin:4px 0 6px">Para entregar, toca <strong>🤲</strong> en el producto. Aquí ves qué se dio, cuándo, a quién y cuánto duró la entrega anterior.</div>
+            <div class="ag-muted" style="font-size:11.5px;margin:4px 0 6px">Para entregar, toca <strong>🤲 Entregar</strong> arriba (varios productos de una vez) o 🤲 en el producto. Aquí ves qué se dio, cuándo, a quién y cuánto duró la entrega anterior.</div>
             ${ent.map(m=>`<div style="font-size:12.5px;padding:5px 0;border-top:1px dashed #e0c98a"><strong>${esc(m.nombre)}</strong> · ${esc(fmtInv(-m.cantidad))} ${esc(un(m.inventarioId))}${m.para ? ' → ' + esc(m.para) : ''}<span class="ag-muted" style="display:block;font-size:11.5px">🕒 ${esc(fechaHoraCorta(m.fecha))}${m.duro ? ' · la entrega anterior duró ' + esc(m.duro) : ' · primera entrega registrada'}${m.creadoPor ? ' · ' + esc(String(m.creadoPor).split(' ')[0]) : ''}</span></div>`).join('') || '<div class="ag-muted" style="font-size:12.5px">Todavía no hay entregas registradas.</div>'}
           </details>`; })() : ''}
+        </details>
       </div>
       <div id="iv-lista"></div>
       <details class="ag-card" style="margin-top:12px"><summary style="font-weight:700;cursor:pointer">📜 Últimos movimientos</summary>
@@ -6711,7 +6870,12 @@ setTimeout(function(){
       catch(e){ b.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); }
     });
     const bvol = body.querySelector('#iv-volver'); if(bvol) bvol.onclick = volver;
+    const bentV = body.querySelector('#iv-entregar-v'); if(bentV) bentV.onclick = ()=>abrirInvVarios('entrega', area);
+    const bpasV = body.querySelector('#iv-pasar-v'); if(bpasV) bpasV.onclick = ()=>abrirInvVarios('pasar', area);
     const entBox = body.querySelector('#iv-ent-box'); if(entBox) entBox.ontoggle = ()=>{ I.verEnt = entBox.open; };
+    const masBox = body.querySelector('#iv-mas'); if(masBox) masBox.ontoggle = ()=>{ I.verMas = masBox.open; };
+    body.classList.add('iv-ar'); body.dataset.ivA = area;
+    body.querySelectorAll('[data-iv-ir]').forEach(b=>b.onclick = ()=>{ state.adminSub = b.dataset.ivIr; render(); try{ window.scrollTo(0, 0); }catch(e){} });
     body.querySelector('#iv-compras').onclick = ()=>{ state.cp = null; if(enAdmin){ state.adminSub = 'compras'; } else { R.vista = 'compras'; } render(); };
     body.querySelector('#iv-ajustes').onclick = ()=>{ I.panel = I.panel === 'ajustes' ? '' : 'ajustes'; rehacer(); };
     const dqBox = body.querySelector('#iv-dq');
@@ -6898,6 +7062,7 @@ setTimeout(function(){
     if(!I.pend) I.pend = {};
     if(!I.tm) I.tm = {};
     const pend = I.pend;
+    let enGrupo = false;   // v372: dentro de un grupo la categoría ya está en el título, no se repite en cada producto
     const tarjeta = it=>{
       const e = it.equipo ? (INV_ESTADOS[it.estado] || INV_ESTADOS.bueno) : null, bajo = invBajo(it);
       const cls = it.equipo ? (it.estado === 'reemplazo' ? 'mal' : it.estado === 'reparar' ? 'bajo' : '') : (bajo ? (it.stock <= 0 ? 'mal' : 'bajo') : (it.minimo > 0 ? 'sem-ok' : ''));
@@ -6908,16 +7073,15 @@ setTimeout(function(){
         : bajo ? `<span class="iv-est" style="cursor:default;background:${it.stock<=0?'#fde8e8':'#fff3d6'};color:${it.stock<=0?'#b3261e':'#8a5a00'}">${it.stock<=0?'Agotado':'Se agota'}</span>` : '';
       const nota = it.equipo ? [it.estadoNota, it.nota].filter(Boolean).join(' · ') : it.nota;
       return `<div class="iv-card ${cls}" data-iv="${esc(it.id)}" style="${it.activo?'':'opacity:.55'}">
-        <div class="iv-c1"><div style="min-width:0">
+        <div class="iv-c1"><div class="iv-av">${invEmoji(it)}</div><div style="min-width:0;flex:1">
           <div class="iv-nom">${esc(it.nombre)}${it.activo?'':' <span class="ag-badge" style="background:#eee;color:#777">archivado</span>'}</div>
-          <div class="iv-cat">${esc(it.categoria)}${it.equipo ? ' · equipo' : ''}${it.createdAt ? (()=>{ const d = fechaLocal(it.createdAt), dias = Math.max(0, Math.round((new Date(hoyISO() + 'T12:00:00') - new Date(d + 'T12:00:00')) / 86400000)); return ' · 📅 registrado el ' + esc(isoToDMY(d)) + ' (' + (dias === 0 ? 'hoy' : 'hace ' + dias + ' día' + (dias === 1 ? '' : 's')) + ')'; })() : ''}</div>
-          ${sinUbi(it) ? '<span class="iv-loc sin">📍 Sin ubicación</span>' : `<span class="iv-loc">📍 ${esc(it.ubicacion)}</span>`}
+          <div class="iv-cat">${[enGrupo ? '' : esc(it.categoria), it.equipo ? 'equipo' : '', sinUbi(it) ? '' : '📍 ' + esc(it.ubicacion)].filter(Boolean).join(' · ')}${it.createdAt && it.area === 'personal' ? (()=>{ const d = fechaLocal(it.createdAt), dias = Math.max(0, Math.round((new Date(hoyISO() + 'T12:00:00') - new Date(d + 'T12:00:00')) / 86400000)); return (enGrupo && sinUbi(it) && !it.equipo ? '' : ' · ') + '📅 ' + (dias === 0 ? 'llegó hoy' : 'llegó hace ' + dias + ' día' + (dias === 1 ? '' : 's')); })() : ''}</div>
           ${nota ? `<div class="iv-nota">📝 ${esc(nota)}</div>` : ''}</div>${chip}</div>
         <div class="iv-c2">
           <div class="iv-step">${admin ? '<button type="button" data-iv-menos aria-label="Restar uno">−</button>' : ''}<div class="iv-cant" data-iv-mov="${esc(it.id)}" title="Entrada, salida, merma o conteo"><b>${fmtInv(it.stock + (pend[it.id]||0))}</b><small>${esc(it.unidad)}</small></div>${admin ? '<button type="button" data-iv-mas aria-label="Sumar uno">+</button>' : ''}</div>
-          <div class="iv-acc"><button type="button" data-iv-hist="${esc(it.id)}" title="Historial" aria-label="Historial">📜</button>${admin ? `<button type="button" data-iv-edit="${esc(it.id)}" title="Editar" aria-label="Editar">✏️</button>` : ''}</div>
+          <div class="iv-acc">${admin && puedeEntregar(it) && invEsPersonal(it) ? `<button type="button" class="iv-dar" data-iv-entregar="${esc(it.id)}" title="Entregar al personal" aria-label="Entregar al personal">🤲</button>` : ''}<button type="button" data-iv-hist="${esc(it.id)}" title="Historial" aria-label="Historial">📜</button>${admin ? `<button type="button" data-iv-edit="${esc(it.id)}" title="Editar" aria-label="Editar">✏️</button>` : ''}</div>
         </div>
-        ${admin && puedeEntregar(it) ? (invEsPersonal(it) ? `<button type="button" data-iv-entregar="${esc(it.id)}" style="width:100%;margin-top:6px;padding:7px 10px;border-radius:10px;border:1px dashed #d9b46a;background:#fff8e6;color:#8a5a00;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🤲 Entregar al personal</button>`
+        ${admin && puedeEntregar(it) ? (invEsPersonal(it) ? ''
           : `<button type="button" data-iv-entregar="${esc(it.id)}" title="Solo si se le dio algo de Rosita al equipo" style="margin-top:4px;padding:2px 4px;border:0;background:none;color:var(--muted,#888);font-size:11.5px;cursor:pointer;font-family:inherit;text-decoration:underline">🤲 dar al personal (no es comida del personal)</button>`) : ''}
         ${admin && invEsPrep(it) ? `<button type="button" data-iv-tanda="${esc(it.id)}" style="width:100%;margin-top:6px;padding:7px 10px;border-radius:10px;border:1px dashed #7aa874;background:#f1f8ee;color:#2f6b2a;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">🍳 Preparar tanda</button>` : ''}
         ${barra}<div data-iv-panel></div></div>`;
@@ -6929,7 +7093,10 @@ setTimeout(function(){
       const lista = AI.filter(i=>(I.archivados || i.activo) && (pal.length ? pal.every(w=>texto(i).includes(w)) : (deVista(i) && (!I.cat || i.categoria===I.cat) && (!I.ubi || String(i.ubicacion||'').trim()===I.ubi))))
         .sort((a,b)=>(atender(b)?1:0)-(atender(a)?1:0) || a.nombre.localeCompare(b.nombre));
       const cont = body.querySelector('#iv-lista');
-      cont.innerHTML = lista.map(tarjeta).join('') || `<p class="ag-empty">${pal.length ? 'No se encontró «' + esc(I.q.trim()) + '». Prueba con otra palabra o regístralo con ➕.' : 'No hay nada aquí todavía.'}</p>`;
+      // 🗂️ v372: sin búsqueda ni filtro, los productos salen agrupados bajo el título de su categoría (lo que hay que atender, primero en cada grupo).
+      const grupos = !pal.length && !I.cat && lista.length > 4 ? [...new Set(lista.map(i=>i.categoria || 'Otros'))].sort((a, b)=>a.localeCompare(b)) : null;
+      enGrupo = !!grupos;
+      cont.innerHTML = (grupos ? grupos.map(g=>{ const l = lista.filter(i=>(i.categoria || 'Otros') === g); return `<div class="iv-grp">${esc(g)} <b>${l.length}</b></div>` + l.map(tarjeta).join(''); }).join('') : lista.map(tarjeta).join('')) || `<p class="ag-empty">${pal.length ? 'No se encontró «' + esc(I.q.trim()) + '». Prueba con otra palabra o regístralo con ➕.' : 'No hay nada aquí todavía.'}</p>`;
       const filtros = pal.length ? ['🔎 «' + I.q.trim() + '» en todo el inventario'] : [I.cat ? '🏷️ ' + I.cat : '', I.ubi ? '📍 ' + I.ubi : ''].filter(Boolean);
       if(filtros.length) cont.insertAdjacentHTML('afterbegin', `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--sub)"><span>${esc(filtros.join(' · '))} · ${lista.length} resultado${lista.length===1?'':'s'}</span><button type="button" class="ag-btn sm ghost" id="iv-ver-todo" style="flex:0 0 auto">✕ Quitar</button></div>`);
       const vt = cont.querySelector('#iv-ver-todo'); if(vt) vt.onclick = ()=>{ I.cat = ''; I.ubi = ''; I.q = ''; rehacer(); };
@@ -6991,48 +7158,9 @@ setTimeout(function(){
       };
       // 🤲 Entrega al personal: sale de la bodega del personal con fecha y hora (queda como salida «Entrega al personal»),
       // para saber qué se le da cada vez y cuánto le duró la entrega anterior.
-      const abrirEntrega = (id, it)=>{
-        const prev = invEntregas(I.movs).filter(m=>m.inventarioId === id)[0];
-        const p = abrir(id, 'entrega', `<div class="iv-pan"><div style="font-weight:700;font-size:13.5px">🤲 Entregar ${esc(it.nombre)} al personal</div>
-          ${prev ? `<div class="ag-muted" style="font-size:12px;margin-top:3px">Última entrega: ${esc(fechaHoraCorta(prev.fecha))} · ${esc(fmtInv(-prev.cantidad))} ${esc(it.unidad)}${prev.para ? ' a ' + esc(prev.para) : ''} · hace ${esc(diasDesde(prev.fecha))}</div>` : '<div class="ag-muted" style="font-size:12px;margin-top:3px">Es la primera entrega registrada de este producto.</div>'}
-          <div class="ag-row"><div><label class="f">¿Cuánto entregas? (${esc(it.unidad)})</label><input data-en-cant placeholder="${!isNaN(cantInvTexto('1 g', it)) ? 'Ej: 200 g' : !isNaN(cantInvTexto('1 ml', it)) ? 'Ej: 500 ml' : 'Ej: 1'}" style="font-size:16px"/></div>
-            <div><label class="f">¿A quién? <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-en-para list="iv-en-gente" value="${esc(((invEntregas(I.movs).find(m=>m.para) || {}).para) || '')}" placeholder="Ej: Rafael, José"/></div></div>
-          <datalist id="iv-en-gente">${['Todo el equipo'].concat(((state.gs && state.gs.datos && state.gs.datos.nominaPersonal) || []).map(x=>x.nombre), (state.staff || []).filter(s=>s.activo).map(s=>s.nombre)).filter((v, i, a)=>v && a.indexOf(v) === i).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
-          <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Quedan ${esc(fmtInv(it.stock))} ${esc(it.unidad)} en ${invEsPersonal(it) ? 'la bodega del personal' : 'el inventario'}. Se guarda con la fecha y hora de ahora.</div>
-          <button class="ag-btn sm" data-en-ok style="width:100%;margin-top:8px">🤲 Registrar entrega</button></div>`);
-        if(!p) return;
-        p.querySelector('[data-en-cant]').focus();
-        p.querySelector('[data-en-ok]').onclick = async (ev)=>{
-          const escrito = p.querySelector('[data-en-cant]').value.trim(); let n = r3(cantInvTexto(escrito, it));
-          if(isNaN(n)){ alert('No entendí la cantidad. Escribe un número (en ' + it.unidad + ') o algo como 200 g o 500 ml.'); return; }
-          n = quisoDecir(escrito, n, it); const cant = String(n);
-          if(!(n > 0)){ alert('Escribe cuánto entregas (mayor que 0).'); return; }
-          if(n > it.stock && !confirm('Solo hay ' + fmtInv(it.stock) + ' ' + it.unidad + ' registrados. ¿Entregar ' + fmtInv(n) + ' de todas formas? (la existencia quedará en 0)')) return;
-          const para = p.querySelector('[data-en-para]').value.trim();
-          ev.target.disabled = true;
-          try{ const r = await gs('moverInventario', id, n > it.stock ? 'conteo' : 'consumo', n > it.stock ? '0' : cant, INV_ENTREGA + (para ? ': ' + para : '') + (n > it.stock ? ' (' + fmtInv(n) + ' ' + it.unidad + ')' : ''), auth());
-            Object.assign(it, r.item); I.movs = r.movs; toast('🤲 Entregado: ' + fmtInv(n) + ' ' + it.unidad + ' de ' + it.nombre + (para ? ' a ' + para : '') + '.'); rehacer(); }
-          catch(e){ ev.target.disabled = false; alert('No se pudo registrar: ' + (e && e.message ? e.message : e)); }
-        };
-      };
-      // «200 g», «0,5 kg», «500 ml» o un número solo: lo pasa a la unidad del producto (kg ⇄ g, L ⇄ ml, o unidades con el
-      // tamaño en el nombre, como «Aceite Aurora 1 L»). Devuelve NaN si no se puede convertir.
-      const cantInvTexto = (txt, it)=>{
-        const U = u=>{ u = String(u || '').toLowerCase(); if(/^k/.test(u)) return ['g', 1000]; if(/^g/.test(u)) return ['g', 1]; if(u === 'ml') return ['ml', 1]; if(/^(l|lt|lts|litros?)$/.test(u)) return ['ml', 1000]; return null; };
-        const m = String(txt || '').trim().replace(',', '.').match(/^(\d+(?:\.\d+)?)\s*(kg|kgs|kilos?|g|gr|grs|gramos?|ml|l|lt|lts|litros?)?\.?$/i);
-        if(!m) return NaN; const v = Number(m[1]); if(!m[2]) return v;
-        const [b, f] = U(m[2]), ui = U(String(it.unidad || '').trim());
-        if(ui) return ui[0] === b ? v * f / ui[1] : NaN;
-        const t = String(it.nombre || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*(kg|kgs|g|gr|grs|ml|l|lt|lts|litros?)\b/i), ut = t && U(t[2]);
-        return ut && ut[0] === b ? v * f / (Number(t[1]) * ut[1]) : NaN;
-      };
-      const r3 = x=>Math.round(x * 1000) / 1000;
-      // «200» sin unidad en un producto en kg (o L) del que hay menos de eso: casi seguro eran gramos (o ml). Se pregunta antes de seguir.
-      const quisoDecir = (escrito, n, it)=>{
-        if(!(n > it.stock) || !/^\d+(?:[.,]\d+)?$/.test(escrito)) return n;
-        const g = r3(cantInvTexto(escrito + ' g', it)), ml = r3(cantInvTexto(escrito + ' ml', it)), alt = !isNaN(g) && g !== n ? [g, 'g'] : (!isNaN(ml) && ml !== n ? [ml, 'ml'] : null);
-        return alt && alt[0] <= it.stock && confirm('Hay ' + fmtInv(it.stock) + ' ' + it.unidad + '. ¿Quisiste decir ' + escrito + ' ' + alt[1] + ' (= ' + fmtInv(alt[0]) + ' ' + it.unidad + ')?') ? alt[0] : n;
-      };
+      // 🤲 v372: la entrega abre la pantalla de entregas (con el nombre de quien recibe y varios productos a la vez).
+      const abrirEntrega = (id, it)=>abrirInvVarios('entrega', it.area || 'personal', id);
+      const cantInvTexto = invCantTexto, r3 = x=>Math.round(x * 1000) / 1000, quisoDecir = invQuisoDecir;
       // Tocar la cantidad: entrada, salida, merma o conteo real, con el número que sea.
       const abrirMov = (id, it)=>{
         const T = { entrada:['➕','Entrada','¿Cuánto entra?','Ej: compra del proveedor'], consumo:['➖','Salida','¿Cuánto sale?','Ej: se usó en mantenimiento'], merma:['🗑️','Merma','¿Cuánto se perdió o dañó?','Ej: vencido, roto'], conteo:['🔢','Conteo','¿Cuántos hay de verdad?','Conteo físico'] };
@@ -9739,7 +9867,13 @@ setTimeout(function(){
       '📴 Funciona sin señal: la hora real se envía cuando vuelve la conexión. Si la sesión se extiende +20 o +30 min, el reloj los suma solo.' ] },
     { v:371, fecha:'7 nov', titulo:'🏊 Piscina con el Rincón de Rosita', puntos:[
       '🏊 La piscina ahora es un <strong>pase por persona de hasta 4 horas</strong>, con consumo incluido para usar en el Rincón de Rosita.',
-      '🍗 Hay <strong>15 combos nuevos</strong> de piscina + comida en <strong>Ventas → 📦 Paquetes → «🏊 Piscina y Rosita»</strong>. Se pueden editar y activar o desactivar.' ] }
+      '🍗 Hay <strong>15 combos nuevos</strong> de piscina + comida en <strong>Ventas → 📦 Paquetes → «🏊 Piscina y Rosita»</strong>. Se pueden editar y activar o desactivar.' ] },
+    { v:372, fecha:'7 nov', titulo:'📦 Inventarios más sencillos y con nuevo diseño', puntos:[
+      '🤲 <strong>Stock del personal → Entregar</strong>: tocas el nombre de quien recibe (Rafael, José…) y escribes la cantidad de varios productos de una vez.',
+      '🔀 <strong>Pasar</strong>: varios productos a otro inventario de una vez.',
+      '🧾 <strong>Egresos → Registrar factura</strong>: cada producto puede ir a su inventario (Personal, Rosita, Spa u Operaciones) o a ninguno.',
+      '🎨 Cada inventario tiene <strong>su color</strong>, pestañas arriba para cambiar de inventario y los productos agrupados por categoría.',
+      '⚖️ <strong>IMC correcto</strong> con la talla en coma (1,65) o en cm.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -12918,7 +13052,7 @@ setTimeout(function(){
       itemsEl.querySelectorAll('[data-pf-para]').forEach(sl=>sl.onchange=()=>{ P.items[+sl.dataset.pfPara].para = sl.value; });
       itemsEl.querySelectorAll('[data-pf-descr]').forEach(inp=>inp.oninput=()=>{ P.items[+inp.dataset.pfDescr].descripcion = inp.value; });
       itemsEl.querySelectorAll('[data-pf-detalle]').forEach(inp=>inp.oninput=()=>{ P.items[+inp.dataset.pfDetalle].detalle = inp.value; });
-      itemsEl.querySelectorAll('[data-pf-cant]').forEach(inp=>inp.onchange=()=>{ P.items[+inp.dataset.pfCant].cantidad = Number(inp.value)||0; dibujarItems(); });
+      itemsEl.querySelectorAll('[data-pf-cant]').forEach(inp=>inp.onchange=()=>{ P.items[+inp.dataset.pfCant].cantidad = aNum(inp.value); dibujarItems(); });
       itemsEl.querySelectorAll('[data-pf-precio]').forEach(inp=>inp.onchange=()=>{ P.items[+inp.dataset.pfPrecio].precio = numPrecio(inp.value); dibujarItems(); });
       totales(); dibujarGC();
     };
@@ -12993,7 +13127,7 @@ setTimeout(function(){
           const pn = Number(val('pa-personas'))||0;
           lenWrap.style.display = lenChk.checked ? '' : 'none';
           if(lenChk.checked && !lenN.value) lenN.value = pn;
-          const r = calcularAlquiler(cfg, val('pa-horas'), pn, { planta: addEl.querySelector('#pa-planta').checked, lenceria: lenChk.checked ? (Number(lenN.value)||0) : 0 });
+          const r = calcularAlquiler(cfg, val('pa-horas'), pn, { planta: addEl.querySelector('#pa-planta').checked, lenceria: lenChk.checked ? aNum(lenN.value) : 0 });
           ultimo = r;
           addEl.querySelector('#pa-desglose').innerHTML = `Uso ${r.horas} h: ${dinero(r.fijos)} · Personas (${r.personas}): ${dinero(r.variables)} · Personal (${r.encargados}): ${dinero(r.personal)}` +
             (r.planta?` · Planta: ${dinero(r.planta)}`:'') + ` · Transporte: ${dinero(r.transporte)}` + (r.lenceria?` · Lencería: ${dinero(r.lenceria)}`:'') +
@@ -13007,7 +13141,7 @@ setTimeout(function(){
             <div style="display:flex;gap:6px;align-items:center"><input data-prep-desc="${i}" value="${esc(x.descripcion)}" placeholder="Descripción (ej: Parrilla mixta para 25)" style="flex:1;min-width:0"/><button type="button" class="ag-btn sm ghost" data-prep-quitar="${i}" style="padding:2px 8px">✕</button></div>
             <div class="ag-row" style="gap:6px;margin-top:6px;align-items:center"><span class="ag-muted" style="font-size:12px">Cant.</span><input data-prep-cant="${i}" value="${esc(x.cantidad)}" inputmode="numeric" style="width:60px"/><span class="ag-muted" style="font-size:12px">Precio c/u $</span><input data-prep-precio="${i}" value="${esc(x.precio)}" inputmode="decimal" style="width:80px"/></div></div>`).join('');
           el.querySelectorAll('[data-prep-desc]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepDesc].descripcion = inp.value; });
-          el.querySelectorAll('[data-prep-cant]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepCant].cantidad = Number(inp.value)||0; totalEv(); });
+          el.querySelectorAll('[data-prep-cant]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepCant].cantidad = aNum(inp.value); totalEv(); });
           el.querySelectorAll('[data-prep-precio]').forEach(inp=>inp.oninput=()=>{ P.evPreps[+inp.dataset.prepPrecio].precio = numPrecio(inp.value); totalEv(); });
           el.querySelectorAll('[data-prep-quitar]').forEach(b=>b.onclick=()=>{ P.evPreps.splice(+b.dataset.prepQuitar,1); dibujarPreps(); totalEv(); });
         };
@@ -13019,7 +13153,7 @@ setTimeout(function(){
         addEl.querySelector('#pa-ok').onclick = ()=>{
           const r = ultimo; if(!r || !r.personas){ alert('Indica cuántas personas.'); return; }
           if(P.evPreps.some(x=>!String(x.descripcion||'').trim() && (Number(x.precio)||0))){ alert('Hay una preparación con precio pero sin descripción.'); return; }
-          const nLen = lenChk.checked ? (Number(lenN.value)||0) : 0;
+          const nLen = lenChk.checked ? aNum(lenN.value) : 0;
           P.items.push({ tipo:'libre', categoria:'Eventos', descripcion:'Evento · alquiler exclusivo del espacio · ' + r.horas + ' horas · ' + r.personas + ' personas' + (nLen ? ' · con lencería para ' + nLen : ''),
             detalle: String(cfg.incluye||'') + (nLen ? ' · Toallas y batas' : ''), cantidad:1, precio: numPrecio(val('pa-precio')) });
           leerSpa().forEach(x=>P.items.push({ tipo:'terapia', descripcion: x.mostrar + (x.varianteNombre?' · '+x.varianteNombre:''), detalle: 'Servicio de spa', cantidad:x.cantidad, precio:x.precio, terapia:x.servicio, categoria:x.categoria, tipoFicha:x.tipoFicha, variante:x.variante }));
@@ -14739,15 +14873,20 @@ setTimeout(function(){
     const COLORES_GL = [['#0a5a68','#e2f4f6'],['#8a5a00','#fff3d6'],['#34508a','#eef3ff'],['#8a2b5a','#fde8f0'],['#1d6b35','#e2f4e6']];
     // 📦 ¿A dónde va la compra? Solo egreso, o además entra a un inventario (cada producto suma su cantidad o se crea).
     const dst = GASTO_DESTINOS.find(d=>d[0] === F.destino && d[0]) || null;
-    const Iv = estadoInv(), areaDst = dst || '';
+    const Iv = estadoInv(), areaDst = dst ? dst[0] : '';   // v372: antes guardaba la fila entera y nunca encontraba lo que ya existía ni sus ubicaciones
     const RE_EQUIPO = /\b(taladro|equipo|nevera|congelador|bomba|camilla|m[aá]quina|aspiradora|sierra|esmeril|compresor|herramienta|licuadora|microondas|horno|ventilador|aire acondicionado|hidrolavadora|generador|escalera|carretilla|tv|televisor|parlante|corneta)\b/i;
     const invDe = x=>{ const m = String(x.concepto||'').match(/\((\d+(?:[.,]\d+)?)\s*([^)]*)\)\s*$/);
       const nombre = String(x.concepto||'').replace(/\s*\([^)]*\)\s*$/, '').trim();
       return { nombre, cant: x.cant !== undefined && x.cant !== '' ? String(x.cant) : (m ? m[1].replace(',', '.') : '1'), uni: x.uni || (m ? invUnidadDe(m[2]) : '') || 'unidades',
-        equipo: x.equipo !== undefined ? !!x.equipo : (F.destino === 'operaciones' && RE_EQUIPO.test(nombre)) };
+        equipo: x.equipo !== undefined ? !!x.equipo : (destDe(x) === 'operaciones' && RE_EQUIPO.test(nombre)) };
     };
     const normI = s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
-    const yaEnInv = n=>(Iv.cargado && n) ? (Iv.items || []).find(i=>(i.area || 'rosita') === areaDst && normI(i.nombre) === normI(n)) : null;
+    const yaEnInv = (n, a)=>(Iv.cargado && n) ? (Iv.items || []).find(i=>(i.area || 'rosita') === (a || areaDst) && normI(i.nombre) === normI(n)) : null;
+    // 📦 v372: cada renglón puede ir a su propio inventario. Sin elegir: el de la factura, o el único inventario donde ya existe ese producto.
+    const DEST_CORTO = { personal:'🤲 Personal', rosita:'🍽️ Rosita', spa:'💆 Spa', operaciones:'🛠️ Operaciones' };
+    const destDe = x=>{ if(x.dest && DEST_CORTO[x.dest]) return x.dest;
+      const n = normI(String(x.concepto || '').replace(/\s*\([^)]*\)\s*$/, '')), en = Iv.cargado && n ? [...new Set((Iv.items || []).filter(i=>normI(i.nombre) === n).map(i=>i.area || 'rosita'))] : [];
+      return en.length === 1 && !en.includes(areaDst) && DEST_CORTO[en[0]] ? en[0] : areaDst; };
     const pasoGL = (n, c, t)=>`<div style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:${c};margin-top:8px"><span style="flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:${c};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px">${n}</span>${t}</div>`;
     const lineaHTML = (x, i)=>{ const c = COLORES_GL[i % COLORES_GL.length];
       return `<div class="gl" data-i="${i}" style="border-left:6px solid ${c[0]};background:${c[1]};border-radius:12px;padding:8px 10px 10px;margin-top:10px">
@@ -14763,13 +14902,13 @@ setTimeout(function(){
       <div style="display:flex;gap:6px;align-items:center;margin-top:4px;font-size:12px;flex-wrap:wrap"><span>🍾 Si viene en envase, cada uno trae</span><input data-l="cont" inputmode="decimal" value="${esc(x.cont || '')}" placeholder="ej. 500" style="width:64px;padding:4px 6px;font-size:12px;background:#fff"/><select data-l="contu" style="width:auto;padding:3px 6px;font-size:12px;background:#fff">${['ml','L','g','kg'].map(u=>`<option ${(x.contu || 'ml') === u ? 'selected' : ''}>${u}</option>`).join('')}</select><span class="ag-muted" data-gl-cont>${glContTexto(x)}</span></div>
       ${pasoGL(3, c[0], '¿A cuenta de quién va?')}
       <select data-l="cargoA" style="margin-top:4px;font-size:13px;padding:6px 8px;background:${x.cargoA ? '#fff3d6' : '#fff'}"><option value="">🏢 Gasto del spa (Aguamiel)</option>${gentes.map(p=>`<option value="${esc(p.id)}" ${String(x.cargoA) === String(p.id) ? 'selected' : ''}>👤 A cuenta de ${esc(p.nombre)}</option>`).join('')}</select>
-      ${dst ? (()=>{ const v = invDe(x), ya = yaEnInv(v.nombre), on = x.inv !== false;
-        return `${pasoGL(4, c[0], '📦 ¿Cuánto entra a ' + esc(dst[2]) + '?')}
+      ${dst ? (()=>{ const v = invDe(x), dd = destDe(x), ya = yaEnInv(v.nombre, dd), on = x.inv !== false;
+        return `${pasoGL(4, c[0], on ? '📦 ¿A qué inventario y cuánto entra?' : '📦 ¿Entra a algún inventario?')}
         <div style="background:#fff;border-radius:10px;padding:6px 8px;margin-top:4px">
-          <label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" data-l="inv" style="width:auto" ${on ? 'checked' : ''}/> Sumar este producto al inventario</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">${Object.keys(DEST_CORTO).map(a=>`<button type="button" data-l-dest="${i}|${a}" style="border:2px solid ${on && dd === a ? c[0] : 'var(--line)'};background:${on && dd === a ? c[1] : '#fff'};border-radius:14px;padding:4px 9px;font-size:12.5px;font-weight:${on && dd === a ? 700 : 400};cursor:pointer;font-family:inherit">${DEST_CORTO[a]}</button>`).join('')}<button type="button" data-l-dest="${i}|" style="border:2px solid ${on ? 'var(--line)' : c[0]};background:${on ? '#fff' : c[1]};border-radius:14px;padding:4px 9px;font-size:12.5px;font-weight:${on ? 400 : 700};cursor:pointer;font-family:inherit">💸 No entra</button></div>
           <div style="display:${on ? 'flex' : 'none'};gap:6px;margin-top:6px" data-gl-inv><input data-l="cant" inputmode="decimal" value="${esc(v.cant)}" placeholder="Cantidad" style="flex:1;min-width:0"/>
             <select data-l="uni" style="flex:1;min-width:0">${INV_UNIDADES.concat(v.uni && !INV_UNIDADES.includes(v.uni) ? [v.uni] : []).map(u=>`<option ${u === v.uni ? 'selected' : ''}>${esc(u)}</option>`).join('')}</select></div>
-          ${on && (F.destino === 'operaciones' || F.destino === 'spa') ? `<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:6px"><input type="checkbox" data-l="equipo" style="width:auto" ${v.equipo ? 'checked' : ''}/> 🔧 Es un equipo o herramienta (se controla su estado, no se cuenta)</label>` : ''}
+          ${on && (dd === 'operaciones' || dd === 'spa') ? `<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:6px"><input type="checkbox" data-l="equipo" style="width:auto" ${v.equipo ? 'checked' : ''}/> 🔧 Es un equipo o herramienta (se controla su estado, no se cuenta)</label>` : ''}
           ${on && ya ? `<div class="ag-muted" style="font-size:11.5px;margin-top:4px">✓ Ya existe «${esc(ya.nombre)}» (${esc(fmtInv(ya.stock))} ${esc(ya.unidad)}): se le suma.</div>` : (on && v.nombre ? '<div class="ag-muted" style="font-size:11.5px;margin-top:4px">➕ Se crea como producto nuevo.</div>' : '')}
         </div>`; })() : ''}</div>`; };
     // Finanzas por pasos: ① cómo se carga (dictar/pegar o foto) ② datos de la factura ③ productos ④ con qué se pagó.
@@ -14786,7 +14925,7 @@ setTimeout(function(){
         ${conDest ? finPasoBloque(1, '#8a2b5a', '¿A dónde va esta compra?', 'Elige si es solo un egreso o si además entra a un inventario.', `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${GASTO_DESTINOS.map(d=>`<button type="button" data-gf-dest="${d[0]}" style="text-align:left;border:2px solid ${F.destino === d[0] ? '#8a2b5a' : 'var(--line)'};background:${F.destino === d[0] ? '#fde8f0' : '#fff'};border-radius:12px;padding:8px 10px;cursor:pointer;min-width:0"><span style="font-size:19px">${d[1]}</span><strong style="display:block;font-size:12.5px;margin-top:2px">${d[2]}</strong><span class="ag-muted" style="display:block;font-size:11px;line-height:1.3">${d[3]}</span></button>`).join('')}</div>
         ${dst ? `<label class="f">📍 ¿Dónde se guarda? <span class="ag-muted" style="font-weight:400">(opcional; para los productos nuevos)</span></label>${!Iv.cargado ? '<div class="ag-muted" style="font-size:12px">Cargando las ubicaciones de ' + esc(dst[2]) + '…</div>' : `<select id="gf-ubi"><option value="">— Sin ubicación —</option>${[...new Set(ubisDst().concat(F.ubicacion ? [F.ubicacion] : []))].map(u=>`<option ${u === F.ubicacion ? 'selected' : ''}>${esc(u)}</option>`).join('')}<option value="__nueva">➕ Agregar una ubicación nueva…</option></select>`}
-          <div class="ag-muted" style="font-size:11.5px;margin-top:4px">En el paso ${4 + k} indicas cuánto entra de cada producto. Si ya existe en ${esc(dst[2])}, se le suma; si no, se crea.</div>` : ''}`) : ''}
+          <div class="ag-muted" style="font-size:11.5px;margin-top:4px">En el paso ${4 + k} indicas cuánto entra de cada producto. Si ya existe, se le suma; si no, se crea. ¿La factura trae cosas para varios inventarios? En cada producto eliges a cuál va.</div>` : ''}`) : ''}
         ${(()=>{ // 📂 Categoría del gasto (todas: las de fábrica y las que creaste). Al editar, cambiarla aquí la cambia en todos sus renglones.
           const cats = [...new Set((G.catsTodas || GASTO_CATS).filter(c=>!/^(Personal operativo|Honorarios profesionales|Trabajos eventuales)$/.test(c)).concat(F.categoria ? [F.categoria] : []))];   // los pagos al personal van por «Pagos al personal»
           return `<div style="margin-top:12px;border:1.5px solid var(--line);border-radius:12px;padding:10px"><div style="font-weight:700;font-size:13.5px">📂 ¿En qué categoría de gastos va?</div>
@@ -14957,6 +15096,7 @@ setTimeout(function(){
           el.addEventListener('change', ()=>{ F.items[i][k] = el.type === 'checkbox' ? el.checked : el.value; tot(); if(k === 'pxkg' || k === 'pxu' || k === 'pxmodo' || k === 'pesoq' || k === 'monto') glPxAplicar(row, F.items[i]); const sc = row.querySelector('[data-gl-cont]'); if(sc) sc.textContent = glContTexto(F.items[i]); });
         });
       });
+      cont.querySelectorAll('[data-l-dest]').forEach(b=>b.onclick = ()=>{ const [i, a] = b.dataset.lDest.split('|'), x = F.items[+i]; if(a){ x.dest = a; x.inv = true; } else x.inv = false; renderGastoForm(cont); });
       cont.querySelectorAll('[data-l-del]').forEach(b=>b.onclick = ()=>{ F.items.splice(+b.dataset.lDel, 1); if(!F.items.length) F.items.push({ concepto:'', categoria:'', monto:'', conIva:false }); renderGastoForm(cont); });
     };
     enlazarLineas();
@@ -14999,13 +15139,14 @@ setTimeout(function(){
       if(gastoEnBs(F) && F.bsOrigen === 'binance' && !(fnum(F.tasaPago) > 0)){ alert('Indica la tasa a la que cambiaste los dólares (Bs por cada $).'); return; }
       if(!F.metodo){ alert('Elige con qué se pagó (efectivo $, efectivo Bs, pago móvil, transferencia, Binance…).'); const s = cont.querySelector('[data-gf="metodo"]'); if(s) s.focus(); return; }
       if(conDest && F.destino === undefined){ alert('Paso 1: elige a dónde va esta compra (solo egreso, comida del personal, Rosita, spa u operaciones).'); const p1 = cont.querySelector('[data-gf-dest]'); if(p1) p1.scrollIntoView({ block:'center' }); return; }
-      const paraInv = conDest && dst ? F.items.filter(x=>String(x.concepto||'').trim() && numPrecio(x.monto) > 0 && x.inv !== false).map(x=>{ const v = invDe(x); return { nombre:v.nombre, cantidad:fnum(v.cant) || 1, unidad:v.uni, equipo:!!v.equipo }; }).filter(x=>x.nombre) : [];
+      const paraInv = conDest && dst ? F.items.filter(x=>String(x.concepto||'').trim() && numPrecio(x.monto) > 0 && x.inv !== false).map(x=>{ const v = invDe(x); return { nombre:v.nombre, cantidad:fnum(v.cant) || 1, unidad:v.uni, equipo:!!v.equipo, destino:destDe(x) }; }).filter(x=>x.nombre) : [];
+      const varios = new Set(paraInv.map(x=>x.destino)).size > 1, dTxt = x=>varios || x.destino !== areaDst ? ' [' + DEST_CORTO[x.destino] + ']' : '';
       // Resumen antes de sumar al inventario: así se ve si alguna cantidad quedó mal (ej. el precio leído como cantidad).
       if(paraInv.length){
         const rara = x=>x.cantidad > (/^(g|ml)$/.test(x.unidad) ? 5000 : 100);
         const raras = paraInv.filter(rara).length;
-        const txt = paraInv.map(x=>(rara(x) ? '⚠️ ' : '• ') + x.nombre + ': ' + fmtInv(x.cantidad) + ' ' + x.unidad + (x.equipo ? ' (equipo)' : '') + (yaEnInv(x.nombre) ? ' → se suma a lo que hay' : ' → nuevo')).join('\n');
-        if(!confirm('Se sumará a ' + dst[2] + ':\n\n' + txt + (raras ? '\n\n⚠️ ' + raras + ' cantidad' + (raras === 1 ? '' : 'es') + ' parece' + (raras === 1 ? '' : 'n') + ' muy alta' + (raras === 1 ? '' : 's') + '. Si está mal, toca «Cancelar» y corrígela en el paso ' + (4 + k) + ' (📦 ¿Cuánto entra?).' : '') + '\n\n¿Está todo bien?')) return;
+        const txt = paraInv.map(x=>(rara(x) ? '⚠️ ' : '• ') + x.nombre + ': ' + fmtInv(x.cantidad) + ' ' + x.unidad + (x.equipo ? ' (equipo)' : '') + (yaEnInv(x.nombre, x.destino) ? ' → se suma a lo que hay' : ' → nuevo') + dTxt(x)).join('\n');
+        if(!confirm('Se sumará a ' + (varios ? 'los inventarios' : (GASTO_DESTINOS.find(d=>d[0] === paraInv[0].destino) || dst)[2]) + ':\n\n' + txt + (raras ? '\n\n⚠️ ' + raras + ' cantidad' + (raras === 1 ? '' : 'es') + ' parece' + (raras === 1 ? '' : 'n') + ' muy alta' + (raras === 1 ? '' : 's') + '. Si está mal, toca «Cancelar» y corrígela en el paso ' + (4 + k) + ' (📦 ¿Cuánto entra?).' : '') + '\n\n¿Está todo bien?')) return;
       }
       ev.target.disabled = true;
       try{
@@ -15016,7 +15157,7 @@ setTimeout(function(){
           try{
             const r = await gsEspera(60000, 'sumarFacturaInventario', F.destino, paraInv, F.ubicacion || '', [F.proveedor, F.factura ? 'Fact. ' + F.factura : '', isoToDMY(F.fecha)].filter(Boolean).join(' · '), auth());
             Iv.cargado = false;
-            setTimeout(()=>toast('📦 ' + dst[2] + ': ' + [r.sumados.length ? r.sumados.length + ' sumado' + (r.sumados.length === 1 ? '' : 's') : '', r.creados.length ? r.creados.length + ' nuevo' + (r.creados.length === 1 ? '' : 's') : ''].filter(Boolean).join(' y ') + '.'), 1200);
+            setTimeout(()=>toast('📦 ' + (varios ? 'Inventarios' : dst[2]) + ': ' + [r.sumados.length ? r.sumados.length + ' sumado' + (r.sumados.length === 1 ? '' : 's') : '', r.creados.length ? r.creados.length + ' nuevo' + (r.creados.length === 1 ? '' : 's') : ''].filter(Boolean).join(' y ') + '.'), 1200);
             const ojo = (r.sumados || []).filter(x=>x.indexOf('⚠️') >= 0).concat(r.dobles || []);
             if(ojo.length) setTimeout(()=>alert('📦 Revisa en el inventario:\n\n• ' + ojo.join('\n• ') + '\n\nSi es la misma compra, corrige la cantidad en 📦 Inventario.'), 1500);
           }catch(eI){ alert('El gasto quedó guardado, pero los productos no se pudieron sumar a ' + dst[2] + ': ' + (eI && eI.message ? eI.message : eI) + '\nSúmalos a mano en el inventario.'); }
