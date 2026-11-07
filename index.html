@@ -1218,7 +1218,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v370' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v371' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9736,7 +9736,10 @@ setTimeout(function(){
       '▶️ La terapia empieza al tocar <strong>«Iniciar terapia»</strong> en la cita de hoy (Inicio) o arriba de la ficha. Un solo toque: ya trae la duración.',
       '📝 Abrir la ficha <strong>ya no cuenta como inicio</strong>: puedes llenarla antes, durante o después.',
       '⏹️ <strong>«Finalizar terapia»</strong> guarda el tiempo real, cierra la sesión y te dice qué falta (ficha, datos o la orden de Rosita).',
-      '📴 Funciona sin señal: la hora real se envía cuando vuelve la conexión. Si la sesión se extiende +20 o +30 min, el reloj los suma solo.' ] }
+      '📴 Funciona sin señal: la hora real se envía cuando vuelve la conexión. Si la sesión se extiende +20 o +30 min, el reloj los suma solo.' ] },
+    { v:371, fecha:'7 nov', titulo:'🏊 Piscina con el Rincón de Rosita', puntos:[
+      '🏊 La piscina ahora es un <strong>pase por persona de hasta 4 horas</strong>, con consumo incluido para usar en el Rincón de Rosita.',
+      '🍗 Hay <strong>15 combos nuevos</strong> de piscina + comida en <strong>Ventas → 📦 Paquetes → «🏊 Piscina y Rosita»</strong>. Se pueden editar y activar o desactivar.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
