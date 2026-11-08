@@ -1309,7 +1309,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v375' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v376' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9047,6 +9047,7 @@ setTimeout(function(){
         <p class="ag-muted" style="font-size:12px">Si el cliente viene acompañado, agrega a sus acompañantes. No hace falta que te den su nombre ni sus datos: se registran y se les hace su ficha el día de la atención.</p>
         <div id="rf-personas"></div>
         <button type="button" class="ag-btn sm ghost" id="rf-add-acomp" style="width:100%;margin-top:8px">＋ Agregar acompañante</button>
+        <div id="rf-grupo"></div>
         <div id="rf-modo-wrap" style="margin-top:10px"></div>
       </div>
       <div class="ag-card" style="margin-top:10px">
@@ -9140,7 +9141,16 @@ setTimeout(function(){
       return PX.lista;
     };
     const etiquetaAcomp = (p)=>{ const i = PX.lista.filter(x=>x.rol!=='cliente').indexOf(p); return 'Acompañante ' + (i+1); };
+    // 🎉 v376 premio por grupo: aviso cuando la reserva llega a la cantidad de personas configurada.
+    const avisoGrupo = ()=>{
+      const box = body.querySelector('#rf-grupo'); if(!box) return;
+      const G = state.fidelCfg && state.fidelCfg.grupo, n = PX.lista.length;
+      if(!G || !G.activo || !G.regalo || n < (Number(G.n) || 3)){ box.innerHTML = ''; return; }
+      box.innerHTML = `<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#fff7e0,#fdeec4);border:1px solid #f0d27a;color:#6b4a00;font-size:13.5px">🎉 <strong>Grupo de ${n} personas:</strong> le corresponde el premio por grupo: <strong>${esc(G.regalo)}</strong>. Recuérdaselo al cliente.</div>`;
+    };
+    if(!state.fidelCfg) gs('getFidelCfg', auth()).then(cf=>{ state.fidelCfg = cf; avisoGrupo(); }).catch(()=>{});
     const dibujarPersonas = ()=>{
+      setTimeout(avisoGrupo, 0);
       const cont = body.querySelector('#rf-personas');
       const indiv = PX.modo==='individual';
       const acomp = PX.lista.filter(p=>p.rol!=='cliente');
@@ -9966,7 +9976,10 @@ setTimeout(function(){
     { v:375, fecha:'7 nov', titulo:'🎓 Portal académico e informativo: notas de voz y videos', puntos:[
       '🎓 El mural educativo ahora se llama <strong>Portal académico e informativo</strong> (Admin → Equipo).',
       '🎙️ La administración puede <strong>grabar una nota de voz</strong> o <strong>grabar un video con el teléfono</strong> (vertical, hasta 3 min) y publicarlo al equipo. Se guardan en Google Drive.',
-      '📌 Se pueden <strong>fijar arriba hasta 3 publicaciones</strong>: son lo primero que ve el equipo.' ] }
+      '📌 Se pueden <strong>fijar arriba hasta 3 publicaciones</strong>: son lo primero que ve el equipo.' ] },
+    { v:376, fecha:'7 nov', titulo:'🎉 Premio por grupo', puntos:[
+      '🎉 En Admin → Ventas → 💧 Temporada y fidelización hay una casilla nueva: <strong>Premio por grupo</strong>. Eliges desde cuántas personas (por ejemplo 3) y qué regalo (por ejemplo «1 persona adicional gratis»).',
+      '👥 Al armar una reserva con esa cantidad de personas o más, la app muestra el aviso del premio para que se lo recuerdes al cliente.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -17265,6 +17278,13 @@ setTimeout(function(){
           <textarea id="fd-c" rows="3" maxlength="300">${esc((cfg.cumple||{}).regalo||'')}</textarea>
         </div>
         <div class="ag-card" style="margin-top:12px">
+          <h3 style="margin:0 0 4px">🎉 Premio por grupo</h3>
+          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Cuando una reserva tenga esta cantidad de personas o más (contando al cliente), la app avisa del premio al armarla. Vacío = sin premio.</p>
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fd-g-act" style="width:auto" ${(cfg.grupo||{}).activo!==false?'checked':''}/> Usar premio por grupo</label>
+          <div style="display:flex;gap:8px"><div style="flex:0 0 110px"><label class="f">Personas</label><input id="fd-g-n" type="number" min="2" max="30" value="${esc((cfg.grupo||{}).n||3)}"/></div>
+            <div style="flex:1"><label class="f">Regalo</label><input id="fd-g-r" value="${esc((cfg.grupo||{}).regalo||'')}" maxlength="120" placeholder="1 persona adicional gratis"/></div></div>
+        </div>
+        <div class="ag-card" style="margin-top:12px">
           <h3 style="margin:0 0 4px">⭐ Reseñas de Google</h3>
           <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Si el cliente califica 4 o más y volvería, al final de la encuesta ve un botón para dejar su reseña. Si califica menos de 3, se le avisa a César Zamora. Vacío = no se muestra el botón.</p>
           <input id="fd-r" value="${esc(cfg.resenasUrl||'')}" placeholder="https://g.page/r/…/review"/>
@@ -17277,6 +17297,7 @@ setTimeout(function(){
           S.activo = cont.querySelector('#fd-s-act').checked; S.n = Number(cont.querySelector('#fd-s-n').value) || 5; S.desde = cont.querySelector('#fd-s-de').value;
           S.premios = [...cont.querySelectorAll('[data-fd-p]')].map(inp=>inp.value.trim());
           cfg.cumple = { regalo:cont.querySelector('#fd-c').value.trim() }; cfg.resenasUrl = cont.querySelector('#fd-r').value.trim();
+          cfg.grupo = { activo:cont.querySelector('#fd-g-act').checked, n:Number(cont.querySelector('#fd-g-n').value) || 3, regalo:cont.querySelector('#fd-g-r').value.trim() };   /* v376 premio por grupo */
         };
         cont.querySelector('#fd-add').onclick = ()=>{ leer(); D.items.push({ nombre:'', emoji:'✨', frase:'' }); pintar(); };
         cont.querySelector('#fd-s-padd').onclick = ()=>{ leer(); S.premios.push(''); pintar(); const l = cont.querySelectorAll('[data-fd-p]'); if(l.length) l[l.length - 1].focus(); };
