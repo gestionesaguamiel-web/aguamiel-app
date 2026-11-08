@@ -346,6 +346,33 @@
   @media (min-width:1100px){ .ag-nav.abajo,.ag-mas-hoja{max-width:960px} .ag-fab{right:max(16px, calc((100vw - 960px) / 2 + 16px))} }
   #ag-app ::-webkit-scrollbar,#ag-fullscreen::-webkit-scrollbar{width:8px;height:8px}
   #ag-app ::-webkit-scrollbar-thumb,#ag-fullscreen::-webkit-scrollbar-thumb{background:#cfdfe2;border-radius:8px}
+  /* ✨ v374 movimiento: menú de abajo que sube con sus opciones en cascada, transición al cambiar de sección y pulsación de botones.
+     Solo se animan opacidad y transform (lo más liviano para el teléfono). Quien pidió «reducir movimiento» en su teléfono no ve nada de esto. */
+  @keyframes agFondoIn{from{opacity:0}to{opacity:1}}
+  @keyframes agFondoOut{from{opacity:1}to{opacity:0}}
+  @keyframes agHojaIn{0%{transform:translateY(105%)}70%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+  @keyframes agHojaOut{from{transform:translateY(0)}to{transform:translateY(105%)}}
+  @keyframes agOpcIn{0%{opacity:0;transform:translateY(22px) scale(.92)}65%{opacity:1;transform:translateY(-3px) scale(1.01)}100%{opacity:1;transform:none}}
+  @keyframes agIcoIn{0%{transform:scale(.3) rotate(-25deg)}60%{transform:scale(1.25) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
+  @keyframes agVista{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @keyframes agVistaFs{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+  @keyframes agNavPop{0%{transform:scale(1)}40%{transform:scale(1.3) translateY(-3px)}100%{transform:scale(1)}}
+  .ag-mas-fondo{animation:agFondoIn .22s ease-out both;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  .ag-mas-hoja{animation:agHojaIn .42s cubic-bezier(.2,.9,.3,1) both;box-shadow:0 -10px 30px rgba(10,60,70,.18)}
+  .ag-mas-hoja button{animation:agOpcIn .42s cubic-bezier(.2,.9,.3,1) both;animation-delay:.12s}
+  .ag-mas-hoja button>span:first-child{display:inline-block;animation:agIcoIn .5s cubic-bezier(.3,1.4,.5,1) both;animation-delay:inherit}
+  .ag-mas-hoja>button:nth-of-type(2),.ag-mas-hoja>div>button:nth-of-type(2){animation-delay:.18s}
+  .ag-mas-hoja>button:nth-of-type(3){animation-delay:.24s}
+  .ag-mas-hoja>button:nth-of-type(4){animation-delay:.30s}
+  .ag-mas-hoja>button:nth-of-type(n+5){animation-delay:.36s}
+  .ag-mas-hoja>div>button{animation-delay:.28s}
+  .ag-mas-hoja>div>button:nth-of-type(2){animation-delay:.34s}
+  .ag-mas-fondo.sale{animation:agFondoOut .2s ease-in both;pointer-events:none}
+  .ag-mas-fondo.sale .ag-mas-hoja{animation:agHojaOut .2s ease-in both}
+  #ag-body.ag-entra{animation:agVista .28s cubic-bezier(.2,.8,.2,1) both}
+  #ag-fullscreen.open .ag-fs-body{animation:agVistaFs .26s cubic-bezier(.2,.8,.2,1) both}
+  .ag-nav button.ag-pop .ic{display:inline-block;animation:agNavPop .38s cubic-bezier(.3,1.5,.5,1)}
+  @media (prefers-reduced-motion:reduce){ .ag-mas-fondo,.ag-mas-hoja,.ag-mas-hoja button,.ag-mas-hoja button>span,#ag-body.ag-entra,#ag-fullscreen.open .ag-fs-body,.ag-nav button.ag-pop .ic{animation:none!important} }
   @media (prefers-reduced-motion:reduce){ .ag-btn,.ag-nav button,.ag-list-item{transition:none} }
 </style>
 </head>
@@ -1282,7 +1309,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v373' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v374' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2215,6 +2242,7 @@ setTimeout(function(){
     const t0 = performance.now();
     try{
       renderInner();
+      try{ agMovimiento(); }catch(eM){}
       try{ trasRender(); }catch(e2){}
       // Si dibujar una pantalla tarda más de 1,5 s se anota cuál (pestaña y sección) para poder acelerarla.
       const dur = performance.now() - t0;
@@ -9930,7 +9958,11 @@ setTimeout(function(){
       '📍 En Inicio, tus citas de hoy en una <strong>línea de tiempo</strong>: cuántas están listas, en curso y por venir.',
       '⏱️ El reloj ahora es una <strong>pantalla oscura con un anillo de luz</strong>: a qué hora inició y a qué hora termina, y botones redondos de pausa, +5 y minimizar.',
       '🫧 Mientras llenas la ficha, el tiempo queda en una <strong>cápsula</strong> arriba. Al finalizar sale una tarjeta con el tiempo real, el planificado, las pausas y lo que falta.',
-      '🔢 Sin cita: eliges los minutos con <strong>− y +</strong> o con los botones de 15 a 120.' ] }
+      '🔢 Sin cita: eliges los minutos con <strong>− y +</strong> o con los botones de 15 a 120.' ] },
+    { v:374, fecha:'7 nov', titulo:'✨ La app se mueve más suave', puntos:[
+      '☰ <strong>Más</strong> y <strong>📝 Nueva ficha</strong>: el menú sube desde abajo y sus opciones aparecen una tras otra.',
+      '↔️ Al pasar de una sección a otra (ej. de Agenda a Rosita) la pantalla entra con una transición suave.',
+      '👆 Al tocar: los botones principales saltan, las subcategorías se inclinan en 3D y la barra de abajo suelta un anillo de color.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -10512,7 +10544,93 @@ setTimeout(function(){
     fondo.querySelectorAll('[data-nv-cita]').forEach(b=>b.onclick = ()=>{ const r = (state.agenda.reservas || []).find(x=>x.id === b.dataset.nvCita); cerrarMenuMas(); if(r) atenderCita(r); });
     fondo.querySelectorAll('[data-nv]').forEach(b=>b.onclick = ()=>{ cerrarMenuMas(); if(b.dataset.nv === 'ficha') ir('nueva'); else { state.tab = 'agenda'; state.ag = Object.assign({ filtro:'proximas' }, state.ag || {}, { vista:'form', editId:null }); render(); } });
   }
-  function cerrarMenuMas(){ const m = document.getElementById('ag-mas'); if(m) m.remove(); }
+  /* ✨ v374: el menú baja animado (0,2 s) antes de quitarse. Pierde su id al instante, así uno nuevo puede abrirse sin chocar. */
+  function cerrarMenuMas(){ const m = document.getElementById('ag-mas'); if(!m) return; m.id = ''; if(agSinMovimiento()){ m.remove(); return; } m.classList.add('sale'); setTimeout(()=>m.remove(), 210); }
+  function agSinMovimiento(){ try{ return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+  /* ✨ v374: transición solo cuando de verdad cambia la pantalla (pestaña, sección de Admin u Operaciones, cliente o ficha abierta);
+     los redibujos de la misma pantalla (guardar, recargar datos) no se animan para que nada «salte». */
+  let agVistaClave = '';
+  function agMovimiento(){
+    const b = document.getElementById('ag-body'); if(!b || !state.user) return;
+    const k = [state.tab, state.adminSub || '', state.adminGrp || '', (state.op && state.op.sec) || '', state.selClienteId || '', state.selFichaId || ''].join('|');
+    if(k === agVistaClave) return;
+    const cambioTab = agVistaClave.split('|')[0] !== state.tab, primera = !agVistaClave; agVistaClave = k;
+    if(primera || agSinMovimiento()) return;
+    b.classList.add('ag-entra'); b.addEventListener('animationend', ()=>b.classList.remove('ag-entra'), { once:true });
+    if(cambioTab){ const nb = document.querySelector('.ag-nav button.active'); if(nb) nb.classList.add('ag-pop'); }
+  }
+  /* ✨ v374: efectos al tocar (elegidos por la administración el 7-nov):
+     · Botones principales de cada menú (Inicio, Admin, Rosita, Operaciones, Agenda): el botón se eleva y su ícono da un salto.
+     · Subcategorías (al entrar a un grupo de Admin, p. ej. Ventas → Presupuestos): inclinación 3D hacia donde se toca.
+     · Barra de abajo, botón flotante y menú «Más»: anillo que se expande.
+     · Todo lo demás (botones internos, renglones, íconos): uno de los tres, siempre el mismo para cada botón.
+     En los botones que cambian de pantalla, la pantalla nueva espera 0,2 s para que el efecto alcance a verse. */
+  (function(){
+    const SEL = 'button,.ag-btn,.mn-t,.ag-list-item,[role=button],summary,label.ag-chip,[data-tab]';
+    const TRES = ['salta', 'giro', 'anillo'];
+    let viva = null, esperando = false;
+    const base = el=>{ const t = getComputedStyle(el).transform; return t && t !== 'none' ? t + ' ' : ''; };
+    const clicable = t=>{
+      const el = t.closest && t.closest(SEL); if(el) return el;
+      let x = t; for(let i = 0; x && i < 4 && x !== document.body; i++, x = x.parentElement){ try{ if(getComputedStyle(x).cursor === 'pointer') return x; }catch(e){ return null; } }
+      return null;
+    };
+    const tipoDe = el=>{
+      if(el.closest('.ag-nav') || el.id === 'ag-fab-nueva' || el.closest('.ag-mas-hoja')) return 'anillo';
+      if(el.classList.contains('mn-t')){
+        if(el.hasAttribute('data-adm-sub')) return 'giro';
+        if(!(state.tab === 'adminpanel' && state.adminSub)) return 'salta';
+      }
+      if(state.tab === 'home' && /^ag-go-/.test(el.id || '')) return 'salta';
+      const s = (el.id || '') + (el.textContent || '').trim().slice(0, 40); let h = 0;
+      for(let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+      return TRES[Math.abs(h) % 3];
+    };
+    const anillo = el=>{
+      const r = el.getBoundingClientRect(); if(r.width < 16) return;
+      const a = document.createElement('div');
+      a.style.cssText = 'position:fixed;pointer-events:none;z-index:99000;box-sizing:border-box;border:3px solid #13adc6;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;border-radius:' + (getComputedStyle(el).borderRadius || '12px');
+      document.body.appendChild(a);
+      const an = a.animate([{ opacity:.9, transform:'scale(1)' }, { opacity:0, transform:'scale(1.18)' }], { duration:520, easing:'ease-out' });
+      an.onfinish = an.oncancel = ()=>a.remove(); setTimeout(()=>a.remove(), 900);
+    };
+    document.addEventListener('pointerdown', e=>{
+      if(agSinMovimiento() || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      const el = clicable(e.target); if(!el || el.disabled || !el.animate || el.closest('#ag-print')) return;
+      const tipo = tipoDe(el), b0 = base(el), r = el.getBoundingClientRect();
+      try{
+        if(tipo === 'giro'){
+          const x = ((e.clientX - r.left) / r.width - .5) * 22, y = ((e.clientY - r.top) / r.height - .5) * -22;
+          const t1 = b0 + 'perspective(500px) rotateY(' + x.toFixed(1) + 'deg) rotateX(' + y.toFixed(1) + 'deg) scale(.97)';
+          viva = { el, tipo, b0, t1, a:el.animate([{ transform:b0 + 'perspective(500px)' }, { transform:t1 }], { duration:110, easing:'ease-out', fill:'forwards' }) };
+        } else if(tipo === 'salta'){
+          el.animate([{ transform:b0 + 'translateY(0)', boxShadow:getComputedStyle(el).boxShadow }, { transform:b0 + 'translateY(-4px)', boxShadow:'0 12px 24px rgba(10,88,102,.22)', offset:.4 }, { transform:b0 + 'translateY(0)' }], { duration:420, easing:'cubic-bezier(.3,1.2,.5,1)' });
+          const ic = el.querySelector('.mn-ic, .ic') || el.querySelector('span');
+          if(ic && ic.animate){ ic.style.display = ic.style.display || (getComputedStyle(ic).display === 'inline' ? 'inline-block' : ''); ic.animate([{ transform:'none' }, { transform:'translateY(-10px) rotate(-12deg) scale(1.2)', offset:.35 }, { transform:'translateY(2px) rotate(6deg)', offset:.65 }, { transform:'none' }], { duration:480, easing:'cubic-bezier(.3,1.3,.5,1)' }); }
+          viva = null;
+        } else {
+          anillo(el);
+          viva = { el, tipo, b0, a:el.animate([{ transform:b0 + 'scale(1)' }, { transform:b0 + 'scale(.95)' }], { duration:90, easing:'ease-out', fill:'forwards' }) };
+        }
+      }catch(x){ viva = null; }
+      if(el.classList.contains('mn-t') || (/^ag-go-/.test(el.id || ''))) el._agEspera = tipo;
+    }, { passive:true, capture:true });
+    const soltar = ()=>{
+      const v = viva; viva = null; if(!v) return;
+      try{
+        const desde = v.tipo === 'giro' ? v.t1 : v.b0 + 'scale(.95)', hasta = v.tipo === 'giro' ? v.b0 + 'perspective(500px)' : v.b0 + 'scale(1)';
+        v.el.animate([{ transform:desde }, { transform:v.tipo === 'giro' ? hasta : v.b0 + 'scale(1.03)' }, { transform:hasta }], { duration:300, easing:'cubic-bezier(.3,1.4,.5,1)' }); v.a.cancel();
+      }catch(x){ try{ v.a.cancel(); }catch(y){} }
+    };
+    ['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev, soltar, { passive:true, capture:true }));
+    /* Los botones de menú que abren otra pantalla esperan 0,2 s para que se vea el salto o la inclinación. */
+    document.addEventListener('click', e=>{
+      const el = e.target.closest && e.target.closest('.mn-t, [id^="ag-go-"]'); if(!el || !el._agEspera || el._agYa) return;
+      e.stopImmediatePropagation(); e.preventDefault(); el._agEspera = null;
+      if(esperando) return; esperando = true;
+      setTimeout(()=>{ esperando = false; if(!el.isConnected) return; el._agYa = true; try{ el.click(); }finally{ el._agYa = false; } }, 200);
+    }, true);
+  })();
   function isoMasDias(iso, d){ const p = String(iso).split('-').map(Number); const x = new Date(Date.UTC(p[0], p[1] - 1, p[2] + d)); return x.toISOString().slice(0, 10); }
   // ⏳ Plazos de los enlaces de catálogo (el servidor acepta de 1 día a 6 meses). Un plazo guardado que no esté en la lista se agrega.
   const PLAZOS_ENLACE = [[1,'1 día'],[3,'3 días'],[7,'7 días'],[30,'1 mes'],[91,'3 meses'],[183,'6 meses']];
