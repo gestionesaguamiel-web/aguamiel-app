@@ -1309,7 +1309,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v374' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v375' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2758,9 +2758,9 @@ setTimeout(function(){
     add('📤', 'Exportar', 'Admin → exportar datos', 'exportar descargar respaldo excel datos', ()=>irA({ tab:'adminpanel', sub:'exportar' }), admin);
     add('🛠️', 'Operaciones', 'Pestaña Operaciones: tareas, mantenimiento de equipos, proyectos de mejora y obras', 'operaciones tareas tarea pendientes mantenimiento equipos reparacion proyectos mejoras estimacion construccion obras supervision areas', ()=>irA({ tab:'operaciones' }), admin);
     add('👥', 'Staff (personal)', 'Admin → equipo, permisos, teléfonos y cumpleaños', 'staff personal equipo profesionales pin permisos telefono whatsapp cumpleaños fisioterapeutas editar fichas', ()=>irA({ tab:'adminpanel', sub:'staff' }), admin);
-    add('📚', 'Mural educativo', 'Admin → Equipo → videos, publicaciones y estudios para las fisioterapeutas', 'mural educativo aprende hoy videos youtube instagram tiktok articulos estudios fisioterapeutas capacitacion formacion', ()=>irA({ tab:'adminpanel', sub:'mural' }), admin);
+    add('🎓', 'Portal académico e informativo', 'Admin → Equipo → videos, notas de voz y estudios para las fisioterapeutas', 'portal academico informativo notas de voz audio grabar video telefono fijar mural educativo aprende hoy videos youtube instagram tiktok articulos estudios fisioterapeutas capacitacion formacion', ()=>irA({ tab:'adminpanel', sub:'mural' }), admin);
     add('🎬', 'Fotos, videos y música', 'Admin → Ventas → para los catálogos que se envían a clientes', 'musica fotos videos galeria catalogo multimedia imagenes cancion audio mp3 youtube', ()=>irA({ tab:'adminpanel', sub:'multimedia' }), admin);
-    add('📚', 'Aprende hoy', 'Videos, publicaciones y estudios del mural educativo', 'mural educativo aprende hoy videos youtube instagram tiktok articulos estudios capacitacion formacion', ()=>muralVerTodo(), !admin && !cocina);
+    add('🎓', 'Portal académico', 'Videos, notas de voz y estudios para ti', 'portal academico informativo notas de voz audio mural educativo aprende hoy videos youtube instagram tiktok articulos estudios capacitacion formacion', ()=>muralVerTodo(), !admin && !cocina);
     add('📢', 'Comunicados al equipo', 'Admin → staff → comunicados', 'comunicados comunicado avisos mensaje equipo cumpleaños modelo', ()=>irA({ tab:'adminpanel', sub:'staff', cm:true }), admin);
     return L;
   }
@@ -9962,13 +9962,17 @@ setTimeout(function(){
     { v:374, fecha:'7 nov', titulo:'✨ La app se mueve más suave', puntos:[
       '☰ <strong>Más</strong> y <strong>📝 Nueva ficha</strong>: el menú sube desde abajo y sus opciones aparecen una tras otra.',
       '↔️ Al pasar de una sección a otra (ej. de Agenda a Rosita) la pantalla entra con una transición suave.',
-      '👆 Al tocar: los botones principales saltan, las subcategorías se inclinan en 3D y la barra de abajo suelta un anillo de color.' ] }
+      '👆 Al tocar: los botones principales saltan, las subcategorías se inclinan en 3D y la barra de abajo suelta un anillo de color.' ] },
+    { v:375, fecha:'7 nov', titulo:'🎓 Portal académico e informativo: notas de voz y videos', puntos:[
+      '🎓 El mural educativo ahora se llama <strong>Portal académico e informativo</strong> (Admin → Equipo).',
+      '🎙️ La administración puede <strong>grabar una nota de voz</strong> o <strong>grabar un video con el teléfono</strong> (vertical, hasta 3 min) y publicarlo al equipo. Se guardan en Google Drive.',
+      '📌 Se pueden <strong>fijar arriba hasta 3 publicaciones</strong>: son lo primero que ve el equipo.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
   // para la próxima vez que abra la app; «Ya lo vi» lo marca. La administración lo maneja en Admin → Equipo → 📚 Mural educativo.
   const MU_WEB = 'https:' + String.fromCharCode(47, 47);   // Google recorta las líneas con doble barra en el texto: las direcciones se arman así
-  const MURAL_T = { yt:['▶ YouTube','#ffe9e9','#b00020'], ig:['📸 Instagram','#fde8f3','#a01870'], tt:['🎵 TikTok','#e9eef5','#1c2733'], art:['📄 Artículo','#eaf1ff','#1f4e79'] };
+  const MURAL_T = { yt:['▶ YouTube','#ffe9e9','#b00020'], ig:['📸 Instagram','#fde8f3','#a01870'], tt:['🎵 TikTok','#e9eef5','#1c2733'], art:['📄 Artículo','#eaf1ff','#1f4e79'], voz:['🎙️ Nota de voz','#fff1e0','#8a4b00'], vid:['🎥 Video','#e3f6f1','#0b6b55'] };
   function muralCSS(){
     if(document.getElementById('mural-css')) return;
     const st = document.createElement('style'); st.id = 'mural-css';
@@ -9995,25 +9999,51 @@ setTimeout(function(){
       .mu-nav button:disabled{opacity:.35}
       .mu-dots{display:flex;gap:6px}.mu-dots i{width:8px;height:8px;border-radius:50%;background:#c9d6d8}.mu-dots i.on{background:var(--teal,#0e9fb8);width:20px;border-radius:5px}
       .mu-btns{display:flex;gap:8px}.mu-btns button{flex:1;border-radius:12px;padding:13px;font-weight:700;font-size:15px;border:0;cursor:pointer}
-      .mu-bp{background:var(--teal,#0e9fb8);color:#fff}.mu-bg{background:#eef3f4;color:var(--teal-d,#0a5a68)}`;
+      .mu-bp{background:var(--teal,#0e9fb8);color:#fff}.mu-bg{background:#eef3f4;color:var(--teal-d,#0a5a68)}
+      .mu-fijo{display:inline-block;font-size:11px;font-weight:800;color:#8a5a00;background:#fff4d6;border-radius:999px;padding:2px 8px;margin-left:4px}
+      .mu-media.mu-vert{flex:0 0 auto;align-self:center;height:min(60vh,600px);aspect-ratio:9/16;max-width:100%;min-height:0}
+      .mu-media.mu-vert iframe{min-height:0;height:100%}
+      .mu-media.mu-vert .mu-play,.mu-media.mu-vid .mu-play{background:var(--teal,#0e9fb8)}
+      .mu-dur{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:700;border-radius:8px;padding:2px 7px}
+      .mu-voz{border-radius:18px;padding:16px;background:linear-gradient(135deg,#0a5a68,#0e9fb8 60%,#3cc6c0);color:#fff;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 22px rgba(10,90,104,.25)}
+      .mu-voz-top{display:flex;gap:12px;align-items:center}.mu-voz-top b{display:block;font-size:16px}.mu-voz-top span{font-size:12.5px;opacity:.85}
+      .mu-voz-ic{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:26px;flex:0 0 auto}
+      .mu-voz-ondas{display:flex;align-items:center;gap:3px;height:40px}.mu-voz-ondas i{flex:1;background:rgba(255,255,255,.75);border-radius:3px;animation:muOnda 1.4s ease-in-out infinite}
+      .mu-voz-ondas i:nth-child(3n){animation-delay:.2s}.mu-voz-ondas i:nth-child(3n+1){animation-delay:.45s}
+      @keyframes muOnda{0%,100%{transform:scaleY(.55)}50%{transform:scaleY(1)}}
+      @media (prefers-reduced-motion:reduce){.mu-voz-ondas i{animation:none}}
+      .mu-voz-play{width:100%;border:0;border-radius:12px;padding:13px;font-size:16px;font-weight:800;background:#fff;color:#0a5a68;cursor:pointer}
+      .mu-voz-cargando{background:rgba(255,255,255,.18);border-radius:12px;padding:12px;text-align:center;font-size:14px}
+      .mu-voz audio{filter:drop-shadow(0 2px 6px rgba(0,0,0,.15))}
+      .mu-modos{display:flex;gap:6px;margin-bottom:10px}.mu-modos button{flex:1}
+      .mu-dos{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mu-dos .ag-btn{min-width:0;padding:12px 6px;font-size:13.5px}
+      .mu-rec{display:flex;align-items:center;gap:10px;background:#fff1f1;border-radius:14px;padding:14px;margin-bottom:8px}.mu-rec b{font-size:22px;color:#a61b1b;font-variant-numeric:tabular-nums}
+      .mu-rec-pt{width:16px;height:16px;border-radius:50%;background:#e02424;animation:muLate 1s ease-in-out infinite}
+      @keyframes muLate{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.55}}
+      .mu-prev-v video{width:100%;max-height:340px;border-radius:14px;background:#000}.mu-prev-v video.vert{width:auto;max-width:100%;height:340px;display:block;margin:0 auto}
+      .mu-prev-a{background:#f4f8f8;border-radius:14px;padding:10px}`;
     document.head.appendChild(st);
   }
   function muralAbrirURL(x){ return x.tipo === 'yt' ? MU_WEB + 'www.youtube.com/watch?v=' + x.ref : x.tipo === 'ig' ? MU_WEB + 'www.instagram.com/' + x.ref + '/' : x.url; }
-  function muralFoto(x){ return x.imagen || (x.tipo === 'yt' && x.ref ? MU_WEB + 'i.ytimg.com/vi/' + x.ref + '/hqdefault.jpg' : ''); }
+  function muralFoto(x){ if(x.tipo === 'vid' && x.ref) return MU_WEB + 'drive.google.com/thumbnail?id=' + encodeURIComponent(x.ref) + '&sz=w600'; return x.imagen || (x.tipo === 'yt' && x.ref ? MU_WEB + 'i.ytimg.com/vi/' + x.ref + '/hqdefault.jpg' : ''); }
   // Lo que se ve de cada publicación: el video o la foto dentro de la app; los videos arrancan solo al tocarlos (cuida los datos del teléfono).
   function muralCuerpoHTML(x){
     const t = MURAL_T[x.tipo] || MURAL_T.art, foto = muralFoto(x);
     const img = foto ? `<img src="${esc(foto)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()"/>` : '';
-    const cab = `<div class="mu-cab"><span class="mu-tag" style="background:${t[1]};color:${t[2]}">${t[0]}</span><span>${esc(x.titulo)}</span></div>`;
+    const cab = `<div class="mu-cab"><span class="mu-tag" style="background:${t[1]};color:${t[2]}">${t[0]}</span><span>${esc(x.titulo)}${x.fijado ? '<span class="mu-fijo">📌 Fijada</span>' : ''}</span></div>`;
     const abrir = `<a class="mu-abrir" href="${esc(muralAbrirURL(x))}" target="_blank" rel="noopener noreferrer">🔗 Abrir en ${esc(x.tipo === 'art' ? (x.fuente || 'el navegador') : t[0].replace(/^\S+\s/, ''))}</a>`;
     let media;
     if(x.tipo === 'yt' || x.tipo === 'tt') media = `<div class="mu-media" data-mu-media>${x.tipo === 'tt' ? '<div class="mu-sinfoto">🎵</div>' : ''}${img}<button type="button" class="mu-play${x.tipo === 'tt' ? ' tt' : ''}" data-mu-play aria-label="Ver el video">▶</button></div>`;
     else if(x.tipo === 'ig') media = `<div class="mu-media ig"><iframe src="${esc(MU_WEB + 'www.instagram.com/' + x.ref + '/embed/captioned/')}" loading="lazy" allowtransparency="true" title="Instagram"></iframe></div>`;
+    else if(x.tipo === 'voz') media = muVozHTML(x);
+    else if(x.tipo === 'vid') media = muVidHTML(x, img);
     else media = `<div class="mu-art"><div class="mu-img">${img}</div><div class="mu-tx"><b>${esc(x.titulo)}</b>${x.resumen ? esc(x.resumen) : ''}${x.fuente ? `<div class="ag-muted" style="font-size:12px;margin-top:6px">${esc(x.fuente)}</div>` : ''}</div></div>`;
-    return (x.tipo === 'art' ? '' : cab) + media + abrir;
+    return (x.tipo === 'art' ? '' : cab) + media + (x.tipo === 'voz' || x.tipo === 'vid' ? '' : abrir);
   }
   function muralPlay(box, x){
     const m = box.querySelector('[data-mu-media]'); if(!m) return;
+    if(x.tipo === 'voz'){ muralVoz(m, x); return; }
+    if(x.tipo === 'vid'){ m.innerHTML = `<iframe src="${esc(MU_WEB + 'drive.google.com/file/d/' + encodeURIComponent(x.ref) + '/preview')}" allow="autoplay; fullscreen" allowfullscreen title="Video"></iframe>`; return; }
     const src = MU_WEB + (x.tipo === 'yt' ? 'www.youtube.com/embed/' + encodeURIComponent(x.ref) + '?autoplay=1&playsinline=1&rel=0' : 'www.tiktok.com/embed/v2/' + encodeURIComponent(x.ref) + '?autoplay=1');
     m.innerHTML = `<iframe src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="Video"></iframe>`;
   }
@@ -10030,7 +10060,7 @@ setTimeout(function(){
       const x = lista[i], n = lista.length, puedeMarcar = modo !== 'admin' && !x.visto;
       ov.innerHTML = `<div class="mu-sh">
         <button type="button" class="mu-x" data-mu-x aria-label="Cerrar">✕</button>
-        <div><h3>📚 ${modo === 'admin' ? 'Así lo ve el equipo' : 'Aprende hoy'}</h3><div class="ag-muted" style="font-size:12.5px;margin-top:2px">${n === 1 ? '1 publicación' : n + ' publicaciones'}${modo === 'entrar' ? ' nuevas para ti' : ''} · ${i + 1} de ${n}</div></div>
+        <div><h3>🎓 ${modo === 'admin' ? 'Así lo ve el equipo' : 'Portal académico e informativo'}</h3><div class="ag-muted" style="font-size:12.5px;margin-top:2px">${n === 1 ? '1 publicación' : n + ' publicaciones'}${modo === 'entrar' ? ' nuevas para ti' : ''} · ${i + 1} de ${n}</div></div>
         <div class="mu-box">${muralCuerpoHTML(x)}</div>
         ${n > 1 ? `<div class="mu-nav"><button type="button" data-mu-ant aria-label="Anterior" ${i === 0 ? 'disabled' : ''}>‹</button><div class="mu-dots">${lista.map((_, k)=>`<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><button type="button" data-mu-sig aria-label="Siguiente" ${i === n - 1 ? 'disabled' : ''}>›</button></div>` : ''}
         <div class="mu-btns">${modo === 'admin' ? '<button type="button" class="mu-bp" data-mu-x>Cerrar</button>'
@@ -10044,7 +10074,7 @@ setTimeout(function(){
       if(ok) ok.onclick = ()=>{
         x.visto = true; gs('marcarMuralVisto', x.id, auth()).catch(()=>{});
         const v = (state.mural || []).find(m=>m.id === x.id); if(v) v.visto = true;
-        if(modo === 'entrar'){ lista.splice(i, 1); if(!lista.length){ cerrar(); toast('✅ ¡Listo! Lo encuentras otra vez buscando «Aprende hoy».'); return; } if(i >= lista.length) i = lista.length - 1; }
+        if(modo === 'entrar'){ lista.splice(i, 1); if(!lista.length){ cerrar(); toast('✅ ¡Listo! Lo encuentras otra vez en 🎓 Portal académico (buscador).'); return; } if(i >= lista.length) i = lista.length - 1; }
         else if(i < lista.length - 1) i++;
         pintar();
       };
@@ -10064,8 +10094,8 @@ setTimeout(function(){
     }).catch(()=>{ muralRevisado = false; });
   }
   function muralVerTodo(){
-    gs('getMuralEquipo', auth()).then(l=>{ state.mural = l || []; if(!state.mural.length){ toast('📚 Por ahora no hay publicaciones en el mural.'); return; } abrirMural(state.mural, 'todo'); })
-      .catch(e=>alert('No se pudo abrir el mural: ' + (e && e.message ? e.message : e)));
+    gs('getMuralEquipo', auth()).then(l=>{ state.mural = l || []; if(!state.mural.length){ toast('🎓 Por ahora no hay publicaciones en el Portal académico.'); return; } abrirMural(state.mural, 'todo'); })
+      .catch(e=>alert('No se pudo abrir el Portal académico: ' + (e && e.message ? e.message : e)));
   }
   // ---------- 🎬 v369: Fotos, videos y música de los catálogos (solo administración) ----------
   // Misma regla que el servidor y el catálogo: así «Masaje relajante» y «masaje  relajante» son el mismo servicio.
@@ -10213,15 +10243,199 @@ setTimeout(function(){
       const [id, dir] = b.dataset.mmMov.split('|');
       try{ await gs('moverMultimedia', id, Number(dir), auth()); recargar(); }catch(e){ alert('No se pudo mover: ' + (e && e.message ? e.message : e)); } });
   }
+  // ---------- 🎓 v375: notas de voz y videos grabados con el teléfono para el Portal académico ----------
+  // La nota de voz se graba aquí mismo (o se elige un audio del teléfono) y se guarda como MP3 liviano; el video se graba con la
+  // cámara del teléfono y, si pesa mucho, se reduce aquí antes de subirlo (tarda lo mismo que dura el video). Todo va a Google Drive por partes.
+  const MU_ACC = t=>t + String.fromCharCode(47, 42);   // «audio/» + «*» por separado: Google corta la barra pegada al asterisco (v375)
+  const MU_VOZ_MAX = 300, MU_VID_MAX = 180;   // segundos: nota de voz hasta 5 min, video hasta 3 min
+  function muFmtSeg(s){ s = Math.max(0, Math.round(Number(s) || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  function muFmtMB(b){ if(b < 1048576) return Math.max(1, Math.round(b / 1024)) + ' KB'; return (b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace('.', ',') + ' MB'; }
+  const MU_AUDIO = {};
+  function muralVoz(m, x){
+    m.innerHTML = '<div class="mu-voz-cargando">🎧 Cargando la nota de voz…</div>';
+    const poner = src=>{ m.innerHTML = `<audio controls autoplay preload="auto" src="${esc(src)}" style="width:100%"></audio>`; const a = m.querySelector('audio'); try{ const p = a.play(); if(p && p.catch) p.catch(()=>{}); }catch(e){} };
+    if(MU_AUDIO[x.id]){ poner(MU_AUDIO[x.id]); return; }
+    gsEspera(90000, 'getArchivoPortal', x.id, auth()).then(d=>{ MU_AUDIO[x.id] = d; if(document.body.contains(m)) poner(d); })
+      .catch(e=>{ m.innerHTML = '<div class="mu-voz-cargando">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</div>'; });
+  }
+  function muVozHTML(x){
+    const ar = x.ar || {}, de = ar.de || x.fuente || 'Administración';
+    const barras = Array.from({ length:28 }, (_, k)=>`<i style="height:${8 + Math.round(Math.abs(Math.sin(k * 1.7 + x.titulo.length)) * 26)}px"></i>`).join('');
+    return `<div class="mu-voz"><div class="mu-voz-top"><div class="mu-voz-ic">🎙️</div><div style="min-width:0"><b>${esc(de)}</b><span>${ar.seg ? '⏱️ ' + muFmtSeg(ar.seg) : 'Nota de voz'}</span></div></div>
+      <div class="mu-voz-ondas">${barras}</div>
+      <div data-mu-media><button type="button" class="mu-voz-play" data-mu-play>▶ Escuchar</button></div></div>`;
+  }
+  function muVidHTML(x, img){
+    const ar = x.ar || {}, vert = !(ar.w && ar.h && ar.w > ar.h);
+    return `<div class="mu-media mu-vid${vert ? ' mu-vert' : ''}" data-mu-media><div class="mu-sinfoto">🎥</div>${img}<button type="button" class="mu-play" data-mu-play aria-label="Ver el video">▶</button>${ar.seg ? `<span class="mu-dur">${muFmtSeg(ar.seg)}</span>` : ''}</div>`;
+  }
+  function muCargarLame(){
+    if(window.lamejs) return Promise.resolve(window.lamejs);
+    if(muCargarLame.p) return muCargarLame.p;
+    muCargarLame.p = new Promise((ok, mal)=>{
+      const s = document.createElement('script'); s.src = MU_WEB + 'cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js';
+      s.onload = ()=>window.lamejs ? ok(window.lamejs) : mal(new Error('sin mp3')); s.onerror = ()=>{ muCargarLame.p = null; mal(new Error('sin mp3')); };
+      document.head.appendChild(s);
+    });
+    return muCargarLame.p;
+  }
+  // Audio a MP3 de voz (mono, 22 kHz, 40 kbps: ~300 KB por minuto, suena bien en cualquier teléfono, iPhone incluido).
+  async function muAMp3(blob){
+    const lame = await muCargarLame();
+    const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
+    const buf = await new Promise((ok, mal)=>{ blob.arrayBuffer().then(ab=>{ const p = ac.decodeAudioData(ab, ok, mal); if(p && p.then) p.then(ok, mal); }, mal); });
+    try{ ac.close(); }catch(e){}
+    const SR = 22050, OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const off = new OAC(1, Math.max(1, Math.ceil(buf.duration * SR)), SR), src = off.createBufferSource();
+    src.buffer = buf; src.connect(off.destination); src.start(0);
+    const r = await new Promise((ok, mal)=>{ off.oncomplete = e=>ok(e.renderedBuffer); const p = off.startRendering(); if(p && p.then) p.then(ok, mal); });
+    const f = r.getChannelData(0), pcm = new Int16Array(f.length);
+    for(let i = 0; i < f.length; i++){ const v = Math.max(-1, Math.min(1, f[i])); pcm[i] = v < 0 ? v * 32768 : v * 32767; }
+    const enc = new lame.Mp3Encoder(1, SR, 40), partes = [];
+    for(let i = 0; i < pcm.length; i += 1152){ const o = enc.encodeBuffer(pcm.subarray(i, i + 1152)); if(o.length) partes.push(new Uint8Array(o)); }
+    const fin = enc.flush(); if(fin.length) partes.push(new Uint8Array(fin));
+    return { blob:new Blob(partes, { type:'audio/mpeg' }), seg:buf.duration };
+  }
+  // Reduce el video a 540×960 (o 960×540) con buen sonido. Se reproduce en silencio por dentro mientras se graba la copia liviana.
+  function muComprimirVideo(A, prog){
+    const v = A.el, MR = window.MediaRecorder, cv = document.createElement('canvas');
+    if(!v || !MR || !cv.captureStream) return Promise.reject(new Error('sin reducir'));
+    const tipos = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    const mime = tipos.find(t=>{ try{ return MR.isTypeSupported(t); }catch(e){ return false; } });
+    if(!mime) return Promise.reject(new Error('sin reducir'));
+    const W = v.videoWidth || 540, H = v.videoHeight || 960, k = Math.min(1, 960 / Math.max(W, H));
+    cv.width = Math.round(W * k / 2) * 2; cv.height = Math.round(H * k / 2) * 2;
+    const g = cv.getContext('2d'), AC = window.AudioContext || window.webkitAudioContext;
+    let ac = null, pistas = cv.captureStream(30).getVideoTracks();
+    try{ ac = new AC(); const src = ac.createMediaElementSource(v), dst = ac.createMediaStreamDestination(); src.connect(dst); pistas = pistas.concat(dst.stream.getAudioTracks()); }catch(e){}
+    v.muted = false; v.currentTime = 0;
+    const pPlay = v.play();   // debe arrancar dentro del toque (iPhone)
+    if(ac && ac.resume) ac.resume();
+    return new Promise((ok, mal)=>{
+      const rec = new MR(new MediaStream(pistas), { mimeType:mime, videoBitsPerSecond:1200000, audioBitsPerSecond:64000 }), trozos = [];
+      let vivo = true;
+      rec.ondataavailable = e=>{ if(e.data && e.data.size) trozos.push(e.data); };
+      rec.onstop = ()=>{ vivo = false; try{ ac && ac.close(); }catch(e){} ok(new Blob(trozos, { type:mime.split(';')[0] })); };
+      rec.onerror = e=>{ vivo = false; mal(e.error || new Error('No se pudo reducir el video.')); };
+      const dibujar = ()=>{ if(!vivo) return; try{ g.drawImage(v, 0, 0, cv.width, cv.height); }catch(e){} prog(v.duration ? v.currentTime / v.duration : 0);
+        if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(dibujar); else requestAnimationFrame(dibujar); };
+      v.onended = ()=>{ setTimeout(()=>{ try{ rec.state !== 'inactive' && rec.stop(); }catch(e){} }, 250); };
+      Promise.resolve(pPlay).then(()=>{ rec.start(1000); dibujar(); }, e=>{ vivo = false; mal(e); });
+    });
+  }
+  // Sube un archivo a Drive en partes de 2 MB; si una parte falla, la repite (hasta 4 veces) desde donde Drive dice que quedó.
+  async function muSubirArchivo(blob, clase, ext, prog){
+    const r = await gsEspera(90000, 'iniciarSubidaPortal', { clase, mime:blob.type, tam:blob.size, ext }, auth());
+    let desde = 0, fallos = 0;
+    while(desde < blob.size){
+      const b64 = String(await blobABase64(blob.slice(desde, Math.min(desde + r.parte, blob.size)))).replace(/^[^,]*,/, '');
+      try{ const s = await gsEspera(180000, 'subirPartePortal', r.sid, desde, b64, auth()); desde = Number(s.hasta) || desde; fallos = 0; prog(desde / blob.size); if(s.listo) break; }
+      catch(e){ if(++fallos > 4) throw e; await new Promise(z=>setTimeout(z, 2500 * fallos)); }
+    }
+    return r.sid;
+  }
+  function muSoltarArchivo(M){ const A = M.arch; if(A){ try{ A.el && A.el.remove(); }catch(e){} try{ URL.revokeObjectURL(A.url); }catch(e){} } M.arch = null; }
+  // Toma el archivo elegido o grabado: duración y medidas para mostrarlo y decidir si hay que reducirlo.
+  function muPrepararArchivo(M, blob, clase, nombre, listo){
+    muSoltarArchivo(M);
+    const url = URL.createObjectURL(blob), el = document.createElement(clase === 'vid' ? 'video' : 'audio');
+    el.preload = 'metadata'; el.playsInline = true; el.setAttribute('playsinline', ''); el.src = url;
+    el.style.cssText = 'position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:.01;pointer-events:none;z-index:-1';
+    document.body.appendChild(el);
+    const A = M.arch = { clase, blob, url, el, nombre:String(nombre || ''), seg:0, w:0, h:0 };
+    let hecho = false;
+    const fin = ()=>{ if(hecho) return; hecho = true; A.seg = isFinite(el.duration) ? el.duration : 0; A.w = el.videoWidth || 0; A.h = el.videoHeight || 0; listo(); };
+    el.onloadedmetadata = ()=>{ if(el.duration === Infinity){ el.currentTime = 1e7; el.ontimeupdate = ()=>{ el.ontimeupdate = null; el.currentTime = 0; fin(); }; } else fin(); };
+    el.onerror = fin; setTimeout(fin, 6000);
+  }
+  function muArchivoHTML(M){
+    const A = M.arch, R = M.rec;
+    if(M.modo === 'voz'){
+      if(R) return `<div class="mu-rec"><span class="mu-rec-pt"></span><b id="mu-rec-t">${muFmtSeg(R.seg)}</b><span class="ag-muted" style="font-size:12px">Grabando… (hasta ${muFmtSeg(MU_VOZ_MAX)})</span></div>
+        <button type="button" class="ag-btn" data-mu-recstop style="width:100%;background:#a61b1b">⏹️ Detener</button>`;
+      if(A) return `<div class="mu-prev-a"><audio controls src="${esc(A.url)}" style="width:100%"></audio><div class="ag-muted" style="font-size:12px;margin-top:4px">🎙️ ${A.seg ? muFmtSeg(A.seg) + ' · ' : ''}${muFmtMB(A.blob.size)}</div></div>
+        <button type="button" class="ag-btn ghost sm" data-mu-otro style="margin-top:8px">🔁 Grabar o elegir otra</button>`;
+      return `<p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Graba un mensaje para el equipo (hasta 5 minutos). Les sale con un botón para escucharlo.</p>
+        <div class="mu-dos"><button type="button" class="ag-btn" data-mu-recvoz>⏺️ Grabar ahora</button>
+        <label class="ag-btn ghost" style="text-align:center;cursor:pointer">📎 Elegir un audio<input type="file" accept="${MU_ACC('audio')}" data-mu-file="voz" hidden/></label></div>`;
+    }
+    if(A) return `<div class="mu-prev-v"><video controls playsinline src="${esc(A.url)}" class="${A.w > A.h ? '' : 'vert'}"></video>
+        <div class="ag-muted" style="font-size:12px;margin-top:4px">🎥 ${A.seg ? muFmtSeg(A.seg) + ' · ' : ''}${muFmtMB(A.blob.size)}${A.blob.size > 15728640 ? ' · se reduce antes de subir' : ''}</div></div>
+        <button type="button" class="ag-btn ghost sm" data-mu-otro style="margin-top:8px">🔁 Cambiar el video</button>`;
+    return `<p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Graba en vertical, como un video de WhatsApp (hasta 3 minutos). Se ve dentro de la app.</p>
+      <div class="mu-dos"><label class="ag-btn" style="text-align:center;cursor:pointer">🎥 Grabar con la cámara<input type="file" accept="${MU_ACC('video')}" capture="environment" data-mu-file="vid" hidden/></label>
+      <label class="ag-btn ghost" style="text-align:center;cursor:pointer">🖼️ Elegir de la galería<input type="file" accept="${MU_ACC('video')}" data-mu-file="vid" hidden/></label></div>`;
+  }
+  function muArchivoWire(body, M, pintar){
+    body.querySelectorAll('[data-mu-file]').forEach(inp=>inp.onchange = ()=>{
+      const f = inp.files && inp.files[0]; if(!f) return;
+      const clase = inp.dataset.muFile;
+      if(clase === 'vid' && !/^video[/]/i.test(f.type || 'video/')){ alert('Ese archivo no es un video.'); return; }
+      if(clase === 'voz' && f.type && !/^audio[/]/i.test(f.type)){ alert('Ese archivo no es un audio.'); return; }
+      muPrepararArchivo(M, f, clase, f.name, ()=>{
+        const A = M.arch; if(!A) return;
+        const max = clase === 'vid' ? MU_VID_MAX : MU_VOZ_MAX;
+        if(A.seg > max + 2){ muSoltarArchivo(M); alert(clase === 'vid' ? '🎥 El video dura más de 3 minutos. Graba uno más corto.' : '🎙️ El audio dura más de 5 minutos. Graba uno más corto.'); }
+        pintar();
+      });
+    });
+    const otro = body.querySelector('[data-mu-otro]'); if(otro) otro.onclick = ()=>{ muSoltarArchivo(M); pintar(); };
+    const grabar = body.querySelector('[data-mu-recvoz]');
+    if(grabar) grabar.onclick = async ()=>{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){ alert('Este teléfono no deja grabar aquí. Usa «📎 Elegir un audio» (por ejemplo, una nota de voz guardada).'); return; }
+      let st;
+      try{ st = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } }); }
+      catch(e){ alert('🎙️ No se pudo usar el micrófono. Permite el micrófono para la app (o entra desde la app instalada) y vuelve a intentar. También puedes usar «📎 Elegir un audio».'); return; }
+      const tipos = ['audio/mp4;codecs=mp4a.40.2', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+      const mime = tipos.find(t=>{ try{ return MediaRecorder.isTypeSupported(t); }catch(e){ return false; } }) || '';
+      const rec = new MediaRecorder(st, mime ? { mimeType:mime, audioBitsPerSecond:64000 } : undefined), trozos = [], t0 = Date.now();
+      const R = M.rec = { rec, seg:0, timer:0 };
+      rec.ondataavailable = e=>{ if(e.data && e.data.size) trozos.push(e.data); };
+      rec.onstop = ()=>{
+        clearInterval(R.timer); st.getTracks().forEach(t=>t.stop()); M.rec = null;
+        const b = new Blob(trozos, { type:(rec.mimeType || mime || 'audio/webm').split(';')[0] });
+        if(b.size < 2000){ pintar(); return; }
+        muPrepararArchivo(M, b, 'voz', 'nota.' + (/mp4/.test(b.type) ? 'm4a' : /ogg/.test(b.type) ? 'ogg' : 'webm'), ()=>{ if(M.arch && !M.arch.seg) M.arch.seg = (Date.now() - t0) / 1000; pintar(); });
+      };
+      R.timer = setInterval(()=>{ R.seg = (Date.now() - t0) / 1000; const t = document.getElementById('mu-rec-t'); if(t) t.textContent = muFmtSeg(R.seg); if(R.seg >= MU_VOZ_MAX){ try{ rec.stop(); }catch(e){} } }, 500);
+      rec.start(1000); pintar();
+    };
+    const parar = body.querySelector('[data-mu-recstop]'); if(parar) parar.onclick = ()=>{ try{ M.rec && M.rec.rec.stop(); }catch(e){} };
+  }
+  // Publica la nota de voz o el video: lo deja listo (MP3 o video reducido), lo sube por partes y lo agrega al portal.
+  async function muPublicarArchivo(M, boton, datos){
+    const A = M.arch; if(!A) throw new Error(M.modo === 'voz' ? 'Primero graba o elige la nota de voz.' : 'Primero graba o elige el video.');
+    const txt = t=>{ boton.textContent = t; };
+    let blob = A.blob, ext = (String(A.nombre).match(/\.([a-z0-9]{2,4})$/i) || [])[1] || '';
+    let wake = null; try{ if(navigator.wakeLock) navigator.wakeLock.request('screen').then(w=>{ wake = w; }, ()=>{}); }catch(e){}
+    try{
+      if(A.clase === 'vid' && blob.size > 15728640){
+        txt('🎬 Preparando el video… 0 %');
+        try{ blob = await muComprimirVideo(A, p=>txt('🎬 Preparando el video… ' + Math.min(99, Math.round(p * 100)) + ' % (no cierres la app)')); ext = /webm/.test(blob.type) ? 'webm' : 'mp4'; }
+        catch(e){ if(A.blob.size > 62914560) throw new Error('El video pesa mucho y este teléfono no lo puede reducir. Graba uno más corto.'); blob = A.blob; }
+      }
+      if(A.clase === 'voz' && !/^audio\/(mpeg|mp3|aac|x-m4a|m4a)$/.test(blob.type) && !(blob.type === 'audio/mp4' && !/webm|ogg/.test(A.nombre))){
+        txt('🎙️ Preparando el audio…');
+        try{ const r = await muAMp3(blob); blob = r.blob; ext = 'mp3'; if(!A.seg) A.seg = r.seg; }catch(e){}
+      }
+      if(!blob.type) blob = new Blob([blob], { type:A.clase === 'vid' ? 'video/mp4' : 'audio/mpeg' });
+      if(!ext) ext = A.clase === 'vid' ? 'mp4' : 'mp3';
+      txt('📤 Subiendo… 0 %');
+      const sid = await muSubirArchivo(blob, A.clase, ext, p=>txt('📤 Subiendo… ' + Math.round(p * 100) + ' %'));
+      txt('📚 Publicando…');
+      return await gsEspera(90000, 'publicarArchivoPortal', sid, Object.assign({}, datos, { seg:A.seg, w:A.w, h:A.h }), auth());
+    } finally { try{ wake && wake.release(); }catch(e){} }
+  }
   function renderMuralAdmin(body){
     if(!state.mu) state.mu = { datos:null, ver:'activas', dias:7, abierto:'' };
-    const M = state.mu;
+    const M = state.mu; if(!M.modo) M.modo = 'enlace';
     if(!M.datos){
-      body.innerHTML = '<p class="ag-empty">Cargando el mural…</p>';
+      body.innerHTML = '<p class="ag-empty">Cargando el Portal académico…</p>';
       gs('getMuralAdmin', auth()).then(d=>{ M.datos = d; if(state.adminSub === 'mural' && document.body.contains(body)) renderMuralAdmin(body); })
         .catch(e=>{ body.innerHTML = '<p class="ag-err">No se pudo cargar: ' + esc(e && e.message ? e.message : e) + '</p>'; });
       return;
     }
+    muralCSS();
     const D = M.datos, act = D.lista.filter(x=>x.activo), venc = D.lista.filter(x=>!x.activo), ver = M.ver === 'vencidas' ? venc : act;
     const fecha = iso=>{ const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('es-VE', { day:'numeric', month:'short' }); };
     const venceTx = x=>{
@@ -10235,12 +10449,13 @@ setTimeout(function(){
       return `<div style="border-top:1px solid var(--line);padding:11px 0">
         <div style="display:flex;gap:10px;align-items:center">
           <button type="button" data-mu-prev="${esc(x.id)}" aria-label="Ver cómo se ve" style="width:46px;height:46px;border-radius:12px;border:0;background:${t[1]};color:${t[2]};font-size:20px;flex:0 0 auto;cursor:pointer;position:relative;overflow:hidden">${muralFoto(x) ? `<img src="${esc(muralFoto(x))}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"/>` : ''}<span style="position:relative">${t[0].split(' ')[0]}</span></button>
-          <div style="flex:1;min-width:0"><strong style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.titulo)}</strong>
+          <div style="flex:1;min-width:0"><strong style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.fijado ? '📌 ' : ''}${esc(x.titulo)}</strong>
             <div class="ag-muted" style="font-size:12px">${venceTx(x)} · <button type="button" data-mu-quien="${esc(x.id)}" style="background:none;border:0;padding:0;color:var(--teal-d);font-size:12px;cursor:pointer;text-decoration:underline">vista por ${x.vieron.length} de ${D.equipo}</button>${x.alEntrar ? '' : ' · no sale al entrar'}</div></div>
         </div>
         ${ab ? `<div style="background:#f4f8f8;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:12.5px">✅ <strong>La vieron:</strong> ${x.vieron.length ? esc(x.vieron.join(', ')) : 'nadie todavía'}<br/>⏳ <strong>Falta:</strong> ${x.faltan.length ? esc(x.faltan.join(', ')) : 'nadie 🎉'}</div>` : ''}
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:8px">
           <button type="button" class="ag-btn ghost sm" data-mu-prev="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">👀 Ver</button>
+          ${x.activo ? `<button type="button" class="ag-btn ${x.fijado ? '' : 'ghost'} sm" data-mu-fijar="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">${x.fijado ? '📌 Quitar' : '📌 Fijar'}</button>` : '<span></span>'}
           <button type="button" class="ag-btn ghost sm" data-mu-alargar="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">➕ Alargar</button>
           ${x.activo ? `<button type="button" class="ag-btn ghost sm" data-mu-cad="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px">⏹️ Caducar</button>` : `<span></span>`}
           <button type="button" class="ag-btn ghost sm" data-mu-del="${esc(x.id)}" style="min-width:0;padding:8px 2px;font-size:12px;color:#a61b1b;border-color:#f3c9c9">🗑️ Eliminar</button>
@@ -10249,25 +10464,26 @@ setTimeout(function(){
       </div>`;
     };
     body.innerHTML = `<div class="ag-card">
-        <h3 style="margin:0 0 4px">➕ Nueva publicación</h3>
-        <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Pega un enlace de YouTube, Instagram, TikTok o de un artículo. Se ve el video o la foto dentro de la app.</p>
+        <h3 style="margin:0 0 8px">➕ Nueva publicación</h3>
+        <div class="mu-modos">${chips('data-mu-modo', M.modo, [['enlace','🔗 Enlace'],['voz','🎙️ Voz'],['vid','🎥 Video']])}</div>
+        ${M.modo === 'enlace' ? `<p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Pega un enlace de YouTube, Instagram, TikTok o de un artículo. Se ve el video o la foto dentro de la app.</p>
         <input id="mu-url" type="url" inputmode="url" autocomplete="off" placeholder="Pega aquí el enlace" value="${esc(M.url || '')}"/>
-        <div id="mu-tipo" class="ag-muted" style="font-size:12.5px;margin-top:6px;min-height:18px"></div>
-        <label class="f">Título (si lo dejas vacío, se toma del enlace)</label><input id="mu-tit" maxlength="160" value="${esc(M.tit || '')}"/>
+        <div id="mu-tipo" class="ag-muted" style="font-size:12.5px;margin-top:6px;min-height:18px"></div>` : `<div id="mu-arch">${muArchivoHTML(M)}</div>`}
+        <label class="f">${M.modo === 'enlace' ? 'Título (si lo dejas vacío, se toma del enlace)' : 'Título (opcional)'}</label><input id="mu-tit" maxlength="160" value="${esc(M.tit || '')}"/>
         <label class="f">¿Cuánto tiempo se muestra?</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap">${chips('data-mu-dias', M.dias, [[3,'3 días'],[7,'7 días'],[15,'15 días'],[30,'30 días'],['otra','📅 Otra']])}</div>
         ${M.dias === 'otra' ? `<input id="mu-hasta" type="date" min="${esc(hoyISO())}" value="${esc(M.hasta || '')}" style="margin-top:8px"/>` : ''}
-        <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mu-entrar" style="width:auto" ${M.entrar === false ? '' : 'checked'}/> 📌 Que les salga al entrar a la app</label>
-        <button class="ag-btn" id="mu-pub" style="width:100%;margin-top:12px">📚 Publicar al equipo</button>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="mu-entrar" style="width:auto" ${M.entrar === false ? '' : 'checked'}/> 🔔 Que les salga al entrar a la app</label>
+        <button class="ag-btn" id="mu-pub" style="width:100%;margin-top:12px" ${M.rec ? 'disabled' : ''}>${M.modo === 'enlace' ? '📚 Publicar al equipo' : '📤 Subir y publicar'}</button>
       </div>
       <div class="ag-card" style="margin-top:12px">
-        <h3 style="margin:0 0 8px">📋 Publicaciones</h3>
+        <h3 style="margin:0 0 4px">📋 Publicaciones</h3><p class="ag-muted" style="font-size:12px;margin:0 0 8px">📌 Fija arriba hasta 3: son lo primero que ve el equipo. ${act.filter(x=>x.fijado).length} de 3 fijadas.</p>
         <div style="display:flex;gap:6px">${chips('data-mu-ver', M.ver, [['activas', '🟢 Activas (' + act.length + ')'], ['vencidas', '⏹️ Vencidas (' + venc.length + ')']])}</div>
         ${ver.length ? ver.map(item).join('') : `<p class="ag-empty" style="margin:12px 0 0">${M.ver === 'vencidas' ? 'No hay publicaciones vencidas.' : 'Todavía no hay publicaciones activas.'}</p>`}
         ${M.ver === 'vencidas' && venc.length ? '<p class="ag-muted" style="font-size:12px;margin:8px 0 0">Las vencidas ya no le salen al equipo. Con ➕ Alargar vuelven a estar activas.</p>' : ''}
       </div>`;
     const $ = s=>body.querySelector(s), buscar = id=>D.lista.find(x=>x.id === id);
-    const guardarForm = ()=>{ M.url = $('#mu-url').value; M.tit = $('#mu-tit').value; M.entrar = $('#mu-entrar').checked; const h = $('#mu-hasta'); if(h) M.hasta = h.value; };
+    const guardarForm = ()=>{ if($('#mu-url')) M.url = $('#mu-url').value; M.tit = $('#mu-tit').value; M.entrar = $('#mu-entrar').checked; const h = $('#mu-hasta'); if(h) M.hasta = h.value; };
     const tipoTx = ()=>{
       const u = $('#mu-url').value.trim(); let t = '';
       if(/youtu\.?be/i.test(u)) t = '▶ YouTube: se verá el video';
@@ -10277,13 +10493,25 @@ setTimeout(function(){
       else if(/^https?:[/][/]/i.test(u)) t = '📄 Artículo: tarjeta con título, imagen y resumen';
       $('#mu-tipo').textContent = t;
     };
-    $('#mu-url').oninput = tipoTx; tipoTx();
+    if($('#mu-url')){ $('#mu-url').oninput = tipoTx; tipoTx(); }
+    if(M.modo !== 'enlace') muArchivoWire(body, M, ()=>{ if(state.adminSub === 'mural' && document.body.contains(body)){ guardarForm(); renderMuralAdmin(body); } });
+    body.querySelectorAll('[data-mu-modo]').forEach(b=>b.onclick = ()=>{ if(M.rec){ alert('Primero detén la grabación.'); return; } guardarForm(); if(M.modo !== b.dataset.muModo) muSoltarArchivo(M); M.modo = b.dataset.muModo; renderMuralAdmin(body); });
     const recargar = d=>{ M.datos = d; renderMuralAdmin(body); };
     const fallo = (b, e)=>{ if(b) b.disabled = false; alert('No se pudo: ' + (e && e.message ? e.message : e)); };
     body.querySelectorAll('[data-mu-dias]').forEach(b=>b.onclick = ()=>{ guardarForm(); M.dias = b.dataset.muDias === 'otra' ? 'otra' : Number(b.dataset.muDias); renderMuralAdmin(body); });
     body.querySelectorAll('[data-mu-ver]').forEach(b=>b.onclick = ()=>{ guardarForm(); M.ver = b.dataset.muVer; M.alargar = ''; renderMuralAdmin(body); });
     $('#mu-pub').onclick = async ()=>{
       guardarForm();
+      if(M.modo !== 'enlace'){
+        if(M.dias === 'otra' && !M.hasta){ alert('Elige hasta qué fecha se muestra.'); return; }
+        const b = $('#mu-pub'); b.disabled = true;
+        body.querySelectorAll('[data-mu-modo],[data-mu-otro]').forEach(x=>{ x.disabled = true; });
+        try{
+          const d = await muPublicarArchivo(M, b, { titulo:M.tit, dias:M.dias === 'otra' ? 0 : M.dias, hasta:M.dias === 'otra' ? M.hasta : '', alEntrar:M.entrar !== false });
+          muSoltarArchivo(M); M.tit = ''; M.hasta = ''; M.ver = 'activas'; toast(M.modo === 'voz' ? '🎙️ Nota de voz publicada.' : '🎥 Video publicado. Google puede tardar unos minutos en dejarlo listo para verlo.'); recargar(d);
+        }catch(e){ b.textContent = '📤 Subir y publicar'; body.querySelectorAll('[data-mu-modo],[data-mu-otro]').forEach(x=>{ x.disabled = false; }); fallo(b, e); }
+        return;
+      }
       const url = M.url.trim();
       if(!/^https?:[/][/]\S+$/i.test(url)){ alert('Pega el enlace completo, tal como lo copias del navegador o de la red social.'); return; }
       if(M.dias === 'otra' && !M.hasta){ alert('Elige hasta qué fecha se muestra.'); return; }
@@ -10300,13 +10528,18 @@ setTimeout(function(){
       guardarForm(); b.disabled = true;
       try{ const d = await gs('setMural', M.alargar, 'alargar', Number(b.dataset.muAlx), auth()); M.alargar = ''; toast('➕ Alargada ' + b.dataset.muAlx + ' días.'); recargar(d); }catch(e){ fallo(b, e); }
     });
+    body.querySelectorAll('[data-mu-fijar]').forEach(b=>b.onclick = async ()=>{
+      const x = buscar(b.dataset.muFijar); if(!x) return;
+      guardarForm(); b.disabled = true;
+      try{ const d = await gs('setMural', x.id, 'fijar', !x.fijado, auth()); toast(x.fijado ? '📌 Ya no está fijada.' : '📌 Fijada arriba: es lo primero que ve el equipo.'); recargar(d); }catch(e){ fallo(b, e); }
+    });
     body.querySelectorAll('[data-mu-cad]').forEach(b=>b.onclick = async ()=>{
       const x = buscar(b.dataset.muCad); if(!x || !confirm('⏹️ Caducar «' + x.titulo + '»\n\nDeja de salirle al equipo desde ya. Queda en «Vencidas» y con ➕ Alargar se puede volver a activar.')) return;
       guardarForm(); b.disabled = true;
       try{ const d = await gs('setMural', x.id, 'caducar', '', auth()); toast('⏹️ Caducada.'); recargar(d); }catch(e){ fallo(b, e); }
     });
     body.querySelectorAll('[data-mu-del]').forEach(b=>b.onclick = async ()=>{
-      const x = buscar(b.dataset.muDel); if(!x || !confirm('🗑️ Eliminar «' + x.titulo + '»\n\nSe quita del mural. Queda 10 días en Admin → Papelera por si hace falta recuperarla.')) return;
+      const x = buscar(b.dataset.muDel); if(!x || !confirm('🗑️ Eliminar «' + x.titulo + '»\n\nSe quita del Portal académico. Queda 10 días en Admin → Papelera por si hace falta recuperarla.')) return;
       guardarForm(); b.disabled = true;
       try{ const d = await gs('deleteMural', x.id, auth()); toast('🗑️ Eliminada (está en la Papelera).'); recargar(d); }catch(e){ fallo(b, e); }
     });
@@ -16914,7 +17147,7 @@ setTimeout(function(){
     if(!state.user.admin){ body.innerHTML = '<p class="ag-empty">Solo los administradores pueden ver esta sección.</p>'; return; }
     const sub = state.adminSub || '';   // 🗂️ v362: sin sección = inicio de Admin (tarjetas de grupos + Staff debajo, como antes)
     // Las secciones de Admin van agrupadas (4 grupos y, debajo, las del grupo elegido): antes eran 14 botones en filas desiguales.
-    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', mural:'📚 Mural educativo', multimedia:'🎬 Fotos, videos y música', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
+    const ADM_NOMBRES = { inv_rosita:'🍽️ Rosita', inv_personal:'🤲 Stock del personal',inv_spa:'💆 Servicios de spa', inv_oper:'🛠️ Operaciones y logística', presupuestos:'🧾 Presupuestos', informe:'📈 Informe', paquetes:'📦 Paquetes', fidel:'💧 Temporada y fidelización', solicitudes:'📅 Confirmar cita', cobrar:'💰 Por cobrar', pagos:'💳 Formas de pago', tarifas:'💲 Tarifas', gastos:'💸 Egresos', balance:'📊 Balance', fondo:'🏦 Fondo de reserva', ingresos:'💵 Ingresos', pagosper:'👥 Pagos al personal', compras:'🛒 Compras', staff:'👥 Staff', avisos:'🔔 Avisos', historial:'📜 Historial', frases:'💬 Frases', accesos:'🔐 Accesos', reportes:'⭐ Reportes', tiempos:'⏱️ Tiempos de terapia', propinas:'💝 Propinas', mural:'🎓 Portal académico', multimedia:'🎬 Fotos, videos y música', choques:'⚖️ Choques de datos', papelera:'🗑️ Papelera', limpieza:'🧹 Limpieza', importar:'📥 Importar', exportar:'📤 Exportar', rendimiento:'⚡ Rendimiento' };
     const ADM_GRUPOS = [ ['ventas','🛍️','Ventas',['presupuestos','informe','paquetes','fidel','multimedia','solicitudes','cobrar','pagos','tarifas']], ['dinero','💰','Finanzas',['balance','fondo','ingresos','gastos','pagosper']], ['inventario','📦','Inventario',['inv_rosita','inv_personal','inv_spa','inv_oper','compras']], ['equipo','👥','Equipo',['staff','mural','tiempos','propinas','avisos','historial','frases','accesos','reportes']], ['sistema','⚙️','Sistema',['choques','papelera','limpieza','rendimiento','importar','exportar']] ];
     const grupoActual = ADM_GRUPOS.find(g=>g[3].includes(sub)) || null;
     const hayPagos = (state.pagosPend||[]).length;
@@ -16928,7 +17161,7 @@ setTimeout(function(){
     const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', multimedia:'Para los catálogos', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
       balance:'Resumen del mes', fondo:'Ahorro', ingresos:'Entra dinero', gastos:'Sale dinero', pagosper:'Quincenas y honorarios',
       inv_rosita:'Cocina y bar', inv_personal:'Lo del personal', inv_spa:'Insumos de terapia', inv_oper:'Equipos y ferretería', compras:'Lista de compras',
-      staff:'Personas y accesos', mural:'Videos y estudios', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
+      staff:'Personas y accesos', mural:'Videos, voz y estudios', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
       choques:'Cambios sin señal', papelera:'Recuperar borrados', limpieza:'Hoja liviana', rendimiento:'Velocidad de la app', importar:'Subir datos', exportar:'Descargar copia' };
     const partes = k=>{ const s = ADM_NOMBRES[k] || k, i = s.indexOf(' '); return [s.slice(0, i), s.slice(i + 1)]; };
     const grpVer = !sub && state.adminGrp ? ADM_GRUPOS.find(g=>g[0] === state.adminGrp) : null;
