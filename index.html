@@ -194,6 +194,12 @@
   #ag-app input,#ag-app select,#ag-app textarea,#ag-fullscreen input:not([type=checkbox]):not([type=radio]),#ag-fullscreen select,#ag-fullscreen textarea{border-radius:12px;border:1px solid #dbe3e5;background:#fbfdfd;transition:border-color .15s,box-shadow .15s,background .15s}
   #ag-app input:focus,#ag-app select:focus,#ag-app textarea:focus,#ag-fullscreen input:focus,#ag-fullscreen select:focus,#ag-fullscreen textarea:focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(14,159,184,.15)}
   #ag-app input[type=checkbox],#ag-app input[type=radio],#ag-fullscreen input[type=checkbox],#ag-fullscreen input[type=radio]{accent-color:var(--teal)}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  :where(body > :not(#ag-app)) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),select,textarea){padding:10px 12px;border:1px solid #dbe3e5;border-radius:12px;font-size:15px;background:#fbfdfd;color:var(--ink);font-family:inherit;box-sizing:border-box;max-width:100%}
+  :where(body > :not(#ag-app)) :where(input,select,textarea):focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(14,159,184,.15)}
+  :where(body > :not(#ag-app)) :where(button,input,select,textarea){font-family:inherit}
+  :where(body > :not(#ag-app)) :where(input[type=checkbox],input[type=radio]){accent-color:var(--teal)}
+  .ag-fuera-estilo{}
   .ag-list-item{border:1px solid rgba(228,233,234,.95);border-radius:14px;box-shadow:0 1px 2px rgba(16,40,46,.04);transition:box-shadow .18s,transform .12s}
   .ag-list-item[style*="cursor:pointer"]:hover,.ag-list-item[data-id]:hover{box-shadow:var(--sombra-hover)}
   .ag-sec-h{background:transparent;color:var(--teal-d);padding:4px 2px;font-size:13.5px;font-weight:700;letter-spacing:.01em;border-radius:0;border-bottom:2px solid var(--teal-l)}
@@ -1309,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v376' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v377' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2718,7 +2724,7 @@ setTimeout(function(){
     if(o.sub) state.adminSub = o.sub;
     if(o.ag){ if(!state.ag) state.ag = { vista:'lista', filtro:'proximas', editId:null }; state.ag.vista = o.ag; state.ag.editId = null; }
     if(o.ro){ if(!state.rosita) state.rosita = { vista:'lista', filtro: esCocina() ? 'cocina' : 'abiertas', editId:null }; state.rosita.vista = o.ro; state.rosita.editId = null; if(o.ro==='enlace') state.rosita.enlace = null; }
-    if(o.pr){ if(!state.pr) state.pr = { vista:'lista', editId:null }; state.pr.vista = o.pr; state.pr.editId = null; state.pr.cat = null; state.pr.catPresu = null; state.pr.items = null; }
+    if(o.pr){ if(!state.pr) state.pr = { vista:'lista', editId:null }; state.pr.vista = o.pr; state.pr.editId = null; state.pr.cat = null; state.pr.catPresu = null; state.pr.items = null; state.pr.pub = null; }
     if(o.cm) state.cmAbierto = true;
     render(); try{ window.scrollTo(0, 0); }catch(e){}
   }
@@ -2743,6 +2749,7 @@ setTimeout(function(){
     add('🕒', 'Disponibilidad', 'Tu disponibilidad semanal / la del equipo', 'disponibilidad disponible horarios semana equipo', ()=>irA({ tab:'disp' }), !!(elegibleDisp() || admin));
     add('💲', 'Tarifas', 'Admin → precios, eventos y alquiler', 'tarifas precios tarifa tabulador eventos alquiler gasolina planta lenceria costos servicios margen', ()=>irA({ tab:'adminpanel', sub:'tarifas' }), admin);
     add('🧾', 'Presupuestos', 'Admin → presupuestos', 'presupuestos presupuesto cotizacion eventos regalo propuesta', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'lista' }), admin);
+    add('🌐', 'Enlace público de reservas', 'Admin → presupuestos → enlace público', 'enlace publico universal instagram web qr reservar estados whatsapp dudas', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'publico' }), admin);
     add('🛍️', 'Enviar catálogo al cliente', 'Admin → presupuestos → catálogo por enlace', 'catalogo enlace cliente elegir servicios link enviar whatsapp', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'catalogo' }), admin);
     add('💰', 'Por cobrar', 'Admin → saldos pendientes', 'cobrar cobranza saldos deudas pendientes pagos abonos', ()=>irA({ tab:'adminpanel', sub:'cobrar' }), admin);
     add('💸', 'Gastos del personal operativo', 'Admin → gastos, facturas con foto y pago mensual del personal', 'gastos gasto factura facturas comida uniformes herramientas nomina pago personal sueldo salarios presupuesto mes iva ocr', ()=>irA({ tab:'adminpanel', sub:'gastos' }), admin);
@@ -9979,7 +9986,13 @@ setTimeout(function(){
       '📌 Se pueden <strong>fijar arriba hasta 3 publicaciones</strong>: son lo primero que ve el equipo.' ] },
     { v:376, fecha:'7 nov', titulo:'🎉 Premio por grupo', puntos:[
       '🎉 En Admin → Ventas → 💧 Temporada y fidelización hay una casilla nueva: <strong>Premio por grupo</strong>. Eliges desde cuántas personas (por ejemplo 3) y qué regalo (por ejemplo «1 persona adicional gratis»).',
-      '👥 Al armar una reserva con esa cantidad de personas o más, la app muestra el aviso del premio para que se lo recuerdes al cliente.' ] }
+      '👥 Al armar una reserva con esa cantidad de personas o más, la app muestra el aviso del premio para que se lo recuerdes al cliente.' ] },
+    { v:377, fecha:'8 nov', titulo:'🌐 Enlace público de reservas', puntos:[
+      '🌐 En Admin → Presupuestos → <strong>🌐 Enlace público</strong> tienes <strong>un solo enlace fijo</strong> y su <strong>código QR</strong> para tu página web, Instagram y los estados de WhatsApp.',
+      '🌿 Quien lo abre ve «¡Bienvenido a Aguamiel!», escribe su nombre, teléfono y cédula, y desde ahí la app lo llama por su nombre en el catálogo de siempre.',
+      '🔔 Te avisa si <strong>ya es cliente</strong> o si es <strong>nuevo</strong>, y si prefiere que lo contacten por WhatsApp o por llamada. Nunca muestra datos de nadie.',
+      '💬 Pon el WhatsApp de la administración en esa misma pantalla y saldrá el botón <strong>«¿Dudas?»</strong> en todos los catálogos.',
+      '🪟 Las ventanas emergentes usan la misma letra y casillas que el resto de la app.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -12821,12 +12834,13 @@ setTimeout(function(){
     if(P.vista==='form') return renderPresupuestoForm(body);
     if(P.vista==='ver') return renderPresupuestoVer(body);
     if(P.vista==='catalogo') return renderCatalogoEnlace(body);
+    if(P.vista==='publico') return renderEnlacePublico(body);
     const lista = state.presupuestos.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
     const colorP = e=> e==='Aceptado' ? 'background:#e2f4e6;color:#1d6b35' : e==='Rechazado' ? 'background:#eee;color:#777' : e==='Enviado' ? 'background:var(--teal-l);color:var(--teal-d)' : e==='Contestó' ? 'background:#efeaff;color:#5b3f8f' : 'background:var(--amber-l);color:var(--amber-d)';
     body.innerHTML = `
       ${(()=>{ const PC = { g:['#1d6b35','#e2f4e6'], t:['#0a5a68','#e2f4f6'], a:['#8a5a00','#fff3d6'], p:['#5b3f8f','#efe9f8'] };   // 🗂️ v363
         return mnHero('🧾 Presupuestos', 'Terapias, comidas y paquetes', [[lista.filter(p=>!/Aceptado|Rechazado/.test(p.estado||'')).length, 'abiertos', PC.t], [lista.filter(p=>(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado).length, 'pagos por ver', PC.a], [lista.filter(p=>p.estado==='Aceptado').length, 'aceptados', PC.g]])
-          + mnGrid([{ at:'id="pr-nuevo"', e:'➕', t:'Nuevo presupuesto', sb:'Armarlo yo', c:PC.g }, { at:'id="pr-catalogo"', e:'🛍️', t:'Enviar catálogo', sb:'Que elija el cliente', c:PC.t }]); })()}
+          + mnGrid([{ at:'id="pr-nuevo"', e:'➕', t:'Nuevo presupuesto', sb:'Armarlo yo', c:PC.g }, { at:'id="pr-catalogo"', e:'🛍️', t:'Enviar catálogo', sb:'Que elija el cliente', c:PC.t }, { at:'id="pr-publico"', e:'🌐', t:'Enlace público', sb:'Web, Instagram y QR', c:PC.p }]); })()}
       ${(()=>{ const pend = lista.filter(p=>(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado); return pend.length ? `<div class="ag-card" style="background:#fff7e6;border-color:#f0d9a8"><div style="font-weight:700;font-size:14.5px">💳 ${pend.length} pago${pend.length>1?'s':''} por verificar</div>${pend.map(p=>`<div class="ag-list-item" data-pr-ver="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px"><div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${p.pagoReportadoPct ? 'Dice que pagó el ' + p.pagoReportadoPct + '% (' + dinero(p.pagoReportadoMonto) + ')' : 'Adjuntó un comprobante'}${p.comprobante ? ' · 📎 con capture' : ' · sin capture'}</div></div><span class="ag-badge" style="background:#fff0cc;color:#8a5a00">Verificar</span></div>`).join('')}</div>` : ''; })()}
       ${lista.map(p=>`<div class="ag-list-item" data-pr-ver="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px">
         <div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${esc(isoToDMY(p.fecha))} · ${p.items.length} concepto${p.items.length!==1?'s':''}${p.beneficiario?' · 🎁 para '+esc(p.beneficiario.nombre.split(' ')[0]):''}${(p.items||[]).some(it=>it.clave)?' · 📲 lo armó el cliente':''}${(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado ? ' · <strong style="color:#8a5a00">💳 pago reportado: verificar</strong>' : ''}</div></div>
@@ -12834,6 +12848,7 @@ setTimeout(function(){
       </div>`).join('') || '<p class="ag-empty">Aún no hay presupuestos.</p>'}`;
     body.querySelector('#pr-nuevo').onclick = ()=>{ P.vista='form'; P.editId=null; render(); };
     body.querySelector('#pr-catalogo').onclick = ()=>{ P.vista='catalogo'; P.cat = null; P.catPresu = null; render(); };
+    body.querySelector('#pr-publico').onclick = ()=>{ P.vista='publico'; P.pub = null; render(); };
     body.querySelectorAll('[data-pr-ver]').forEach(el=>el.onclick=()=>{ P.vista='ver'; P.editId=el.dataset.prVer; render(); });
   }
 
@@ -12915,6 +12930,71 @@ setTimeout(function(){
       state.mmAudio.play().then(()=>{ b.textContent = '⏸️'; }).catch(()=>alert('No se pudo reproducir en este equipo.'));
     };
   }
+  // 🌐 v377: Enlace público de reservas. Uno solo y fijo para la web, Instagram y los estados de WhatsApp (con su QR).
+  // Quien entra escribe nombre, teléfono y cédula y sigue los pasos del catálogo; aquí se elige qué ofrece, se apaga y se pone el WhatsApp de dudas.
+  function renderEnlacePublico(body){
+    const P = state.pr, L = P.pub;
+    const volver = ()=>{ P.vista = 'lista'; P.pub = null; render(); };
+    if(!L){
+      body.innerHTML = `${mnVolver('id="ep-volver"', 'Presupuestos')}<p class="ag-empty">Cargando…</p>`;
+      body.querySelector('#ep-volver').onclick = volver;
+      gs('getEnlacePublico', auth()).then(r=>{ P.pub = r; if(state.tab==='adminpanel' && P.vista==='publico') render(); }).catch(e=>{ body.innerHTML = `${mnVolver('id="ep-volver"', 'Presupuestos')}<p class="ag-empty">No se pudo cargar: ${esc(e && e.message ? e.message : e)}</p>`; body.querySelector('#ep-volver').onclick = volver; });
+      return;
+    }
+    const qr = 'https:' + String.fromCharCode(47, 47) + 'api.qrserver.com/v1/create-qr-code/?size=700x700&margin=16&color=0a5a68&data=' + encodeURIComponent(L.url);
+    const R = L.resumen || { servicios:0, paquetes:0, menu:0 };
+    const telVer = String(L.waDudas || '').replace(/^58/, '0');
+    body.innerHTML = `${mnVolver('id="ep-volver"', 'Presupuestos')}${mnHero('🌐 Enlace público', 'Para tu página web, Instagram y estados de WhatsApp', [[L.hoy, 'entraron hoy', ['#0a5a68','#e2f4f6']], [L.enviados, 'armaron pedido', ['#1d6b35','#e2f4e6']]])}
+      ${!L.guardado ? `<div class="ag-card" style="background:#fff7e6;border-color:#f0d9a8;font-size:14px">👉 <strong>Primer paso:</strong> toca «✏️ Elegir qué ofrece» y guarda. Hasta entonces, quien abra el enlace verá que no está disponible.</div>` : ''}
+      <div class="ag-card" style="margin-top:10px">
+        <div style="font-weight:700;font-size:15px">🔗 Tu enlace (no vence nunca)</div>
+        <div style="word-break:break-all;background:var(--teal-l);color:var(--teal-d);padding:9px 10px;border-radius:10px;font-size:13.5px;margin-top:6px;font-weight:600">${esc(L.url)}</div>
+        <div class="ag-row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="ag-btn sm" id="ep-copiar">📋 Copiar</button><button type="button" class="ag-btn sm ghost" id="ep-compartir">📤 Compartir</button><button type="button" class="ag-btn sm ghost" id="ep-probar">👁️ Probarlo</button></div>
+        <label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14.5px;font-weight:700"><input type="checkbox" id="ep-activo" style="width:auto" ${L.activo ? 'checked' : ''} ${L.guardado ? '' : 'disabled'}/> ${L.activo ? '🟢 Encendido: recibe solicitudes' : '⚪ Apagado: muestra «escríbenos por WhatsApp»'}</label>
+      </div>
+      <div class="ag-card" style="margin-top:10px;text-align:center">
+        <div style="font-weight:700;font-size:15px;text-align:left">🔳 Código QR</div>
+        <div class="ag-muted" style="font-size:12.5px;text-align:left">Para imprimir en la recepción, en afiches o en tus historias.</div>
+        <img src="${esc(qr)}" alt="Código QR del enlace público" style="width:220px;height:220px;margin:10px auto 6px;display:block;border-radius:12px;background:#fff"/>
+        <button type="button" class="ag-btn sm ghost" id="ep-qr">⬇️ Abrir el QR en grande para guardarlo</button>
+      </div>
+      <div class="ag-card" style="margin-top:10px">
+        <div style="font-weight:700;font-size:15px">🛍️ Qué ofrece</div>
+        <div style="font-size:14px;margin-top:4px">${L.guardado ? `${R.servicios} servicio${R.servicios===1?'':'s'} · ${R.paquetes} paquete${R.paquetes===1?'':'s'} · ${R.menu} plato${R.menu===1?'':'s'} de Rosita` : 'Todavía no lo has elegido.'}</div>
+        ${L.actualizado ? `<div class="ag-muted" style="font-size:12px">Cambiado el ${esc(isoToDMY(String(L.actualizado).slice(0,10)))}. Los precios se actualizan solos; si agregas un servicio o un plato nuevo, entra aquí y guarda otra vez.</div>` : ''}
+        <button type="button" class="ag-btn" id="ep-editar" style="width:100%;margin-top:8px">✏️ Elegir qué ofrece</button>
+      </div>
+      <div class="ag-card" style="margin-top:10px">
+        <div style="font-weight:700;font-size:15px">💬 WhatsApp para dudas</div>
+        <div class="ag-muted" style="font-size:12.5px">Sale como botón «💬 ¿Dudas?» en <strong>todos</strong> los catálogos (este y los que envías a cada cliente). Si lo dejas vacío, no sale.</div>
+        <div class="ag-row" style="gap:6px;margin-top:6px"><input id="ep-wa" inputmode="tel" placeholder="Ej: 0414-1234567" value="${esc(telVer)}" style="flex:1"/><button type="button" class="ag-btn sm" id="ep-wa-ok">💾 Guardar</button></div>
+      </div>
+      <details class="ag-card" style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">ℹ️ Cómo funciona</summary>
+        <ol style="margin:6px 0 0;padding-left:20px;font-size:13.5px">
+          <li>La persona abre el enlace: «🌿 ¡Bienvenido a Aguamiel!» y escribe su nombre, teléfono y cédula, y si prefiere WhatsApp o llamada.</li>
+          <li>Desde ahí la app la llama por su nombre y sigue el catálogo de siempre: elige, indica el día y envía.</li>
+          <li>Te llega el aviso: «✅ Ya es cliente: …» o «🆕 Cliente nuevo». Su presupuesto aparece aquí, en Presupuestos, con la cédula.</li>
+          <li>La ficha nueva se crea al convertir el presupuesto en reserva, con el mismo chequeo de cédula de siempre (sin duplicados).</li>
+          <li>🔒 El enlace nunca muestra datos de nadie, ni gotas ni sellos. Un mismo teléfono puede enviar hasta 3 solicitudes al día.</li>
+        </ol></details>`;
+    const q = s=>body.querySelector(s);
+    q('#ep-volver').onclick = volver;
+    q('#ep-copiar').onclick = ()=>{ try{ navigator.clipboard.writeText(L.url).then(()=>toast('📋 Enlace copiado'), ()=>prompt('Copia el enlace:', L.url)); }catch(e){ prompt('Copia el enlace:', L.url); } };
+    q('#ep-compartir').onclick = ()=>{ const t = '🌿 ¡Reserva tu experiencia en Aguamiel · Centro de Bienestar! 💆‍♀️🍽️'; if(navigator.share) navigator.share({ title:'Aguamiel', text:t, url:L.url }).catch(()=>{}); else window.open('https:' + String.fromCharCode(47, 47) + 'wa.me/?text=' + encodeURIComponent(t + '\n' + L.url), '_blank', 'noopener'); };
+    q('#ep-probar').onclick = ()=>window.open(L.url, '_blank', 'noopener');
+    q('#ep-qr').onclick = ()=>window.open(qr.replace('size=700x700', 'size=1200x1200'), '_blank', 'noopener');
+    q('#ep-activo').onchange = async e=>{ const on = e.target.checked; e.target.disabled = true;
+      try{ P.pub = await gs('setEnlacePublicoActivo', on, auth()); render(); toast(on ? '🟢 Enlace público encendido' : '⚪ Enlace público apagado'); }
+      catch(er){ e.target.checked = !on; e.target.disabled = false; alert('No se pudo cambiar: ' + (er && er.message ? er.message : er)); } };
+    q('#ep-wa-ok').onclick = async ()=>{ const b = q('#ep-wa-ok'); b.disabled = true;
+      try{ P.pub = await gs('setWaDudas', q('#ep-wa').value, auth()); render(); toast(P.pub.waDudas ? '💬 Listo: el botón «¿Dudas?» ya sale en los catálogos' : 'Quitado el botón «¿Dudas?»'); }
+      catch(er){ b.disabled = false; alert('No se pudo guardar: ' + (er && er.message ? er.message : er)); } };
+    q('#ep-editar').onclick = ()=>{
+      P.cat = Object.assign({ clienteId:'', nombre:'', telefono:'', dias:7, mensaje:L.mensaje || '', sinCat:{}, sinPaq:{}, sinMenu:{}, sinSrv:{}, sinPlato:{}, conServ:true, conPaq:true, conMenu:true, resultado:null }, L.editor || {}, { publico:true, grupo:false, grupal:false, resultado:null });
+      P.catPresu = null; P.vista = 'catalogo'; render(); window.scrollTo(0, 0);
+    };
+  }
+
   function renderCatalogoEnlace(body){
     const P = state.pr;
     const base = P.catPresu ? state.presupuestos.find(x=>x.id===P.catPresu) : null;
@@ -12924,7 +13004,7 @@ setTimeout(function(){
     const aplicarTg = t=>{ E.gTramos = t.tramos; E.gHidro = t.hidro ? Object.assign({}, t.hidro, /^\s*hidroterapia\s*$/i.test(String(t.hidro.nombre || '')) ? { nombre:'Hidromasajes de piscina' } : {}) : t.hidro; E.gPisc = t.piscina; E.gInst = t.inst; };
     if(state.tg && !E.gTramos) aplicarTg(state.tg);
     if(state.tg === undefined){ state.tg = false; gs('getTarifasGrupo', auth()).then(t=>{ state.tg = t || false; if(t && P.cat === E && !E.gTramos){ aplicarTg(t); render(); } }).catch(()=>{}); }
-    const volver = ()=>{ P.cat = null; P.vista = base ? 'ver' : 'lista'; if(base) P.editId = base.id; P.catPresu = null; render(); };
+    const volver = ()=>{ if(E.publico){ P.cat = null; P.pub = null; P.vista = 'publico'; render(); return; } P.cat = null; P.vista = base ? 'ver' : 'lista'; if(base) P.editId = base.id; P.catPresu = null; render(); };
     const arbol = arbolTarifas().map(c=>({ c, items: [].concat(...c.servicios.map(sv=>sv.variantes.filter(v=>v.precio!=='' && Number(v.precio)>0).map(v=>({ categoria:c.nombre, catMostrar:c.mostrar, servicio:sv.nombre, mostrar:sv.mostrar, variante:v.variante, varianteNombre:v.nombre||'', tipoFicha:c.tipo||'', precio:Number(v.precio) })))) })).filter(g=>g.items.length);
     const paqs = ((state.agenda&&state.agenda.paquetes)||[]).filter(p=>p.activo && Number(p.precio)>0);
     const menu = (state.menu||[]).filter(m=>m.activo!==false && Number(m.precio)>0).sort((a,b)=>(Number(a.orden)||0)-(Number(b.orden)||0));
@@ -12955,28 +13035,31 @@ setTimeout(function(){
           <div style="display:flex;gap:6px;margin:4px 0 6px"><button type="button" class="ag-btn sm ghost" data-ce-todos="${esc(gid)}" style="padding:2px 9px;font-size:12px">Todos</button><button type="button" class="ag-btn sm ghost" data-ce-ninguno="${esc(gid)}" style="padding:2px 9px;font-size:12px">Ninguno</button></div>
         </details></div>`; };
     const chk = (attr, key, on, txt, extra)=>`<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;padding:3px 0 3px 22px"><input type="checkbox" ${attr}="${esc(key)}" style="width:auto" ${on?'checked':''}/> <span>${txt}${extra?' <span class="ag-muted" style="font-size:12px">'+extra+'</span>':''}</span></label>`;
-    body.innerHTML = `${mnVolver('id="ce-volver"', 'Presupuestos')}${mnHero('🛍️ Catálogo para el cliente', 'Él elige servicios, paquetes y menú, y te lo envía')}
-      <details class="ag-card" id="ce-env" style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">🔗 Enlaces ya enviados (ver, reenviar, editar o borrar)</summary><div id="ce-env-cont" style="margin-top:8px"></div></details>
+    body.innerHTML = `${mnVolver('id="ce-volver"', 'Presupuestos')}${E.publico ? mnHero('🌐 Qué ofrece el enlace público', 'Lo que marques aquí lo ve quien entre por tu enlace') : mnHero('🛍️ Catálogo para el cliente', 'Él elige servicios, paquetes y menú, y te lo envía')}
+      <details class="ag-card" id="ce-env" ${E.publico ? 'hidden' : ''} style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">🔗 Enlaces ya enviados (ver, reenviar, editar o borrar)</summary><div id="ce-env-cont" style="margin-top:8px"></div></details>
       <div class="ag-card" style="margin-top:10px">
         <p class="ag-muted" style="font-size:12.5px">El cliente abre el enlace, ve los servicios de bienestar, los paquetes y el menú del Rincón de Rosita con sus precios, elige (para él o como regalo), indica qué día le gustaría y lo envía. Con eso queda su presupuesto.</p>
         <div id="ce-plantillas" style="border:1px dashed var(--line);border-radius:10px;padding:8px;margin:6px 0"></div>
+        ${E.publico ? '<div class="ag-warn" style="background:var(--teal-l);color:var(--teal-d)">🌐 Cada persona escribe su nombre, teléfono y cédula al entrar. Aquí solo eliges qué se le ofrece.</div><div hidden>' : ''}
         ${base ? `<div class="ag-warn" style="background:var(--teal-l);color:var(--teal-d)">📎 Lo que elija se <strong>suma al presupuesto ${esc(base.numero)}</strong> de ${esc(base.clienteNombre)} (lo que ya pusiste se conserva).</div>` : `
         <label class="f">Buscar cliente</label><input id="ce-buscar" placeholder="Nombre o cédula…"/>
         <select id="ce-cliente" style="margin-top:6px"><option value="">— Cliente no registrado —</option>${state.clientes.slice().sort((a,b)=>String(a.nombre||'').localeCompare(String(b.nombre||''))).map(x=>`<option value="${esc(x.id)}" ${E.clienteId===x.id?'selected':''}>${esc(x.nombre)}${x.cedula?' ('+esc(x.cedula)+')':''}</option>`).join('')}</select>
         <div id="ce-otro" style="${E.clienteId?'display:none':''}"><label class="f">Nombre</label><input id="ce-nombre" value="${esc(E.clienteId?'':E.nombre)}"/>
           <label class="f">WhatsApp</label><input id="ce-tel" inputmode="tel" value="${esc(E.clienteId?'':E.telefono)}" placeholder="0414-1234567 o +1 305 555 0100"/></div>`}
+        ${E.publico ? '</div>' : ''}
         <label class="f">Mensaje para el cliente (opcional, sale arriba del catálogo)</label><textarea id="ce-msj" rows="2" placeholder="Ej: ¡Este mes, 10% de descuento en masajes de pareja!">${esc(E.mensaje)}</textarea>
         <div class="ag-row" style="gap:6px;margin-top:4px;align-items:center"><select id="ce-frase-m" style="flex:1">${MOTIVOS_REGALO.filter(([k])=>k).concat([['general','✨ General']]).map(([v,t])=>`<option value="${esc(v)}" ${v==='general'?'selected':''}>${t}</option>`).join('')}</select><button type="button" class="ag-btn sm ghost" id="ce-frase">💬 Traer una frase</button></div>
         <div class="ag-muted" id="ce-frase-info" style="font-size:11.5px">Trae una frase del repertorio y la pone como mensaje; puedes editarla.</div>
-        <label class="f">📱 Texto del WhatsApp que acompaña el enlace (opcional)</label><textarea id="ce-wa-txt" rows="3" placeholder="Ej: ¡Hola {nombre}! 🌿 Te preparamos estas opciones especiales para ti: {enlace}">${esc(E.textoWa || '')}</textarea><div class="ag-muted" style="font-size:11.5px">${WA_AYUDA}</div>
+        <div ${E.publico ? 'hidden' : ''}><label class="f">📱 Texto del WhatsApp que acompaña el enlace (opcional)</label><textarea id="ce-wa-txt" rows="3" placeholder="Ej: ¡Hola {nombre}! 🌿 Te preparamos estas opciones especiales para ti: {enlace}">${esc(E.textoWa || '')}</textarea><div class="ag-muted" style="font-size:11.5px">${WA_AYUDA}</div></div>
         ${mmCeHTML(E)}
         ${base ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;background:#fdf3f7;border:1px solid #f1c6d8;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-regalo" style="width:auto;margin-top:3px"/> <span>🎁 <strong>Regalo ya pagado:</strong> la persona ve «tienes un regalo» con lo que incluye (sin precios ni datos de pago) y solo elige en la agenda cuándo disfrutarlo. Usa los servicios que ya están en el presupuesto ${esc(base.numero)}.</span></label>
           <label id="ce-reg-extras-w" style="display:none;gap:8px;align-items:flex-start;margin-top:6px;background:#f3f8ff;border:1px solid #d6e6fb;border-radius:10px;padding:9px 10px;font-size:13.5px"><input type="checkbox" id="ce-reg-extras" checked style="width:auto;margin-top:3px"/> <span>➕ <strong>Permitir que pida cosas adicionales</strong> (pagadas aparte): más servicios o comida para sí misma, para un acompañante o para regalarle a otra persona. Abajo eliges qué se le ofrece.</span></label>` : ''}
-        <label class="f">El enlace vence en</label><select id="ce-dias">${plazosOpciones(E.dias)}</select><div class="ag-muted" style="font-size:11.5px;margin-top:3px">Si cambias un precio, el cliente conserva el anterior durante 24 horas y después ve el nuevo. Te aviso 3 días antes de que venza y el día que vence.</div>
+        <div ${E.publico ? 'hidden' : ''}><label class="f">El enlace vence en</label><select id="ce-dias">${plazosOpciones(E.dias)}</select><div class="ag-muted" style="font-size:11.5px;margin-top:3px">Si cambias un precio, el cliente conserva el anterior durante 24 horas y después ve el nuevo. Te aviso 3 días antes de que venza y el día que vence.</div></div>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-solicitud" style="width:auto" ${E.solicitudChk?'checked':''}/> 📝 Es una solicitud de reserva (el cliente debe pedir día y hora)</label>
         <div class="ag-muted" style="font-size:11.5px;margin:0 0 2px 24px">El cliente elige sus servicios y obligatoriamente el día y la hora; te llega como solicitud para que la confirmes (no queda reservado hasta entonces).</div>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-sinpago" style="width:auto" ${E.sinPagoNo?'':'checked'}/> 💸 Permitir que envíe su selección sin pagar («Abonaré el día…»)</label>
         <div class="ag-muted" style="font-size:11.5px;margin:0 0 2px 24px">El cliente indica qué día abonará y cómo pagará; te llega el aviso para asignar profesionales o pedir cobertura. Si lo desmarcas, para enviar tendrá que abonar el 50 % o pagar el total.</div>
+        <div ${E.publico ? 'hidden' : ''}>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-disp" style="width:auto"/> 📅 Indicar disponibilidad de fechas y horas</label>
         <div id="ce-disp-box" style="display:none;border-left:3px solid #cfe8d5;padding-left:10px;margin-top:6px">
           <p class="ag-muted" style="font-size:12.5px;margin:0 0 4px">Si no la indicas, el cliente elige cualquier día y hora (y la app le avisa si ese horario ya tiene una reserva y le sugiere otro). Si la indicas, solo podrá elegir entre los días y horarios que pongas aquí; por ejemplo, el sábado de 8:00 a 2:00 o de 10:00 a 1:00. <strong>Es la ventana para comenzar y terminar, no el tiempo que usará:</strong> la app calcula cuánto dura su visita según lo que elija (por ejemplo, masaje de 60 min + piscina de 1 h = 2 h) y se lo dice al cliente, para que elija una hora de inicio en la que termine dentro de tu horario.</p>
@@ -12997,6 +13080,7 @@ setTimeout(function(){
           <button type="button" class="ag-btn ghost sm" id="ce-inst-add" style="margin-top:8px">＋ Agregar otra instalación</button>
         </div>
         <input id="ce-evento" maxlength="80" placeholder="Nombre del evento (opcional), ej: Retiro de bienestar de Marta" value="${esc(E.evento||'')}" style="margin-top:6px"/>
+        </div>
       </div>
       <div class="ag-card" id="ce-que" style="margin-top:10px">
         <h3 style="font-size:15px">¿Qué le muestras?</h3>
@@ -13008,7 +13092,7 @@ setTimeout(function(){
         <label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:14.5px;margin-top:10px"><input type="checkbox" id="ce-menu" style="width:auto" ${E.conMenu?'checked':''}/> 🍽️ Menú del Rincón de Rosita</label>
         <div id="ce-menu-l">${catsMenu.map(c=>grupo('m:' + c, esc(c), menu.filter(m=>m.categoria===c).map(m=>({ key:m.id, txt:m.nombre, extra:dinero(m.precio), on: !E.sinMenu[c] && !E.sinPlato[m.id] })))).join('') || '<p class="ag-muted" style="font-size:12px;padding-left:22px">El menú está vacío.</p>'}</div>
       </div>
-      <button class="ag-btn" id="ce-crear" style="width:100%;margin-top:10px">🔗 Crear enlace del catálogo</button>`;
+      <button class="ag-btn" id="ce-crear" style="width:100%;margin-top:10px">${E.publico ? '💾 Guardar lo que ofrece el enlace público' : '🔗 Crear enlace del catálogo'}</button>`;
     const q = s=>body.querySelector(s);
     q('#ce-volver').onclick = volver;
     const sel = q('#ce-cliente');
@@ -13305,14 +13389,14 @@ setTimeout(function(){
     q('#ce-crear').onclick = async ()=>{
       leerE();
       const esRegalo = !!(chkReg && chkReg.checked); E.regaloPag = esRegalo;
-      if(esRegalo){ E.grupo = false; E.grupal = false; }
-      if(!base){
+      if(esRegalo || E.publico){ E.grupo = false; E.grupal = false; }
+      if(!base && !E.publico){
         const cc = state.clientes.find(x=>x.id===(sel && sel.value));
         E.clienteId = cc ? cc.id : ''; E.nombre = cc ? cc.nombre : q('#ce-nombre').value.trim().replace(/\s+/g,' ');
         E.telefono = cc ? (pickTelefono(cc)||'') : limpiarTelefono(q('#ce-tel').value);
         if(!E.nombre){ alert('Elige el cliente o escribe su nombre.'); return; }
         if(!cc && E.telefono && !esTelefonoValido(E.telefono)){ alert('El WhatsApp ' + motivoTelefono(E.telefono) + '.'); return; }
-      } else { const cc = state.clientes.find(x=>x.id===base.clienteId); E.telefono = (cc ? pickTelefono(cc) : '') || base.clienteTelefono || ''; }
+      } else if(base){ const cc = state.clientes.find(x=>x.id===base.clienteId); E.telefono = (cc ? pickTelefono(cc) : '') || base.clienteTelefono || ''; }
       const cfg = { clienteId:E.clienteId, clienteNombre:E.nombre, telefono:E.telefono, dias:E.dias, mensaje:E.mensaje, grupo:!!E.grupo && !E.grupal, evento:(E.grupo || E.grupal) ? E.evento : '', grupal: E.grupal ? { tramos:E.gTramos.map(t=>({ desde:t.desde, hasta:t.hasta, factor:fnum(t.factor) || 1 })),
           hidro:{ nombre:E.gHidro.nombre || 'Hidromasajes de piscina', base:fnum(E.gHidro.base), incluido:glIncl(E.gHidro), opciones:glFactores(E.gHidro.filas).map((f,i)=>({ nombre:E.gHidro.filas[i].nombre, factor:f })) },
           piscina:{ nombre:E.gPisc.nombre || 'Disfrute de piscina', base:fnum(E.gPisc.base), incluido:glIncl(E.gPisc), opciones:glFactores(E.gPisc.filas).map((f,i)=>({ nombre:E.gPisc.filas[i].nombre, factor:f })) },
@@ -13343,6 +13427,12 @@ setTimeout(function(){
       if(esRegalo && !cfg.disponibilidad && !confirm('No pusiste días disponibles: la persona podrá elegir cualquier día y hora. ¿Crear el enlace así?')) return;
       if(!esRegalo && !cfg.servicios.length && !cfg.paquetes.length && !cfg.menu.length && !hayGrupal){ alert('Marca al menos una sección con algo para ofrecer' + (E.grupal ? ' o pon un precio grupal.' : '.')); return; }
       const b = q('#ce-crear'); if(b.disabled) return; b.disabled = true; b.textContent = 'Creando…';
+      if(E.publico){
+        cfg.editor = { sinCat:E.sinCat, sinPaq:E.sinPaq, sinMenu:E.sinMenu, sinSrv:E.sinSrv, sinPlato:E.sinPlato, conServ:E.conServ, conPaq:E.conPaq, conMenu:E.conMenu, solicitudChk:cfg.solicitud, sinPagoNo:E.sinPagoNo, musica:E.musica, galeria:E.galeria };
+        try{ P.pub = await gs('guardarEnlacePublico', cfg, auth()); P.cat = null; P.vista = 'publico'; render(); toast('✅ Guardado. Tu enlace público sigue siendo el mismo.'); }
+        catch(e){ b.disabled = false; b.textContent = '💾 Guardar lo que ofrece el enlace público'; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+        return;
+      }
       try{ E.resultado = await gs('crearEnlaceCatalogo', cfg, auth()); if(E.grupal){ try{ const t = { tramos:E.gTramos, hidro:E.gHidro, piscina:E.gPisc, inst:E.gInst }; state.tg = t; gs('saveTarifasGrupo', t, auth()).catch(()=>{}); }catch(e3){} } render(); }
       catch(e){ b.disabled = false; b.textContent = '🔗 Crear enlace del catálogo'; alert('No se pudo crear: ' + (e && e.message ? e.message : e)); }
     };
