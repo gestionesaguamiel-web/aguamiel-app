@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v377' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v378' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9992,7 +9992,11 @@ setTimeout(function(){
       '🌿 Quien lo abre ve «¡Bienvenido a Aguamiel!», escribe su nombre, teléfono y cédula, y desde ahí la app lo llama por su nombre en el catálogo de siempre.',
       '🔔 Te avisa si <strong>ya es cliente</strong> o si es <strong>nuevo</strong>, y si prefiere que lo contacten por WhatsApp o por llamada. Nunca muestra datos de nadie.',
       '💬 Pon el WhatsApp de la administración en esa misma pantalla y saldrá el botón <strong>«¿Dudas?»</strong> en todos los catálogos.',
-      '🪟 Las ventanas emergentes usan la misma letra y casillas que el resto de la app.' ] }
+      '🪟 Las ventanas emergentes usan la misma letra y casillas que el resto de la app.' ] },
+    { v:378, fecha:'8 nov', titulo:'🎠 Carruseles en el catálogo', puntos:[
+      '🎠 Los destacados del catálogo ahora son <strong>carruseles con imagen</strong> que se deslizan y pasan solos: 🎁 Paquetes, 🔥 Ofertas, 💆 Servicios e ℹ️ Para saber.',
+      '📷 Se arman en Admin → Ventas → 💧 Temporada y fidelización: cada tarjeta se elige de la lista, con <strong>su propia imagen</strong>, frase, etiqueta y fechas (se apaga sola al vencer).',
+      '⏸️ Un interruptor los <strong>enciende o apaga</strong> todos: vienen apagados para que los armes con tus fotos antes de mostrarlos.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -17261,7 +17265,7 @@ setTimeout(function(){
     // 🗂️ v362: menú de tarjetas. Inicio → grupo (sus secciones en tarjetas) → sección en su propia pantalla, con «‹ Volver».
     const GC = { ventas:['#0a5a68','#e2f4f6'], dinero:['#1d6b35','#e2f4e6'], inventario:['#8a5a00','#fff3d6'], equipo:['#5b3f8f','#efe9f8'], sistema:['#35616b','#eef5f6'] };
     const GD = { ventas:'Presupuestos, paquetes, cobros', dinero:'Balance, ingresos, egresos', inventario:'Rosita, spa, compras', equipo:'Staff, propinas, avisos', sistema:'Papelera, limpieza, copias' };
-    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Destacados y gotas', multimedia:'Para los catálogos', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
+    const SD = { presupuestos:'Cotizaciones y pagos', informe:'Ventas por mes', paquetes:'Armar y vender', fidel:'Carruseles y gotas', multimedia:'Para los catálogos', solicitudes:'Solicitudes del catálogo', cobrar:'Lo que deben', pagos:'Bancos y tasa BCV', tarifas:'Precios de servicios',
       balance:'Resumen del mes', fondo:'Ahorro', ingresos:'Entra dinero', gastos:'Sale dinero', pagosper:'Quincenas y honorarios',
       inv_rosita:'Cocina y bar', inv_personal:'Lo del personal', inv_spa:'Insumos de terapia', inv_oper:'Equipos y ferretería', compras:'Lista de compras',
       staff:'Personas y accesos', mural:'Videos, voz y estudios', tiempos:'Duración de terapias', propinas:'Lo recibido', avisos:'Telegram y correo', historial:'Quién hizo qué', frases:'Mensajes listos', accesos:'Entradas a la app', reportes:'Opiniones y reportes',
@@ -17326,30 +17330,154 @@ setTimeout(function(){
     else renderAdmin(cont);
   }
 
+  // ---------- 🎠 v378: Carruseles del catálogo (reemplazan los «Destacados de temporada») ----------
+  // 4 carruseles (paquetes, ofertas, servicios, información) con hasta 6 tarjetas cada uno. Cada tarjeta: qué muestra (se elige
+  // de la lista, no se escribe), su imagen (se sube aquí; si no hay, usa la foto del paquete o servicio), su frase y sus fechas.
+  // Un interruptor general los enciende o los apaga todos (vienen apagados hasta que la administración tenga sus fotos).
+  const CARR_TABS = [['paq', '🎁', 'Paquetes'], ['ofe', '🔥', 'Ofertas'], ['srv', '💆', 'Servicios'], ['inf', 'ℹ️', 'Para saber']];
+  const CARR_TONOS = ['#0a5a68,#0e9fb8', '#0f5132,#b3262b', '#d6467e,#f7a9c4', '#6b3fa0,#e2b04a', '#0077b6,#48cae4', '#2d6a4f,#95d5b2'];
+  function renderCarruselesAdmin(box){
+    if(!box) return;
+    if(!state.carr) state.carr = { datos:null, tab:'paq', edit:'', sucio:false, ocupado:'' };
+    const C = state.carr;
+    if(!C.datos){
+      box.innerHTML = '<div class="ag-card"><p class="ag-muted" style="margin:0">Cargando carruseles…</p></div>';
+      Promise.all([ gs('getCarruselesAdmin', auth()), state.tarifas ? null : cargarTarifas().catch(()=>null), state.agenda ? null : cargarAgenda() ])
+        .then(([d])=>{ C.datos = d; C.guardadas = carrImgs(d.cfg); if(box.isConnected) renderCarruselesAdmin(box); })
+        .catch(e=>{ box.innerHTML = '<div class="ag-card"><p class="ag-err" style="margin:0">No se pudieron cargar los carruseles: ' + esc(e && e.message ? e.message : e) + '</p></div>'; });
+      return;
+    }
+    const D = C.datos, cfg = D.cfg, G = cfg.grupos[C.tab], ops = mmOpciones(), max = D.max || 6;
+    const paqs = (state.agenda && state.agenda.paquetes) || [];
+    const nombreRef = ref=>{ const o = ops.find(x=>x.k === ref); return o ? o.n : ''; };
+    const precioRef = ref=>{ if(!/^p:/.test(ref)) return ''; const p = paqs.find(x=>'p:' + x.id === ref); return p ? dinero(p.precio) : ''; };
+    const fechaCorta = v=>v ? isoToDMY(v).slice(0, 5) : '';
+    const tipoDe = it=>C.tab === 'paq' ? 'p' : C.tab === 'srv' ? 's' : C.tab === 'inf' ? '' : (it.ref ? (/^s:/.test(it.ref) ? 's' : 'p') : (it._t || 'p'));
+    const miniatura = (it, i, alto)=>{
+      const fid = (it.img ? D.fotos[it.img] : '') || (it.ref ? (D.refFoto || {})[it.ref] : '');
+      const src = fid ? mmImg(fid, 600) : '';
+      return `<div style="position:relative;height:${alto}px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:${Math.round(alto / 2.2)}px;background:linear-gradient(135deg,${CARR_TONOS[i % CARR_TONOS.length]})">${src ? `<img src="${esc(src)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"/>` : esc(it.emoji || '✨')}</div>`;
+    };
+    const opcionesDe = t=>ops.filter(o=>o.k.indexOf(t + ':') === 0);
+    const editor = (it, i)=>{
+      const t = tipoDe(it), lista = t ? opcionesDe(t) : [];
+      return `<div class="carr-ed" style="border:2px solid var(--teal);border-radius:14px;padding:12px;margin-top:8px;background:#fbfeff">
+        <strong style="color:var(--teal-d)">✏️ Editando tarjeta</strong>
+        ${C.tab === 'ofe' ? `<label class="f">Es un</label><div style="display:flex;gap:6px">${[['p', '🎁 Paquete'], ['s', '💆 Servicio']].map(([k, n])=>`<button type="button" class="ag-btn ${t === k ? '' : 'ghost'} sm" data-carr-ot="${k}" style="flex:1">${n}</button>`).join('')}</div>` : ''}
+        ${t ? `<label class="f">${t === 'p' ? 'Paquete' : 'Servicio'}</label><select id="carr-ref"><option value="">— Elige —</option>${lista.map(o=>`<option value="${esc(o.k)}" ${o.k === it.ref ? 'selected' : ''}>${esc(o.n)}</option>`).join('')}</select>
+          ${it.ref && precioRef(it.ref) ? `<div style="font-size:12px;color:#1d6b35;margin-top:4px">✓ Precio del paquete: ${precioRef(it.ref)} (se actualiza solo)</div>` : ''}
+          ${it.ref && !nombreRef(it.ref) ? '<div style="font-size:12px;color:#a61b1b;margin-top:4px">⚠️ Ese paquete o servicio ya no está activo: elige otro.</div>' : ''}`
+          : `<label class="f">Título</label><input id="carr-tit" value="${esc(it.titulo || '')}" maxlength="60" placeholder="Ej.: Horario, Cómo llegar, Qué traer"/>`}
+        <label class="f">Imagen (horizontal)</label>
+        <div style="position:relative">${miniatura(it, i, 150).replace('flex:0 0 auto;', 'width:100%;height:auto;')}
+          <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button type="button" class="ag-btn sm" id="carr-img" style="min-width:0">📷 ${it.img ? 'Cambiar' : 'Subir'} imagen</button>${it.img ? '<button type="button" class="ag-btn ghost sm" id="carr-img-x" style="min-width:0;background:#fff">🗑️</button>' : ''}</div></div>
+        ${!it.img ? '<div class="ag-muted" style="font-size:11.5px;margin-top:4px">Sin imagen propia se usa la primera foto del paquete o servicio (Admin → Ventas → 🎬 Fotos, videos y música) o, si no tiene, un fondo de color con el emoji.</div>' : ''}
+        <div style="display:grid;grid-template-columns:64px 1fr;gap:8px"><div><label class="f">Emoji</label><input id="carr-emo" value="${esc(it.emoji || '')}" maxlength="4" style="text-align:center;font-size:18px"/></div>
+          <div><label class="f">${t ? 'Frase de venta' : 'Texto'}</label><input id="carr-fr" value="${esc(it.frase || '')}" maxlength="140" placeholder="${t ? 'Corta y que provoque' : 'Ej.: Martes a domingo, 9 a. m. a 6 p. m.'}"/></div></div>
+        ${t ? `<label class="f">Título propio (opcional)</label><input id="carr-tit" value="${esc(it.titulo || '')}" maxlength="60" placeholder="Vacío = el nombre ${t === 'p' ? 'del paquete' : 'del servicio'}"/>` : ''}
+        <div style="display:flex;gap:8px"><div style="flex:1"><label class="f">Etiqueta (opcional)</label><input id="carr-eti" value="${esc(it.etiqueta || '')}" maxlength="30" placeholder="${C.tab === 'ofe' ? '-20 %' : '⭐ Más pedido'}"/></div>
+          ${C.tab === 'ofe' ? `<div style="flex:1"><label class="f">Precio de antes ($)</label><input id="carr-antes" inputmode="decimal" value="${it.antes ? String(it.antes).replace('.', ',') : ''}" placeholder="Opcional, sale tachado"/></div>` : ''}</div>
+        ${!t ? `<label class="f">Enlace del botón «Ver más» (opcional)</label><input id="carr-enl" value="${esc(it.enlace || '')}" maxlength="300" placeholder="Empieza con https, p. ej. Google Maps"/>` : ''}
+        <div style="display:flex;gap:8px"><div style="flex:1;min-width:0"><label class="f">Desde (opcional)</label><input id="carr-de" type="date" value="${esc(it.desde || '')}"/></div>
+          <div style="flex:1;min-width:0"><label class="f">Hasta (opcional)</label><input id="carr-ha" type="date" value="${esc(it.hasta || '')}"/></div></div>
+        <div class="ag-muted" style="font-size:11.5px;margin-top:4px">Sin fechas sale siempre. Con «Hasta», se apaga sola al día siguiente.</div>
+        <button type="button" class="ag-btn sm" id="carr-listo" style="width:100%;margin-top:10px">✓ Listo</button></div>`;
+    };
+    const fila = (it, i)=>{
+      const n = (it.titulo || nombreRef(it.ref) || (it.ref ? '⚠️ Ya no está activo' : 'Sin título')), hoy = hoyISO();
+      const vence = it.hasta && it.hasta < hoy, futura = it.desde && it.desde > hoy;
+      const sub = [it.desde || it.hasta ? (fechaCorta(it.desde) || '…') + ' → ' + (fechaCorta(it.hasta) || '…') : 'Siempre', precioRef(it.ref), it.img ? '' : 'sin imagen propia'].filter(Boolean).join(' · ');
+      return `<div style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:12px;margin-top:8px;${vence ? 'opacity:.55' : ''}">
+          ${miniatura(it, i, 40)}
+          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((it.emoji ? it.emoji + ' ' : '') + n)}</div>
+            <div class="ag-muted" style="font-size:11.5px">${esc(sub)}${vence ? ' · ⏹️ ya venció' : futura ? ' · ⏳ aún no empieza' : ''}</div></div>
+          <div style="display:flex;gap:2px;flex:0 0 auto">
+            <button type="button" class="ag-btn ghost sm" data-carr-mv="${i}|-1" aria-label="Subir" style="min-width:0;padding:6px 7px" ${i ? '' : 'disabled'}>↑</button>
+            <button type="button" class="ag-btn ghost sm" data-carr-mv="${i}|1" aria-label="Bajar" style="min-width:0;padding:6px 7px" ${i < G.items.length - 1 ? '' : 'disabled'}>↓</button>
+            <button type="button" class="ag-btn ${C.edit === it.id ? '' : 'ghost'} sm" data-carr-ed="${esc(it.id)}" aria-label="Editar" style="min-width:0;padding:6px 7px">✏️</button>
+            <button type="button" class="ag-btn ghost sm" data-carr-del="${i}" aria-label="Quitar" style="min-width:0;padding:6px 7px">🗑️</button></div></div>
+        ${C.edit === it.id ? editor(it, i) : ''}`;
+    };
+    box.innerHTML = `<div class="ag-card">
+        <h3 style="margin:0 0 4px">🎠 Carruseles del catálogo</h3>
+        <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Salen arriba en el catálogo de clientes. Un paquete o servicio solo aparece en los catálogos que lo incluyen.</p>
+        ${C.ocupado ? `<div role="status" style="background:var(--teal-l);border-radius:10px;padding:8px 10px;font-weight:700;margin-bottom:8px">⏳ ${esc(C.ocupado)}</div>` : ''}
+        <label style="display:flex;gap:8px;align-items:center;font-size:14.5px;font-weight:700"><input type="checkbox" id="carr-on" style="width:auto" ${cfg.activo ? 'checked' : ''}/> Mostrar carruseles a los clientes</label>
+        <div style="font-size:12px;margin:2px 0 10px;color:${cfg.activo ? '#1d6b35' : '#8a5a00'}">${cfg.activo ? '✅ Encendidos: los clientes los ven.' : '⏸️ Apagados: puedes armarlos con calma; los clientes no ven nada hasta que los enciendas.'}</div>
+        <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px">${CARR_TABS.map(([k, ic, n])=>{ const c = cfg.grupos[k].items.length; return `<button type="button" class="ag-btn ${C.tab === k ? '' : 'ghost'} sm" data-carr-tab="${k}" style="min-width:0;flex:0 0 auto;border-radius:999px;padding:7px 11px">${ic} ${n}${c ? ' (' + c + ')' : ''}</button>`; }).join('')}</div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13.5px"><input type="checkbox" id="carr-g-on" style="width:auto" ${G.activo ? 'checked' : ''}/> Mostrar este carrusel</label>
+        <label class="f">Título del carrusel</label><input id="carr-g-tit" value="${esc(G.titulo)}" maxlength="60"/>
+        ${G.items.length ? G.items.map(fila).join('') : '<p class="ag-muted" style="font-size:12.5px;margin:10px 0 0">Todavía no hay tarjetas en este carrusel.</p>'}
+        <button type="button" class="ag-btn ghost sm" id="carr-add" style="width:100%;margin-top:10px;border-style:dashed" ${G.items.length >= max ? 'disabled' : ''}>＋ Agregar tarjeta (máx. ${max})</button>
+        <button type="button" class="ag-btn" id="carr-save" style="width:100%;margin-top:10px">${C.sucio ? '💾 Guardar carruseles' : 'Guardar carruseles'}</button>
+        ${C.sucio ? '<div style="font-size:12px;color:#8a5a00;text-align:center;margin-top:4px">Tienes cambios sin guardar.</div>' : ''}
+        <input type="file" id="carr-f" accept="image/jpeg,image/png,image/webp" style="display:none"/></div>`;
+    const q = s=>box.querySelector(s), pintar = ()=>renderCarruselesAdmin(box), cambio = ()=>{ C.sucio = true; };
+    const actual = ()=>G.items.find(x=>x.id === C.edit);
+    // Lo escrito en el editor abierto pasa a la tarjeta antes de cualquier otra acción.
+    const leer = ()=>{
+      G.titulo = q('#carr-g-tit').value.trim() || G.titulo; G.activo = q('#carr-g-on').checked; cfg.activo = q('#carr-on').checked;
+      const it = actual(); if(!it) return;
+      const v = s=>{ const el = q(s); return el ? el.value.trim() : undefined; };
+      if(v('#carr-ref') !== undefined) it.ref = v('#carr-ref');
+      if(v('#carr-tit') !== undefined) it.titulo = v('#carr-tit');
+      it.emoji = v('#carr-emo') || ''; it.frase = v('#carr-fr') || ''; it.etiqueta = v('#carr-eti') || '';
+      if(v('#carr-antes') !== undefined) it.antes = v('#carr-antes') ? numPrecio(v('#carr-antes')) || 0 : 0;
+      if(v('#carr-enl') !== undefined) it.enlace = v('#carr-enl');
+      it.desde = v('#carr-de') || ''; it.hasta = v('#carr-ha') || '';
+    };
+    box.querySelectorAll('input,select').forEach(el=>el.addEventListener('input', cambio));
+    q('#carr-on').onchange = ()=>{ leer(); cambio(); pintar(); };
+    box.querySelectorAll('[data-carr-tab]').forEach(b=>b.onclick = ()=>{ leer(); C.tab = b.dataset.carrTab; C.edit = ''; pintar(); });
+    q('#carr-add').onclick = ()=>{ leer(); const id = 'c' + Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, 'x');
+      G.items.push({ id, ref:'', emoji:C.tab === 'inf' ? 'ℹ️' : C.tab === 'ofe' ? '🔥' : '✨', titulo:'', frase:'', etiqueta:'', antes:0, img:'', enlace:'', desde:'', hasta:'' }); C.edit = id; cambio(); pintar(); };
+    box.querySelectorAll('[data-carr-ed]').forEach(b=>b.onclick = ()=>{ leer(); C.edit = C.edit === b.dataset.carrEd ? '' : b.dataset.carrEd; pintar(); });
+    box.querySelectorAll('[data-carr-mv]').forEach(b=>b.onclick = ()=>{ leer(); const [i, d] = b.dataset.carrMv.split('|').map(Number), j = i + d; if(j < 0 || j >= G.items.length) return;
+      const tmp = G.items[i]; G.items[i] = G.items[j]; G.items[j] = tmp; cambio(); pintar(); });
+    box.querySelectorAll('[data-carr-del]').forEach(b=>b.onclick = ()=>{ leer(); const it = G.items[Number(b.dataset.carrDel)]; if(!it) return;
+      if(!confirm('¿Quitar esta tarjeta del carrusel?')) return; carrSoltarImg(it.img); G.items.splice(Number(b.dataset.carrDel), 1); if(C.edit === it.id) C.edit = ''; cambio(); pintar(); });
+    box.querySelectorAll('[data-carr-ot]').forEach(b=>b.onclick = ()=>{ leer(); const it = actual(); if(!it) return; it.ref = ''; it._t = b.dataset.carrOt; cambio(); pintar(); });
+    const sel = q('#carr-ref'); if(sel) sel.onchange = ()=>{ leer(); cambio(); pintar(); };
+    const listo = q('#carr-listo'); if(listo) listo.onclick = ()=>{ leer(); const it = actual();
+      if(it && C.tab !== 'inf' && !it.ref){ alert('Elige de la lista qué muestra esta tarjeta.'); return; }
+      if(it && C.tab === 'inf' && !it.titulo){ alert('Escribe un título para esta tarjeta.'); return; }
+      if(it && it.enlace && !/^https:[/][/]/.test(it.enlace)){ alert('El enlace debe empezar por https'); return; }
+      if(it && it.desde && it.hasta && it.hasta < it.desde){ alert('La fecha «Hasta» es anterior a «Desde».'); return; }
+      C.edit = ''; pintar(); };
+    const fImg = q('#carr-img'); if(fImg) fImg.onclick = ()=>{ leer(); q('#carr-f').value = ''; q('#carr-f').click(); };
+    const xImg = q('#carr-img-x'); if(xImg) xImg.onclick = ()=>{ leer(); const it = actual(); if(!it) return; carrSoltarImg(it.img); it.img = ''; cambio(); pintar(); };
+    q('#carr-f').onchange = async e=>{
+      const f = (e.target.files || [])[0], it = actual(); if(!f || !it) return;
+      C.ocupado = '📷 Subiendo imagen…'; pintar();
+      try{
+        const r = await gsEspera(240000, 'subirMultimedia', { tipo:'foto', clave:'d:' + it.id, titulo:'Carrusel', datos:await mmReducirFoto(f) }, auth());
+        if(r && /^MM/.test(r.id)){ carrSoltarImg(it.img); it.img = r.id; const d = await gs('getCarruselesAdmin', auth()); D.fotos = d.fotos || D.fotos; cambio(); toast('📷 Imagen lista. Toca «Guardar carruseles».'); }
+        else toast('🧪 Modo prueba: la imagen no se guarda.');
+      }catch(er){ alert('No se pudo subir la imagen: ' + (er && er.message ? er.message : er)); }
+      C.ocupado = ''; pintar();
+    };
+    q('#carr-save').onclick = async ev=>{
+      leer();
+      const malas = []; CARR_TABS.forEach(([k, , n])=>cfg.grupos[k].items.forEach(it=>{ if(k !== 'inf' && !it.ref) malas.push(n); if(k === 'inf' && !it.titulo) malas.push(n); }));
+      if(malas.length){ alert('Hay tarjetas sin completar en: ' + [...new Set(malas)].join(', ') + '. Ábrelas con ✏️ y elige qué muestran (o quítalas).'); return; }
+      ev.target.disabled = true; ev.target.textContent = 'Guardando…';
+      try{ const r = await gs('saveCarruseles', cfg, auth()); C.datos = r; C.guardadas = carrImgs(r.cfg); C.sucio = false; C.edit = ''; toast(r.cfg.activo ? '🎠 Guardado. Los clientes ya ven los carruseles.' : '🎠 Guardado (apagados: los clientes aún no los ven).'); pintar(); }
+      catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); ev.target.disabled = false; ev.target.textContent = 'Guardar carruseles'; }
+    };
+  }
+  function carrImgs(cfg){ const s = {}; Object.keys((cfg && cfg.grupos) || {}).forEach(k=>cfg.grupos[k].items.forEach(it=>{ if(it.img) s[it.img] = 1; })); return s; }
+  // Una imagen subida que nunca se guardó se borra enseguida; las ya guardadas las borra el servidor al guardar.
+  function carrSoltarImg(id){ if(!id || !state.carr || (state.carr.guardadas || {})[id]) return; gs('borrarMultimedia', id, auth()).catch(()=>{}); }
   // 💧 v348: Temporada y fidelización. Destacados que salen arriba en el catálogo de clientes, tarjeta de sellos,
   // regalo de cumpleaños (se agrega al mensaje de WhatsApp) y enlace de reseñas de Google (se ofrece al final de una buena encuesta).
   function renderFidelAdmin(cont){
     cont.innerHTML = '<p class="ag-empty">Cargando…</p>';
     gs('getFidelCfg', auth()).then(cfg=>{
       const D = cfg.destacados, S = cfg.sellos;
-      const fila = (x, i)=>`<div class="fd-it" style="display:grid;grid-template-columns:44px 1fr;gap:6px;margin-top:8px;padding:8px;border:1px solid var(--line,#e3ecee);border-radius:10px">
-          <input data-fd-e="${i}" value="${esc(x.emoji||'')}" maxlength="4" style="text-align:center;font-size:18px" aria-label="Emoji"/>
-          <input data-fd-n="${i}" value="${esc(x.nombre||'')}" placeholder="Nombre exacto del paquete" aria-label="Paquete"/>
-          <input data-fd-f="${i}" value="${esc(x.frase||'')}" placeholder="Frase de venta (corta)" style="grid-column:1 / -1" aria-label="Frase"/>
-          <button class="ag-btn ghost sm" data-fd-x="${i}" style="grid-column:1 / -1">Quitar</button></div>`;
       let prevHTML = '';   // la vista previa de gotas se conserva al agregar o quitar premios
       const pintar = ()=>{
         cont.innerHTML = `
-        <div class="ag-card">
-          <h3 style="margin:0 0 4px">🎄 Destacados de temporada</h3>
-          <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Salen arriba de los paquetes en el catálogo de clientes, solo entre estas fechas. El nombre debe ser igual al del paquete; el precio sale del paquete.</p>
-          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fd-act" style="width:auto" ${D.activo?'checked':''}/> Mostrar destacados</label>
-          <label class="f">Título de la franja</label><input id="fd-tit" value="${esc(D.titulo||'')}" maxlength="60"/>
-          <div style="display:flex;gap:8px"><div style="flex:1"><label class="f">Desde (día-mes)</label><input id="fd-de" value="${esc(mmddADM(D.desde))}" placeholder="01-11"/></div>
-            <div style="flex:1"><label class="f">Hasta (día-mes)</label><input id="fd-ha" value="${esc(mmddADM(D.hasta))}" placeholder="06-01"/></div></div>
-          <div id="fd-items">${(D.items||[]).map(fila).join('')}</div>
-          <button class="ag-btn ghost sm" id="fd-add" style="width:100%;margin-top:8px" ${(D.items||[]).length>=8?'disabled':''}>+ Agregar destacado</button>
-        </div>
+        <div id="carr-box"></div>
         <div class="ag-card" style="margin-top:12px">
           <h3 style="margin:0 0 4px">💧 Tarjeta de gotas (sellos)</h3>
           <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Cada día que el cliente vino desde la fecha de inicio suma una gota (reserva completada o ficha registrada). El cliente lo ve en su catálogo y tú en su ficha, donde eliges el premio y lo marcas como entregado.</p>
@@ -17381,15 +17509,11 @@ setTimeout(function(){
         </div>
         <button class="ag-btn" id="fd-save" style="width:100%;margin-top:12px">Guardar</button>`;
         const leer = ()=>{
-          D.items = [...cont.querySelectorAll('[data-fd-n]')].map(inp=>{ const i = inp.dataset.fdN; return { nombre:inp.value.trim(), emoji:cont.querySelector('[data-fd-e="'+i+'"]').value.trim(), frase:cont.querySelector('[data-fd-f="'+i+'"]').value.trim() }; });
-          D.activo = cont.querySelector('#fd-act').checked; D.titulo = cont.querySelector('#fd-tit').value.trim();
-          D.desde = mmddSRV(cont.querySelector('#fd-de').value); D.hasta = mmddSRV(cont.querySelector('#fd-ha').value);
           S.activo = cont.querySelector('#fd-s-act').checked; S.n = Number(cont.querySelector('#fd-s-n').value) || 5; S.desde = cont.querySelector('#fd-s-de').value;
           S.premios = [...cont.querySelectorAll('[data-fd-p]')].map(inp=>inp.value.trim());
           cfg.cumple = { regalo:cont.querySelector('#fd-c').value.trim() }; cfg.resenasUrl = cont.querySelector('#fd-r').value.trim();
           cfg.grupo = { activo:cont.querySelector('#fd-g-act').checked, n:Number(cont.querySelector('#fd-g-n').value) || 3, regalo:cont.querySelector('#fd-g-r').value.trim() };   /* v376 premio por grupo */
         };
-        cont.querySelector('#fd-add').onclick = ()=>{ leer(); D.items.push({ nombre:'', emoji:'✨', frase:'' }); pintar(); };
         cont.querySelector('#fd-s-padd').onclick = ()=>{ leer(); S.premios.push(''); pintar(); const l = cont.querySelectorAll('[data-fd-p]'); if(l.length) l[l.length - 1].focus(); };
         cont.querySelectorAll('[data-fd-px]').forEach(b=>b.onclick = ()=>{ leer(); S.premios.splice(Number(b.dataset.fdPx), 1); pintar(); });
         // 👀 v355: vista previa (no guarda nada): cuántos clientes tendrían gotas y premios con esta fecha y este número de visitas.
@@ -17413,16 +17537,15 @@ setTimeout(function(){
         };
         cont.querySelector('#fd-s-ver').onclick = verPrev;
         cont.querySelector('#fd-s-6m').onclick = ()=>{ const d = new Date(hoyISO() + 'T12:00:00'); d.setMonth(d.getMonth() - 6); cont.querySelector('#fd-s-de').value = d.toISOString().slice(0, 10); verPrev(); };
-        cont.querySelectorAll('[data-fd-x]').forEach(b=>b.onclick = ()=>{ leer(); D.items.splice(Number(b.dataset.fdX), 1); pintar(); });
         cont.querySelector('#fd-save').onclick = async (ev)=>{
           leer();
-          if(!D.desde || !D.hasta){ alert('Escribe las fechas como día-mes, por ejemplo 01-11 (1 de noviembre).'); return; }
           if(cfg.resenasUrl && !/^https:[/][/]/.test(cfg.resenasUrl)){ alert('El enlace de reseñas debe empezar por https://'); return; }
           S.premios = S.premios.filter(Boolean); if(!S.premios.length){ alert('Escribe al menos un premio en la lista.'); return; }
           ev.target.disabled = true; ev.target.textContent = 'Guardando…';
           try{ const r = await gs('saveFidelCfg', cfg, auth()); state.fidelCfg = r; toast('💧 Guardado.'); renderFidelAdmin(cont); }
           catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); ev.target.disabled = false; ev.target.textContent = 'Guardar'; }
         };
+        renderCarruselesAdmin(cont.querySelector('#carr-box'));   // 🎠 v378: los carruseles se guardan aparte, con su propio botón
       };
       pintar();
     }).catch(e=>{ cont.innerHTML = '<p class="ag-empty">No se pudo cargar: ' + esc(e && e.message ? e.message : String(e)) + '</p>'; });
