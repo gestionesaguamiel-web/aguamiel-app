@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v379' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v381' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9999,7 +9999,13 @@ setTimeout(function(){
       '⏸️ Un interruptor los <strong>enciende o apaga</strong> todos: vienen apagados para que los armes con tus fotos antes de mostrarlos.' ] },
     { v:379, fecha:'11 nov', titulo:'🧒 Grupos: servicios para niños', puntos:[
       '🧒 En la cotización para grupos, la tarjeta de cada niño ya no sale vacía: si el enlace no traía servicios de niños, se suman solos los de <strong>SPA Niño(a)</strong> con sus precios.',
-      '🔁 Los enlaces de grupos ya enviados también se arreglan al abrirlos.' ] }
+      '🔁 Los enlaces de grupos ya enviados también se arreglan al abrirlos.' ] },
+    { v:380, fecha:'11 nov', titulo:'🗓️ Pagar el día de la visita', puntos:[
+      '🗓️ Al enviar un catálogo hay una casilla nueva: <strong>«Permitir pagar todo el día de la visita»</strong>. Viene apagada: tú decides en cada enlace quién puede usarla.',
+      '🧾 Si la persona la elige, no abona: el presupuesto, el aviso y la reserva dicen que paga todo el día de la visita.' ] },
+    { v:381, fecha:'11 nov', titulo:'📦 Presupuesto como paquete', puntos:[
+      '📦 En cada presupuesto: botón <strong>«Presentar como paquete»</strong>. Le pones un nombre y la hoja, el PDF y el WhatsApp salen resumidos (ej. <em>9 × Masaje antiestrés</em>), sin «Adulto 1, Adulto 2…».',
+      '👥 Arriba sale el <strong>precio del paquete por persona</strong> y el total del grupo. El total cobrado no cambia.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -12681,12 +12687,13 @@ setTimeout(function(){
           ${cedula||tel?`<tr><td style="${td};padding-left:0" colspan="2">${cedula?'<strong>Cédula:</strong> '+esc(cedula):''}${cedula&&tel?' · ':''}${tel?'<strong>Teléfono:</strong> '+esc(tel):''}</td></tr>`:''}
           ${p.reservaFecha?`<tr><td style="${td};padding-left:0" colspan="2"><strong>Reserva:</strong> ${esc(isoToDMY(p.reservaFecha))} ${esc(p.reservaHora||'')}</td></tr>`:''}
           ${p.beneficiario?`<tr><td style="${td};padding-left:0" colspan="2"><strong>🎁 Regalo para:</strong> ${esc(p.beneficiario.nombre)}</td></tr>`:''}
-          ${(p.personas||[]).length?`<tr><td style="${td};padding-left:0" colspan="2"><strong>Personas:</strong> ${esc(p.beneficiario ? p.beneficiario.nombre : p.clienteNombre)}, ${esc(p.personas.map(x=>x.nombre).join(', '))}</td></tr>`:''}
+          ${(p.personas||[]).length && !p.paquete?`<tr><td style="${td};padding-left:0" colspan="2"><strong>Personas:</strong> ${esc(p.beneficiario ? p.beneficiario.nombre : p.clienteNombre)}, ${esc(p.personas.map(x=>x.nombre).join(', '))}</td></tr>`:''}
         </table>
+        ${p.paquete ? paqueteTablaHTML(p) : ''}
         <table class="pf-table" style="font-size:11.5px;margin-bottom:6px">
-          <tr><th style="text-align:left">Concepto</th><th style="width:44px">Cant.</th><th style="width:70px">Precio</th><th style="width:78px">Subtotal</th></tr>
-          ${gruposPresupuesto(p).map(g=>(g.titulo ? `<tr><td colspan="4" style="text-align:left;background:#f2f8f9;padding:4px 6px"><strong>${esc(g.titulo)}</strong></td></tr>` : '') + g.items.map(it=>`<tr><td class="pf-tname" style="white-space:normal">${esc(it.descripcion)}${it.detalle?'<br/><span style="font-size:10px;color:#666">'+esc(it.detalle)+'</span>':''}</td><td>${esc(it.cantidad)}</td><td>${dinero(it.precio)}</td><td>${dinero(it.precio*it.cantidad)}</td></tr>`).join('')).join('')}
-          <tr><td colspan="3" style="text-align:right">Subtotal</td><td>${dinero(p.subtotal)}</td></tr>
+          ${p.paquete ? '' : `<tr><th style="text-align:left">Concepto</th><th style="width:44px">Cant.</th><th style="width:70px">Precio</th><th style="width:78px">Subtotal</th></tr>`}
+          ${p.paquete ? '' : gruposPresupuesto(p).map(g=>(g.titulo ? `<tr><td colspan="4" style="text-align:left;background:#f2f8f9;padding:4px 6px"><strong>${esc(g.titulo)}</strong></td></tr>` : '') + g.items.map(it=>`<tr><td class="pf-tname" style="white-space:normal">${esc(it.descripcion)}${it.detalle?'<br/><span style="font-size:10px;color:#666">'+esc(it.detalle)+'</span>':''}</td><td>${esc(it.cantidad)}</td><td>${dinero(it.precio)}</td><td>${dinero(it.precio*it.cantidad)}</td></tr>`).join('')).join('')}
+          ${p.paquete && !p.descuento && !p.pagoPct ? '' : `<tr><td colspan="3" style="text-align:right">Subtotal</td><td>${dinero(p.subtotal)}</td></tr>`}
           ${p.descuento?`<tr><td colspan="3" style="text-align:right">Descuento${p.descuentoTipo==='porcentaje'?' ('+p.descuento+'%)':''}</td><td>− ${dinero(rebaja)}</td></tr>`:''}
           ${p.pagoPct?`<tr><td colspan="3" style="text-align:right;color:#1d6b35">Descuento por pago en ${esc(p.pagoMetodo)} (${p.pagoPct}%)</td><td style="color:#1d6b35">− ${dinero(Math.round((p.subtotal-rebaja)*p.pagoPct)/100)}</td></tr>`:''}
           <tr><td colspan="3" style="text-align:right"><strong>TOTAL</strong></td><td><strong>${dinero(p.total)}</strong></td></tr>
@@ -12699,6 +12706,45 @@ setTimeout(function(){
         ${p.notas?`<div style="font-size:11px;white-space:pre-wrap;border-left:3px solid #0d9bb5;padding:4px 8px;margin-top:4px"><strong>Condiciones:</strong> ${esc(p.notas)}</div>`:''}
         <div class="pf-meta" style="margin-top:10px">Centro de Bienestar Aguamiel · Presupuesto sin valor fiscal · ¡Será un placer atenderte! 💙</div>
       </div>`;
+  }
+  // 📦 v381: presupuesto presentado como paquete: conceptos sumados (sin «Adulto 1, Adulto 2…») y precio por persona.
+  function personasAuto(p){
+    if((p.personas||[]).length) return p.personas.length + (p.organizadorNoAsiste ? 0 : 1);
+    const m = String(p.notas||'').match(/(\d+)\s+personas/); return m ? Number(m[1]) : 1;
+  }
+  function personasPaquete(p){ return (p.paquete && p.paquete.personas) || personasAuto(p); }
+  function conceptosPaquete(p){
+    const mapa = {}, orden = [];
+    (p.items||[]).forEach(it=>{
+      const grupo = /\(todo el grupo/i.test(it.descripcion||'');
+      const desc = String(it.descripcion||'').replace(/\s*\((todo el grupo|para las)[^)]*\)/i, '').trim();
+      const k = (it.tipo==='comida' ? 'c|' : 's|') + desc.toLowerCase();
+      if(!mapa[k]){ mapa[k] = { desc, cant:0, grupo, comida: it.tipo==='comida' }; orden.push(k); }
+      mapa[k].cant += Number(it.cantidad)||1; if(grupo) mapa[k].grupo = true;
+    });
+    return orden.map(k=>mapa[k]);
+  }
+  function lineaPaquete(x){ return (x.grupo ? '' : x.cant + ' × ') + x.desc + (x.grupo ? ' (para todo el grupo)' : ''); }
+  function precioPorPersona(p){ const n = personasPaquete(p); return n > 0 ? Math.round(p.total / n * 100) / 100 : p.total; }
+  function paqueteTablaHTML(p){
+    const n = personasPaquete(p), cs = conceptosPaquete(p), srv = cs.filter(x=>!x.comida), com = cs.filter(x=>x.comida);
+    const lista = (t, l)=> l.length ? `<div style="font-weight:700;margin:6px 0 2px;color:#0a5a68">${t}</div>` + l.map(x=>`<div style="padding:2px 0 2px 6px">• ${esc(lineaPaquete(x))}</div>`).join('') : '';
+    return `<div style="border:2px solid #0d9bb5;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f2fafb">
+        <div style="font-size:16px;font-weight:800;color:#0a5a68">📦 ${esc(p.paquete.nombre)}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;align-items:baseline">
+          <div style="font-size:12px">Precio del paquete por persona<br/><strong style="font-size:22px;color:#0a5a68">${dinero(precioPorPersona(p))}</strong></div>
+          ${n > 1 ? `<div style="font-size:12px">En total ${n} personas<br/><strong style="font-size:16px">${dinero(p.total)}</strong></div>` : ''}
+        </div>
+        <div style="font-size:12px;margin-top:6px;color:#333">Para disfrutar todos los servicios que se detallan a continuación:</div>
+        <div style="font-size:12px">${lista('💆 Servicios', srv)}${lista('🍽️ Rincón de Rosita', com)}</div>
+      </div>`;
+  }
+  function paqueteTexto(p){
+    const n = personasPaquete(p), cs = conceptosPaquete(p), srv = cs.filter(x=>!x.comida), com = cs.filter(x=>x.comida);
+    return '📦 *' + p.paquete.nombre + '*\nPrecio del paquete por persona: *' + dinero(precioPorPersona(p)) + '*' + (n > 1 ? '\nEn total ' + n + ' personas: *' + dinero(p.total) + '*' : '') +
+      '\nPara disfrutar todos los servicios que se detallan a continuación:\n' +
+      (srv.length ? '\n*💆 Servicios*\n' + srv.map(x=>'▫️ ' + lineaPaquete(x)).join('\n') + '\n' : '') +
+      (com.length ? '\n*🍽️ Rincón de Rosita*\n' + com.map(x=>'▫️ ' + lineaPaquete(x)).join('\n') + '\n' : '');
   }
   // Conceptos agrupados por persona (si el presupuesto tiene acompañantes y se eligió para quién es cada cosa).
   function gruposPresupuesto(p){
@@ -13065,6 +13111,8 @@ setTimeout(function(){
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-solicitud" style="width:auto" ${E.solicitudChk?'checked':''}/> 📝 Es una solicitud de reserva (el cliente debe pedir día y hora)</label>
         <div class="ag-muted" style="font-size:11.5px;margin:0 0 2px 24px">El cliente elige sus servicios y obligatoriamente el día y la hora; te llega como solicitud para que la confirmes (no queda reservado hasta entonces).</div>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-sinpago" style="width:auto" ${E.sinPagoNo?'':'checked'}/> 💸 Permitir que envíe su selección sin pagar («Abonaré el día…»)</label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-pagodia" style="width:auto" ${E.pagoDia?'checked':''}/> 🗓️ Permitir pagar todo el día de la visita (sin abono)</label>
+        <div class="ag-muted" style="font-size:11.5px;margin:0 0 2px 24px">Márcalo solo para clientes de confianza: verá la opción «Pago todo el día de mi visita» y no tendrá que abonar.</div>
         <div class="ag-muted" style="font-size:11.5px;margin:0 0 2px 24px">El cliente indica qué día abonará y cómo pagará; te llega el aviso para asignar profesionales o pedir cobertura. Si lo desmarcas, para enviar tendrá que abonar el 50 % o pagar el total.</div>
         <div ${E.publico ? 'hidden' : ''}>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;margin-top:10px"><input type="checkbox" id="ce-disp" style="width:auto"/> 📅 Indicar disponibilidad de fechas y horas</label>
@@ -13416,7 +13464,7 @@ setTimeout(function(){
           grupos: opcionesDe(m).map(g=>({ nombre:g.nombre, multiple:!!g.multiple, max:maxGrupo(g), valores:g.valores })) })) : [] };
       cfg.solicitud = q('#ce-solicitud').checked;
       if(E.musica !== undefined) cfg.musica = E.musica; cfg.galeria = E.galeria !== false;
-      E.sinPagoNo = !q('#ce-sinpago').checked; cfg.sinPago = !E.sinPagoNo;
+      E.sinPagoNo = !q('#ce-sinpago').checked; cfg.sinPago = !E.sinPagoNo; const pdC = q('#ce-pagodia'); E.pagoDia = !!(pdC && pdC.checked); cfg.pagoDia = E.pagoDia;
       if(esRegalo){
         // Con «adicionales», quien recibe el regalo ve también lo que se le ofrece (con precios) y puede comprarlo aparte.
         const conExtras = !!(chkRegExt && chkRegExt.checked);
@@ -13435,7 +13483,7 @@ setTimeout(function(){
       if(!esRegalo && !cfg.servicios.length && !cfg.paquetes.length && !cfg.menu.length && !hayGrupal){ alert('Marca al menos una sección con algo para ofrecer' + (E.grupal ? ' o pon un precio grupal.' : '.')); return; }
       const b = q('#ce-crear'); if(b.disabled) return; b.disabled = true; b.textContent = 'Creando…';
       if(E.publico){
-        cfg.editor = { sinCat:E.sinCat, sinPaq:E.sinPaq, sinMenu:E.sinMenu, sinSrv:E.sinSrv, sinPlato:E.sinPlato, conServ:E.conServ, conPaq:E.conPaq, conMenu:E.conMenu, solicitudChk:cfg.solicitud, sinPagoNo:E.sinPagoNo, musica:E.musica, galeria:E.galeria };
+        cfg.editor = { sinCat:E.sinCat, sinPaq:E.sinPaq, sinMenu:E.sinMenu, sinSrv:E.sinSrv, sinPlato:E.sinPlato, conServ:E.conServ, conPaq:E.conPaq, conMenu:E.conMenu, solicitudChk:cfg.solicitud, sinPagoNo:E.sinPagoNo, pagoDia:E.pagoDia, musica:E.musica, galeria:E.galeria };
         try{ P.pub = await gs('guardarEnlacePublico', cfg, auth()); P.cat = null; P.vista = 'publico'; render(); toast('✅ Guardado. Tu enlace público sigue siendo el mismo.'); }
         catch(e){ b.disabled = false; b.textContent = '💾 Guardar lo que ofrece el enlace público'; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
         return;
@@ -13780,8 +13828,17 @@ setTimeout(function(){
         { at:'id="pv-imprimir"', e:'📤', t:'Imagen o PDF', sb:'Enviar como archivo', c:['#0a5a68','#e2f4f6'] },
         p.reservaId ? { at:'id="pv-ir-reserva"', e:'📅', t:'Ver reserva', sb:'Ya está agendada', c:['#5b3f8f','#efe9f8'] } : { at:'id="pv-reserva"', e:'📅', t:'Convertir en reserva', sb:'Agendar la cita', c:['#5b3f8f','#efe9f8'] },
         { at:'id="pv-editar"', e:'✏️', t:'Editar', sb:'Cambiar lo incluido', c:['#8a5a00','#fff3d6'] },
+        { at:'id="pv-paquete"', e:'📦', t: p.paquete ? 'Paquete' : 'Presentar como paquete', sb: p.paquete ? p.paquete.nombre : 'Resumido y precio por persona', c:['#0a5a68','#e2f4f6'] },
         { at:'id="pv-regalo"', e:'🎁', t:'Mensaje de regalo', sb:'Para quien lo recibe', c:['#a23a69','#fdf3f7'] },
         !(p.pagos||[]).length && !p.reservaId && p.estado!=='Aceptado' && p.estado!=='Rechazado' ? { at:'id="pv-catalogo"', e:'🛍️', t:'Que agregue más', sb:'Desde el catálogo', c:['#35616b','#eef5f6'] } : null ])}</div>
+      <div class="ag-card" id="pv-paqform" style="margin-top:10px;display:none;background:#f2fafb;border-color:#bfe3ea">
+        <div style="font-weight:700;font-size:14.5px">📦 Presentar como paquete</div>
+        <div class="ag-muted" style="font-size:12px;margin-top:2px">La hoja, el PDF y el WhatsApp salen resumidos, con el precio por persona. El total no cambia.</div>
+        <label class="f">Nombre del paquete</label><input id="pv-paqnom" maxlength="80" placeholder="Ej: Día de Spa en Familia" value="${esc(p.paquete ? p.paquete.nombre : '')}"/>
+        <label class="f">¿Cuántas personas?</label><input id="pv-paqper" type="number" min="1" max="500" inputmode="numeric" value="${personasPaquete(p)}"/>
+        <div class="ag-muted" id="pv-paqpp" style="font-size:13px;margin-top:4px"></div>
+        <div class="ag-row" style="gap:6px;margin-top:8px"><button class="ag-btn sm" id="pv-paqok">✅ Guardar</button>${p.paquete ? '<button class="ag-btn sm ghost" id="pv-paqquitar">↩️ Volver al detalle por persona</button>' : ''}</div>
+      </div>
       ${(p.pagosReportados||[]).length ? `<div class="ag-card" id="pv-pagosgrupo" style="margin-top:10px;background:${p.pagosReportados.some(x=>!x.verificado) ? '#fff7e6;border-color:#f0d9a8' : '#eef8ef;border-color:#cfe8d5'}">
         <div style="font-weight:700;font-size:14.5px">💳 Pagos reportados${p.pagosReportados.some(x=>x.abono) ? ' (incluye abonos de saldo desde el enlace)' : ' por persona'}${p.pagosReportados.some(x=>!x.verificado) ? ' · ' + p.pagosReportados.filter(x=>!x.verificado).length + ' por verificar' : ' · todos verificados ✅'}</div>
         ${p.pagosReportados.map(x=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px;margin-top:6px;background:#fff"><div><strong>${esc(x.nombre)}</strong> · ${x.pct ? 'dice que pagó el <strong>' + x.pct + '%</strong> (' + dinero(x.monto) + ')' : 'adjuntó un comprobante'} · ${x.verificado ? '✅ verificado' + (x.verificadoPor ? ' por ' + esc(String(x.verificadoPor).split(' ')[0]) : '') + (x.montoVerificado ? ' (' + dinero(x.montoVerificado) + ')' : '') : '⏳ por verificar'}</div>
@@ -13826,10 +13883,24 @@ setTimeout(function(){
     body.querySelector('#pv-imprimir').onclick = ()=> compartirDocumento(presupuestoHTML(p), { titulo:'🧾 Presupuesto ' + (p.numero||''), archivo:'Presupuesto ' + (p.numero||'') + ' ' + (p.clienteNombre||''), telefono: p.clienteTelefono,
       mensaje:'🌿✨ ¡Hola ' + String(p.clienteNombre||'').split(' ')[0] + '! Te compartimos tu presupuesto de *Aguamiel · Centro de Bienestar* 💆‍♀️🌸\nCualquier duda, con gusto te ayudamos. ¡Te esperamos! 💙' });
     body.querySelector('#pv-editar').onclick = ()=>{ P.vista='form'; P.items=null; render(); };
+    const fpq = body.querySelector('#pv-paqform');
+    const ppq = ()=>{ const n = Math.max(1, Math.round(Number(body.querySelector('#pv-paqper').value)||1)); body.querySelector('#pv-paqpp').innerHTML = 'Precio por persona: <strong>' + dinero(Math.round(p.total / n * 100) / 100) + '</strong> · Total ' + dinero(p.total); };
+    body.querySelector('#pv-paquete').onclick = ()=>{ fpq.style.display = fpq.style.display === 'none' ? '' : 'none'; ppq(); if(fpq.style.display === '') body.querySelector('#pv-paqnom').focus(); };
+    body.querySelector('#pv-paqper').oninput = ppq;
+    const guardarPaq = async (paq)=>{
+      try{ aplicarPresupuesto(p, await gs('setPaquetePresupuesto', p.id, paq, auth())); render(); toast(paq ? '📦 Listo: se presenta como paquete.' : 'Listo: vuelve al detalle por persona.'); }
+      catch(e){ alert('No se pudo guardar: ' + e); }
+    };
+    body.querySelector('#pv-paqok').onclick = ()=>{
+      const nom = body.querySelector('#pv-paqnom').value.trim(); if(!nom){ alert('Escribe el nombre del paquete.'); return; }
+      const n = Math.max(1, Math.round(Number(body.querySelector('#pv-paqper').value)||1));
+      guardarPaq({ nombre:nom, personas: n === personasAuto(p) ? 0 : n });
+    };
+    const bpq = body.querySelector('#pv-paqquitar'); if(bpq) bpq.onclick = ()=> guardarPaq(null);
     const bcat = body.querySelector('#pv-catalogo'); if(bcat) bcat.onclick = ()=>{ P.vista='catalogo'; P.cat = null; P.catPresu = p.id; render(); };
     body.querySelector('#pv-wa').onclick = async ()=>{
       const msg = `🌿✨ ¡Hola ${p.clienteNombre.split(' ')[0]}! 💙\nTe compartimos tu presupuesto *${p.numero}* de *Aguamiel · Centro de Bienestar* 💆‍♀️\n\n` +
-        gruposPresupuesto(p).map(g=>(g.titulo ? '*' + g.titulo + '*\n' : '') + g.items.map(it=>'▫️ ' + it.cantidad + 'x ' + it.descripcion + ': ' + dinero(it.precio*it.cantidad)).join('\n')).join('\n\n') + '\n' +
+        (p.paquete ? paqueteTexto(p) : gruposPresupuesto(p).map(g=>(g.titulo ? '*' + g.titulo + '*\n' : '') + g.items.map(it=>'▫️ ' + it.cantidad + 'x ' + it.descripcion + ': ' + dinero(it.precio*it.cantidad)).join('\n')).join('\n\n') + '\n') +
         (p.descuento ? '\nDescuento: ' + (p.descuentoTipo==='porcentaje' ? p.descuento + '%' : dinero(p.descuento)) : '') +
         (Number(p.descuento) > 0 ? '\n\n' + fraseVipDescuento(p) + '\n' : '') +
         (p.pagoPct ? '\nDescuento por pago en ' + p.pagoMetodo + ': ' + p.pagoPct + '%' : '') +
@@ -13956,6 +14027,7 @@ setTimeout(function(){
       state.ag.prefill = { presupuestoId:p.id, numero:p.numero, clienteId:cliRes, nombreSinRegistro: cliRes ? '' : (nomRes||''), comprador, terapias, servicios, comidas, tipoFicha, paqueteId: (!prog && paqObj)?paqObj.id:'', montoTotal:p.total, abonado:p.pagado||0, notas:'Según presupuesto ' + p.numero + (()=>{
           // Abonó una parte: el resto se paga el día de la cita, en la modalidad que eligió el cliente.
           const resta = Math.round(((Number(p.total)||0) - (Number(p.pagado)||0))*100)/100;
+          if(p.pagoEnDia && !(Number(p.pagado) > 0) && Number(p.total) > 0) return '\n🗓️ Paga todo el día de la visita: ' + dinero(p.total) + ' (sin abono, autorizado en su enlace).';
           if(!(Number(p.pagado) > 0) || resta <= 0) return '';
           return '\n💵 Abonó ' + dinero(p.pagado) + '. Resta ' + dinero(resta) + ' a pagar el día de la cita' + (p.restoModo==='divisas' ? ' en divisas' : (p.restoModo==='bs' ? ' en bolívares (tasa BCV del día)' : '')) + '.';
         })(),
