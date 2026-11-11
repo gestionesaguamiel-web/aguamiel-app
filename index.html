@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v378' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v379' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9996,7 +9996,10 @@ setTimeout(function(){
     { v:378, fecha:'8 nov', titulo:'🎠 Carruseles en el catálogo', puntos:[
       '🎠 Los destacados del catálogo ahora son <strong>carruseles con imagen</strong> que se deslizan y pasan solos: 🎁 Paquetes, 🔥 Ofertas, 💆 Servicios e ℹ️ Para saber.',
       '📷 Se arman en Admin → Ventas → 💧 Temporada y fidelización: cada tarjeta se elige de la lista, con <strong>su propia imagen</strong>, frase, etiqueta y fechas (se apaga sola al vencer).',
-      '⏸️ Un interruptor los <strong>enciende o apaga</strong> todos: vienen apagados para que los armes con tus fotos antes de mostrarlos.' ] }
+      '⏸️ Un interruptor los <strong>enciende o apaga</strong> todos: vienen apagados para que los armes con tus fotos antes de mostrarlos.' ] },
+    { v:379, fecha:'11 nov', titulo:'🧒 Grupos: servicios para niños', puntos:[
+      '🧒 En la cotización para grupos, la tarjeta de cada niño ya no sale vacía: si el enlace no traía servicios de niños, se suman solos los de <strong>SPA Niño(a)</strong> con sus precios.',
+      '🔁 Los enlaces de grupos ya enviados también se arreglan al abrirlos.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
