@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v381' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v382' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10005,7 +10005,9 @@ setTimeout(function(){
       '🧾 Si la persona la elige, no abona: el presupuesto, el aviso y la reserva dicen que paga todo el día de la visita.' ] },
     { v:381, fecha:'11 nov', titulo:'📦 Presupuesto como paquete', puntos:[
       '📦 En cada presupuesto: botón <strong>«Presentar como paquete»</strong>. Le pones un nombre y la hoja, el PDF y el WhatsApp salen resumidos (ej. <em>9 × Masaje antiestrés</em>), sin «Adulto 1, Adulto 2…».',
-      '👥 Arriba sale el <strong>precio del paquete por persona</strong> y el total del grupo. El total cobrado no cambia.' ] }
+      '👥 Arriba sale el <strong>precio del paquete por persona</strong> y el total del grupo. El total cobrado no cambia.' ] },
+    { v:382, fecha:'11 nov', titulo:'🥤 Sabores en el paquete', puntos:[
+      '🥤 En el presupuesto como paquete, los jugos y platos muestran lo elegido entre paréntesis, ej. <em>2 × Jugo Natural (Parchita, Melón)</em>.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -12719,12 +12721,14 @@ setTimeout(function(){
       const grupo = /\(todo el grupo/i.test(it.descripcion||'');
       const desc = String(it.descripcion||'').replace(/\s*\((todo el grupo|para las)[^)]*\)/i, '').trim();
       const k = (it.tipo==='comida' ? 'c|' : 's|') + desc.toLowerCase();
-      if(!mapa[k]){ mapa[k] = { desc, cant:0, grupo, comida: it.tipo==='comida' }; orden.push(k); }
+      if(!mapa[k]){ mapa[k] = { desc, cant:0, grupo, comida: it.tipo==='comida', ops:[] }; orden.push(k); }
       mapa[k].cant += Number(it.cantidad)||1; if(grupo) mapa[k].grupo = true;
+      // v382: sabores u opciones elegidas (ej. Jugo natural (parchita, melón))
+      (it.opciones||[]).forEach(o=>{ const v = String(o).split('::').pop().trim(); if(v && !mapa[k].ops.some(x=>x.toLowerCase()===v.toLowerCase())) mapa[k].ops.push(v); });
     });
     return orden.map(k=>mapa[k]);
   }
-  function lineaPaquete(x){ return (x.grupo ? '' : x.cant + ' × ') + x.desc + (x.grupo ? ' (para todo el grupo)' : ''); }
+  function lineaPaquete(x){ return (x.grupo ? '' : x.cant + ' × ') + x.desc + (x.ops && x.ops.length ? ' (' + x.ops.join(', ') + ')' : '') + (x.grupo ? ' (para todo el grupo)' : ''); }
   function precioPorPersona(p){ const n = personasPaquete(p); return n > 0 ? Math.round(p.total / n * 100) / 100 : p.total; }
   function paqueteTablaHTML(p){
     const n = personasPaquete(p), cs = conceptosPaquete(p), srv = cs.filter(x=>!x.comida), com = cs.filter(x=>x.comida);
