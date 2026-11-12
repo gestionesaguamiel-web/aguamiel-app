@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v383' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v385' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -3314,7 +3314,9 @@ setTimeout(function(){
     if(state.selClienteId==='__new__' || (state.selClienteId && state.editing)){ renderClienteForm(body); return; }
     if(state.selClienteId && state.selFichaId){ renderFichaDetalle(body); return; }
     if(state.selClienteId){ renderClienteDetalle(body); return; }
+    if(state.postventaVer && puedeEnviarWhatsapp()){ renderPostventa(body); return; }
     body.innerHTML = `
+      ${puedeEnviarWhatsapp() ? '<button class="ag-btn ghost" id="ag-postventa" style="width:100%;margin-bottom:10px">💚 Postventa: mensajes de bienestar</button>' : ''}
       <div class="ag-row" style="margin-bottom:10px">
         <input id="ag-search" placeholder="Buscar por nombre o cédula" value="${esc(state.search)}"/>
         <button class="ag-btn sm" id="ag-new-c" style="flex:0 0 auto">+ Cliente</button>
@@ -3356,6 +3358,166 @@ setTimeout(function(){
     let espera = null;
     body.querySelector('#ag-search').oninput = e=>{ state.search = e.target.value; limite = 60; clearTimeout(espera); espera = setTimeout(()=>{ drawList(); pintarRecientes(); }, 180); };
     body.querySelector('#ag-new-c').onclick = ()=>{ state.selClienteId='__new__'; render(); };
+    const pvBtn = body.querySelector('#ag-postventa'); if(pvBtn) pvBtn.onclick = ()=>{ state.postventaVer = true; render(); };
+  }
+
+  // ---------- 💚 v385: Postventa (mensaje de bienestar con audio después de la visita) ----------
+  // Lista de a quién toca escribir hoy (según la fecha de visita de la ficha), botón para abrir WhatsApp con el texto listo,
+  // respuestas de los clientes y, solo para administración, el mensaje modelo y los audios. Sin dinero en ningún paso.
+  const PV_TXT = { sueno:{ bien:'😴 Bien', regular:'😐 Regular', mal:'😣 Mal' }, tension:{ menos:'💆 Menos', igual:'➖ Igual', mas:'⚠️ Más' }, energia:{ alta:'✨ Alta', normal:'🙂 Normal', baja:'🔋 Baja' } };
+  const PV_PARA = { todos:'Para todos', spa:'Spa y relajación', fisio:'Fisioterapia y programa reductivo' };
+  function renderPostventa(body){
+    const admin = !!(state.user && state.user.admin);
+    body.innerHTML = `<button class="ag-btn ghost sm" id="pv-back" style="white-space:nowrap">← Volver a clientes</button>
+      <div class="ag-card" style="margin-top:10px"><h3 style="margin:0 0 4px">💚 Postventa</h3>
+        <p class="ag-muted" style="margin:0;font-size:13px">Un mensaje de bienestar al día siguiente de la visita (y a los 7 días en fisioterapia y programa reductivo). El cliente oye el audio del equipo y responde con un toque. Mejor enviarlo entre 10 a. m. y 12 m. El 👩/👨 indica si el mensaje va para mujer u hombre (con «?» si la app lo dedujo del nombre: tócalo para corregirlo).</p>
+        <div id="pv-resumen"></div></div>
+      <div id="pv-lista"><p class="ag-muted">Cargando…</p></div>
+      ${admin ? '<div id="pv-admin" style="margin-top:14px"></div>' : ''}`;
+    body.querySelector('#pv-back').onclick = ()=>{ state.postventaVer = false; render(); };
+    const lista = body.querySelector('#pv-lista');
+    const dmy = iso=>{ const p = String(iso||'').slice(0,10).split('-'); return p.length===3 ? p[2]+'/'+p[1] : String(iso||''); };
+    const respHTML = r=>['sueno','tension','energia'].filter(k=>r[k]).map(k=>`<span class="ag-badge" style="margin:2px 4px 0 0">${({sueno:'Sueño ',tension:'Tensión ',energia:'Energía '})[k]}${esc(PV_TXT[k][r[k]]||r[k])}</span>`).join('');
+    const pintar = d=>{
+      const rs = body.querySelector('#pv-resumen');
+      if(rs && d.resumen){ const R = d.resumen; rs.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+        <span class="ag-badge">📤 ${R.enviados} enviados (30 días)</span><span class="ag-badge">💬 ${R.respondidos} respondieron</span>
+        ${R.durmieronBien!==null?`<span class="ag-badge">😴 ${R.durmieronBien}% durmió bien</span>`:''}${R.menosTension!==null?`<span class="ag-badge">💆 ${R.menosTension}% menos tensión</span>`:''}
+        ${R.alertas?`<span class="ag-badge" style="background:#fde8e8;color:#a32d2d">🔴 ${R.alertas} por atender</span>`:''}</div>`; }
+      const llamar = d.enviados.filter(r=>r.alerta && !r.llamadoPor);
+      lista.innerHTML = `${d.sinAudio && admin ? '<div class="ag-warn" style="margin-top:10px">🎙️ Aún no hay audio: grábalo abajo en «Mensaje y audios». Mientras tanto, el mensaje se envía sin audio.</div>' : ''}
+        ${llamar.length ? `<div class="ag-sec-h" style="margin-top:14px">🔴 Llamar hoy (${llamar.length})</div>${llamar.map(r=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:6px;border-left:4px solid #d9534f">
+          <div><strong>${esc(r.clienteNombre)}</strong><div class="ag-muted">Visita ${esc(dmy(r.fechaVisita))}</div><div>${respHTML(r)}</div>${r.comentario?`<div style="font-size:13px;margin-top:4px">💬 «${esc(r.comentario)}»</div>`:''}</div>
+          <button class="ag-btn sm" style="align-self:flex-start;white-space:nowrap" data-pv-llamado="${esc(r.id)}">✅ Ya lo llamé</button></div>`).join('')}` : ''}
+        <div class="ag-sec-h" style="margin-top:14px">📱 Toca escribir hoy (${d.pendientes.length})</div>
+        ${d.pendientes.length ? d.pendientes.map(p=>`<div class="ag-list-item" style="gap:8px">
+          <div style="flex:1;min-width:0"><strong>${esc(p.clienteNombre)}</strong><div class="ag-muted">${esc(TIPOS[p.tipo]||'Visita')} · ${esc(dmy(p.fecha))}${p.profesional?' · '+esc(String(p.profesional).split(' ')[0]):''}</div></div>
+          <button type="button" class="ag-btn ghost sm" style="flex:0 0 auto;padding:6px 8px" title="Mujer u hombre (toca para cambiar)" data-pv-sx="${esc(p.clienteId)}|${p.sexo==='h'?'m':'h'}">${p.sexo==='h'?'👨':'👩'}${p.sexoMarcado?'':'?'}</button>
+          <span class="ag-badge" style="flex:0 0 auto;white-space:nowrap">${p.toque==='2'?'7 días':'Día sig.'}</span>
+          ${p.conTel ? `<button class="ag-btn sm" style="flex:0 0 auto;white-space:nowrap" data-pv-env="${esc(p.fichaId)}|${esc(p.toque)}">📱 Enviar</button>` : '<span class="ag-muted" style="font-size:12px">sin teléfono</span>'}</div>`).join('')
+          : '<p class="ag-empty">Nada pendiente por hoy. 🌿</p>'}
+        <details style="margin-top:14px"${d.enviados.length && !d.pendientes.length ? ' open' : ''}><summary style="cursor:pointer;font-weight:600">🕘 Enviados en los últimos 15 días (${d.enviados.length})</summary>
+          ${d.enviados.map(r=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px">
+            <div style="display:flex;justify-content:space-between;gap:8px"><strong>${esc(r.clienteNombre)}</strong><span class="ag-muted" style="font-size:12px">${r.toque==='2'?'7 días':'Día sig.'} · ${esc((r.enviadoPor||'').split(' ')[0])} · ${esc(dmy(String(r.enviadoAt).slice(0,10)))}</span></div>
+            ${r.estado==='respondido' ? `<div>${respHTML(r)}</div>${r.comentario?`<div style="font-size:13px">💬 «${esc(r.comentario)}»</div>`:''}${r.llamadoPor?`<div class="ag-muted" style="font-size:12px">✅ Llamado por ${esc(r.llamadoPor.split(' ')[0])}</div>`:''}` : '<span class="ag-muted" style="font-size:12.5px">⏳ Aún no responde</span>'}</div>`).join('') || '<p class="ag-muted">Todavía no se ha enviado ninguno.</p>'}
+        </details>`;
+      lista.querySelectorAll('[data-pv-env]').forEach(b=>b.onclick = async ()=>{
+        const [fid, toque] = b.dataset.pvEnv.split('|'); b.disabled = true; const t0 = b.textContent; b.textContent = 'Preparando…';
+        try{
+          const r = await gs('prepararPostventa', fid, toque, auth());
+          const url = waLink(r.tel, r.texto);
+          if(!url) throw new Error('El teléfono del cliente no es válido.');
+          window.open(url, '_blank');
+          toast('📱 Abriendo WhatsApp… queda anotado como enviado.'); cargar();
+        }catch(e){ alert('No se pudo preparar el mensaje: ' + (e && e.message ? e.message : e)); b.disabled = false; b.textContent = t0; }
+      });
+      lista.querySelectorAll('[data-pv-sx]').forEach(b=>b.onclick = async ()=>{
+        const [cid, sx] = b.dataset.pvSx.split('|'); b.disabled = true;
+        try{ await gs('setSexoCliente', cid, sx, auth()); toast(sx==='h' ? '👨 El mensaje irá para hombre.' : '👩 El mensaje irá para mujer.'); cargar(); }catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); b.disabled = false; }
+      });
+      lista.querySelectorAll('[data-pv-llamado]').forEach(b=>b.onclick = async ()=>{
+        b.disabled = true;
+        try{ await gs('marcarPostventaLlamado', b.dataset.pvLlamado, auth()); toast('✅ Anotado.'); cargar(); }catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); b.disabled = false; }
+      });
+    };
+    const cargar = ()=>gs('getPostventa', auth()).then(pintar, e=>{ lista.innerHTML = '<p class="ag-empty">No se pudo cargar: ' + esc(e && e.message ? e.message : String(e)) + '</p>'; });
+    cargar();
+    if(admin) renderPostventaAdmin(body.querySelector('#pv-admin'));
+  }
+  // Administración: texto del mensaje (día siguiente y 7 días) y audios (grabar en la app o subir del teléfono).
+  function renderPostventaAdmin(cont){
+    cont.innerHTML = '<p class="ag-muted">Cargando mensaje y audios…</p>';
+    let grab = null;   // { rec, partes, stream, t0, timer, blob, mime }
+    const pintar = c=>{
+      cont.innerHTML = `<details class="ag-card"${c.audios.length ? '' : ' open'}><summary style="cursor:pointer;font-weight:700">⚙️ Mensaje y audios <span class="ag-muted" style="font-weight:400">(solo administración)</span></summary>
+        <label class="f">📱 Mensaje del día siguiente <span class="ag-muted" style="font-weight:400">({nombre}, {servicio}, {frase} rotativa, {enlace} y querid{a} se llenan solos)</span></label>
+        <textarea id="pv-t1" rows="8">${esc(c.texto)}</textarea>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px"><input type="checkbox" id="pv-seg" style="width:auto;flex:0 0 auto" ${c.segundo?'checked':''}/> Segundo mensaje a los 7 días (fisioterapia y programa reductivo)</label>
+        <textarea id="pv-t2" rows="5" style="margin-top:6px">${esc(c.texto2)}</textarea>
+        <div class="ag-row" style="margin-top:8px"><button class="ag-btn sm" id="pv-guardar">💾 Guardar mensajes</button><button class="ag-btn ghost sm" id="pv-base">↺ Volver al texto modelo</button></div>
+        <div class="ag-sec-h" style="margin-top:16px">🎙️ Audios (${c.audios.length} de 8)</div>
+        <p class="ag-muted" style="font-size:12.5px;margin-top:0">De 30 a 45 segundos, con voz cálida: nombre del centro y buenos deseos, sin precios ni ofertas. Si hay varios para el mismo tipo de servicio, se turnan solos. Conviene cambiarlos cada mes.</p>
+        ${c.audios.map(a=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:6px">
+          <div style="display:flex;gap:8px;align-items:center"><strong style="flex:1">${esc(a.titulo)}</strong><span class="ag-muted" style="font-size:12px">${esc((a.creadoPor||'').split(' ')[0])}</span></div>
+          <div class="ag-row"><select data-pv-para="${esc(a.id)}">${Object.keys(PV_PARA).map(k=>`<option value="${k}" ${a.para===k?'selected':''}>${PV_PARA[k]}</option>`).join('')}</select>
+          <button class="ag-btn ghost sm" data-pv-oir="${esc(a.id)}" style="flex:0 0 auto;white-space:nowrap">▶️ Escuchar</button><button class="ag-btn danger sm" data-pv-del="${esc(a.id)}" style="flex:0 0 auto">🗑️</button></div>
+          <div data-pv-player="${esc(a.id)}"></div></div>`).join('') || '<p class="ag-muted">Todavía no hay audios.</p>'}
+        <div class="ag-card" style="background:var(--teal-l);margin-top:10px">
+          <label class="f" style="margin-top:0">Nombre del audio</label><input id="pv-atit" placeholder="Ej: Buenos deseos de Dianny" maxlength="60"/>
+          <label class="f">¿Para quién?</label><select id="pv-apara">${Object.keys(PV_PARA).map(k=>`<option value="${k}">${PV_PARA[k]}</option>`).join('')}</select>
+          <div id="pv-grab" style="margin-top:10px"></div>
+          <label class="ag-btn ghost sm" style="display:block;text-align:center;margin-top:8px;cursor:pointer;white-space:nowrap">📤 O subir un audio del teléfono<input type="file" id="pv-arch" accept=".mp3,.m4a,.aac,.ogg,.opus,.wav,.webm,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/wav,audio/webm" style="display:none"/></label>
+        </div></details>`;
+      const q = s=>cont.querySelector(s);
+      q('#pv-guardar').onclick = async ()=>{
+        const b = q('#pv-guardar'); b.disabled = true;
+        try{ await gs('setPostventaCfg', { texto:q('#pv-t1').value, texto2:q('#pv-t2').value, segundo:q('#pv-seg').checked }, auth()); toast('💾 Mensajes guardados.'); }
+        catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+        b.disabled = false;
+      };
+      q('#pv-base').onclick = ()=>{ if(!confirm('¿Poner otra vez el texto modelo? (Se guarda al tocar «Guardar mensajes».)')) return; q('#pv-t1').value = c.base.texto; q('#pv-t2').value = c.base.texto2; };
+      cont.querySelectorAll('[data-pv-para]').forEach(s=>s.onchange = ()=>gs('setPostventaCfg', { audios:[{ id:s.dataset.pvPara, para:s.value }] }, auth()).then(()=>toast('Guardado.'), e=>alert('No se pudo guardar: ' + (e && e.message ? e.message : e))));
+      cont.querySelectorAll('[data-pv-oir]').forEach(b=>b.onclick = async ()=>{
+        const box = cont.querySelector('[data-pv-player="' + b.dataset.pvOir + '"]'); b.disabled = true; b.textContent = 'Cargando…';
+        try{ const src = await gsEspera(90000, 'getAudioPostventaAdmin', b.dataset.pvOir, auth()); box.innerHTML = src ? '<audio controls autoplay style="width:100%"></audio>' : '<span class="ag-muted">No se encontró el archivo.</span>'; if(src) box.querySelector('audio').src = src; }
+        catch(e){ alert('No se pudo cargar: ' + (e && e.message ? e.message : e)); }
+        b.disabled = false; b.textContent = '▶️ Escuchar';
+      });
+      cont.querySelectorAll('[data-pv-del]').forEach(b=>b.onclick = async ()=>{
+        if(!confirm('¿Borrar este audio? Los mensajes ya enviados con él dejarán de tener audio.')) return;
+        b.disabled = true;
+        try{ await gs('borrarAudioPostventa', b.dataset.pvDel, auth()); toast('🗑️ Audio borrado.'); cargarCfg(); }catch(e){ alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); b.disabled = false; }
+      });
+      const subir = async (datos)=>{
+        const tit = q('#pv-atit').value.trim();
+        toast('📤 Guardando el audio…');
+        try{ await gsEspera(120000, 'subirAudioPostventa', { titulo:tit, para:q('#pv-apara').value, datos }, auth()); toast('✅ Audio guardado.'); cargarCfg(); }
+        catch(e){ alert('No se pudo guardar el audio: ' + (e && e.message ? e.message : e)); pintarGrab(); }
+      };
+      const leerArchivo = (blob, mime)=>new Promise((ok, mal)=>{ const fr = new FileReader(); fr.onload = ()=>{ let s = String(fr.result); if(mime) s = s.replace(/^data:[^;,]*/, 'data:' + mime); ok(s); }; fr.onerror = ()=>mal(new Error('No se pudo leer el archivo.')); fr.readAsDataURL(blob); });
+      q('#pv-arch').onchange = async e=>{
+        const f = e.target.files && e.target.files[0]; if(!f) return;
+        if(f.size > 5 * 1024 * 1024){ alert('El audio pesa más de 5 MB: usa uno más corto.'); return; }
+        const ext = (f.name.match(/\.([a-z0-9]+)$/i) || ['',''])[1].toLowerCase();
+        const mime = (f.type && f.type.indexOf('audio') === 0) ? f.type.split(';')[0] : ({ mp3:'audio/mpeg', m4a:'audio/mp4', aac:'audio/aac', ogg:'audio/ogg', opus:'audio/ogg', wav:'audio/wav', webm:'audio/webm' })[ext];
+        if(!mime){ alert('Ese archivo no parece un audio.'); return; }
+        if(!q('#pv-atit').value.trim()) q('#pv-atit').value = f.name.replace(/\.[^.]+$/, '').slice(0, 60);
+        subir(await leerArchivo(f, mime));
+      };
+      // 🎙️ Grabar en la app: se elige el formato que mejor suene en todos los teléfonos (MP4/AAC si el navegador lo permite).
+      const pintarGrab = ()=>{
+        const g = q('#pv-grab'); if(!g) return;
+        if(!(navigator.mediaDevices && window.MediaRecorder)){ g.innerHTML = '<p class="ag-muted" style="font-size:12.5px">Este navegador no deja grabar aquí: graba la nota de voz con el teléfono y súbela con el botón de abajo.</p>'; return; }
+        if(grab && grab.rec && grab.rec.state === 'recording'){
+          const s = Math.floor((Date.now() - grab.t0) / 1000);
+          g.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><span style="color:#d9534f;font-weight:700">⏺ Grabando ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}</span><button class="ag-btn sm" id="pv-stop">⏹ Detener</button></div>`;
+          q('#pv-stop').onclick = ()=>grab.rec.stop(); return;
+        }
+        if(grab && grab.blob){
+          g.innerHTML = '<audio controls style="width:100%"></audio><div class="ag-row" style="margin-top:6px"><button class="ag-btn sm" id="pv-gok">💾 Guardar este audio</button><button class="ag-btn ghost sm" id="pv-gre">↺ Grabar otra vez</button></div>';
+          g.querySelector('audio').src = URL.createObjectURL(grab.blob);
+          q('#pv-gok').onclick = async ()=>{ q('#pv-gok').disabled = true; if(!q('#pv-atit').value.trim()) q('#pv-atit').value = 'Grabado el ' + new Date().toLocaleDateString('es-VE'); subir(await leerArchivo(grab.blob, grab.mime)); grab = null; };
+          q('#pv-gre').onclick = ()=>{ grab = null; pintarGrab(); }; return;
+        }
+        g.innerHTML = '<button class="ag-btn" id="pv-rec" style="width:100%">🎙️ Grabar audio ahora</button><p class="ag-muted" style="font-size:12px;margin:4px 0 0">Se detiene solo a los 90 segundos.</p>';
+        q('#pv-rec').onclick = async ()=>{
+          try{
+            const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+            const mime = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find(m=>MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || '';
+            const rec = mime ? new MediaRecorder(stream, { mimeType:mime }) : new MediaRecorder(stream);
+            grab = { rec, partes:[], stream, t0:Date.now() };
+            rec.ondataavailable = ev=>{ if(ev.data && ev.data.size) grab.partes.push(ev.data); };
+            rec.onstop = ()=>{ clearInterval(grab.timer); stream.getTracks().forEach(t=>t.stop()); const tipo = (rec.mimeType || mime || 'audio/webm').split(';')[0]; grab.mime = tipo; grab.blob = new Blob(grab.partes, { type:tipo }); pintarGrab(); };
+            rec.start(1000);
+            grab.timer = setInterval(()=>{ if(Date.now() - grab.t0 > 90000 && rec.state === 'recording') rec.stop(); else pintarGrab(); }, 1000);
+            pintarGrab();
+          }catch(e){ alert('No se pudo usar el micrófono: ' + (e && e.message ? e.message : e) + '\nRevisa que el navegador tenga permiso para el micrófono.'); }
+        };
+      };
+      pintarGrab();
+    };
+    const cargarCfg = ()=>gs('getPostventaAdmin', auth()).then(pintar, e=>{ cont.innerHTML = '<p class="ag-empty">No se pudo cargar: ' + esc(e && e.message ? e.message : String(e)) + '</p>'; });
+    cargarCfg();
   }
 
   function renderClienteForm(body){
@@ -10012,7 +10174,16 @@ setTimeout(function(){
       '🎯 El catálogo para clientes pregunta qué busca y recomienda hasta 3 opciones.',
       '⏱️ Los tiempos se eligen con botones; las categorías se abren una a la vez.',
       '💧 Pregunta aparte por piscina e hidromasajes (si el paquete ya lo incluye, no pregunta) y 🍽️ si desea comer.',
-      '🌿 Resumen «Disfrutarás de…». 👥 Los grupos también van paso a paso.' ] }
+      '🌿 Resumen «Disfrutarás de…». 👥 Los grupos también van paso a paso.' ] },
+    { v:384, fecha:'12 nov', titulo:'🔎 Buscador de paquetes', puntos:[
+      '⏱️ Cada paquete muestra entre paréntesis cuánto dura la visita (aproximado).',
+      '🔎 En Admin → Ventas → Paquetes: busca por duración, para quién (individual, pareja, grupo) y qué incluye (hidroterapia, piscina, masajes, comida, bebidas, todo).',
+      '📱 Desde el resultado: editar, enviar la oferta por WhatsApp o copiarla. Al agregar un paquete a un presupuesto también se ve su duración.' ] },
+    { v:385, fecha:'12 nov', titulo:'💚 Postventa con audio', puntos:[
+      '💚 Clientes → Postventa: a quién toca escribir hoy (día siguiente de la visita; a los 7 días en fisioterapia y programa reductivo).',
+      '📱 Un toque abre WhatsApp con el mensaje listo. El cliente oye el audio del equipo y responde con botones: 😴 sueño, 💆 tensión, ✨ energía.',
+      '🔴 Si alguien no se siente bien: aviso a César Zamora y sale en «Llamar hoy» con el botón «Ya lo llamé».',
+      '🎙️ Administración edita el mensaje y graba los audios en la misma pantalla.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -12132,6 +12303,118 @@ setTimeout(function(){
     const g = /pareja|para dos|dos personas|\bduo\b|aniversario|novi[oa]s|romantic/.test(t) ? 'pareja' : /famil|nin[oa]s|hij[oa]|madre|padre|mama|papa/.test(t) ? 'familia' : /amig|chicas|grupo|cumplea|despedida|celebra/.test(t) ? 'amigas' : 'ti';
     return hay(g) ? g : cs[0][0];   // si esa categoría se borró, va a la primera
   }
+  // 🔎 v384: Buscador de paquetes. Cada paquete muestra cuánto dura su visita (aproximado) y qué incluye, para ubicarlo rápido.
+  // Tiempo de referencia (minutos) de las terapias que no dicen su duración en el paquete.
+  const PQ_MIN_REF = [[/hidroterapia/,15],[/terapia del agua/,30],[/vichy/,40],[/exfoliacion/,30],[/limpieza facial p/,60],[/limpieza facial/,40],[/reflexologia podal/,30],[/reflexologia/,20],[/piedras/,30],[/drenaje/,60],[/madero|bambu/,45],[/descontractur/,45],[/craneofacial/,15],[/cupp|ventosa/,30],[/evaluacion|valoracion/,30],[/tems|tens/,20],[/masaje/,45],[/parrilla|cabina|comun|lenceria|musical/,0]];
+  const PQ_RE_BEBIDA = /jugo|\bte\b|cafe|coco frio|agua mineral|cerveza|whisky|vino|frappe|nestea|jamaica|trago|copa/;
+  const PQ_RE_PICA = /tequeno|pastelito|variadito|papas|empanadita|cocktail de frutas|frutos secos|cachito|desayuno|pina asada|camarones al ajillo|salsa/;
+  function pqMinServ(x){
+    const t = sinAcentos([x.variante, x.varianteNombre, x.mostrar, x.servicio].map(v=>v || '').join(' '));
+    const h = t.match(/(\d+(?:[.,]\d+)?)\s*(?:h\b|hr|hora)/), m = t.match(/(\d+)\s*min/);
+    let n = (h ? Math.round(parseFloat(h[1].replace(',', '.')) * 60) : 0) + (m ? parseInt(m[1], 10) : 0);
+    if(!n && /^\s*\d+\s*$/.test(String(x.variante || ''))) n = parseInt(x.variante, 10);   // «15» en la hidroterapia = 15 minutos
+    if(n) return n;
+    const r = PQ_MIN_REF.find(q=>q[0].test(sinAcentos(x.mostrar || x.servicio || ''))); return r ? r[1] : 30;
+  }
+  // Duración aproximada = terapias (las personas del paquete se atienden a la vez) + lo más largo entre piscina y comida
+  // + llegada, cambio de ropa y salida (30 min; 40 si hay agua). Con piscina de 2 h o más, ese margen ya va dentro.
+  function pqInfo(p){
+    const serv = (p.servicios && p.servicios.length) ? p.servicios : (state.tarifas ? serviciosDesdeTerapias(p.terapias) : []);
+    const nom = x=>sinAcentos(x.mostrar || x.servicio || ''), extra = s=>/parrilla|cabina|lenceria|musical|comun/.test(s);
+    const t = sinAcentos(p.nombre || ''), mp = t.match(/para (\d+)|\((\d+) persona|(\d+) personas/);
+    let per = mp ? Number(mp[1] || mp[2] || mp[3]) : 0;
+    if(!per && /pareja|para dos|de dos|\bduo\b|madre e hija|aniversario/.test(t)) per = 2;
+    serv.forEach(x=>{ if(!extra(nom(x))) per = Math.max(per, Number(x.cantidad) || 1); });
+    per = per || 1;
+    const i = { personas:per, hidro:false, piscina:false, masaje:false, comida:false, bebida:false, min:0, detalle:'' };
+    let spa = 0, pis = 0, plato = false, pica = false;
+    serv.forEach(x=>{ const s = nom(x), c = Number(x.cantidad) || 1;
+      if(/piscina/.test(s)){ i.piscina = true; pis = Math.max(pis, pqMinServ(x)); return; }
+      if(/hidroterapia|terapia del agua|hidromasaje|acuatic/.test(s)) i.hidro = true;
+      if(/masaje|reflexolog|piedras|drenaje|madero|bambu|cupp|masoterapia/.test(s)) i.masaje = true;
+      spa += pqMinServ(x) * Math.ceil(c / per); });
+    (p.comidas || []).forEach(c=>{ const mi = (state.menu || []).find(x=>x.id === c.menuId), k = sinAcentos(mi ? mi.categoria || '' : ''), n = sinAcentos(c.nombre || '');
+      if(/bebida|licor|trago/.test(k) || (!k && PQ_RE_BEBIDA.test(n))) i.bebida = true;
+      else if(/picoteo|snack/.test(k) || (!k && PQ_RE_PICA.test(n))) pica = true; else plato = true; });
+    i.comida = plato || pica;
+    i.todo = (i.hidro || i.piscina) && i.masaje && i.comida && i.bebida;
+    if((p.dias || []).length) i.dias = p.dias.length;
+    else {
+      const com = plato ? 45 : (pica ? 20 : 0), ocio = Math.max(pis, com), base = spa + ocio;
+      const margen = !base || pis >= 120 ? 0 : ((i.piscina || i.hidro) ? 40 : 30);
+      i.min = base ? Math.ceil((base + margen) / 15) * 15 : 0;
+      i.detalle = [spa ? durTxt(spa) + ' de terapias' : '', ocio ? durTxt(ocio) + ' de ' + (pis && com ? 'piscina y comida' : (pis ? 'piscina' : 'comida')) : '', margen ? margen + ' min de llegada, cambio de ropa y salida' : ''].filter(Boolean).join(' + ');
+    }
+    i.texto = sinAcentos([p.nombre, p.descripcion].concat(serv.map(x=>x.mostrar || x.servicio), (p.comidas || []).map(c=>c.nombre)).map(v=>v || '').join(' '));
+    return i;
+  }
+  function pqDurCorta(p){ const i = pqInfo(p); return i.min ? ' (⏱️ ~' + durTxt(i.min) + ')' : (i.dias ? ' (📅 ' + i.dias + ' días)' : ''); }
+  function pqBuscador(box, A){
+    if(!box) return;
+    const F = A.pqf || (A.pqf = { q:'', dur:'', per:'', con:[], cat:'', orden:'dur', todos:false, inact:false });
+    const DUR = [['1','⚡ Hasta 1 h',0,60],['2','1 a 2 h',61,120],['3','2 a 3 h',121,180],['4','3 a 4 h',181,240],['5','Más de 4 h',241,99999]];
+    const PER = [['1','👤 Individual'],['2','💞 Pareja'],['3','👯 Grupo (3 o más)']];
+    const CON = [['hidro','💧 Hidroterapia'],['piscina','🏊 Piscina'],['masaje','💆 Masajes'],['comida','🍽️ Comida'],['bebida','🥤 Bebidas'],['todo','🌟 Todo incluido']];
+    const ICO = { hidro:'💧', piscina:'🏊', masaje:'💆', comida:'🍽️', bebida:'🥤' };
+    const chip = (g, v, txt, on)=>`<button type="button" data-pqf="${g}" data-v="${esc(v)}" style="border:1.5px solid ${on ? 'var(--teal)' : 'var(--line)'};background:${on ? 'var(--teal-l)' : '#fff'};color:${on ? 'var(--teal-d)' : 'inherit'};border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:${on ? 700 : 500};cursor:pointer;font-family:inherit">${txt}</button>`;
+    const fila = (t, h)=>`<div style="font-size:12px;font-weight:700;margin:10px 0 4px">${t}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${h}</div>`;
+    const hayFiltro = ()=>!!(F.q.trim() || F.dur || F.per || F.con.length || F.cat);
+    const resultados = ()=>{
+      if(!hayFiltro() && !F.todos){ const n = (state.agenda.paquetes || []).filter(p=>F.inact || p.activo).length;
+        return `<button type="button" class="ag-btn sm ghost" id="pqf-todos" style="width:100%;margin-top:10px">📋 Ver todos los paquetes (${n}) con su duración</button>`; }
+      const q = sinAcentos(F.q.trim()), d = DUR.find(x=>x[0] === F.dur);
+      const res = (state.agenda.paquetes || []).filter(p=>F.inact || p.activo).map(p=>({ p, i:pqInfo(p) })).filter(({ p, i })=>{
+        if(d && (!i.min || i.min < d[2] || i.min > d[3])) return false;
+        if(F.per && (F.per === '3' ? i.personas < 3 : i.personas !== Number(F.per))) return false;
+        if(F.con.some(k=>!i[k])) return false;
+        if(F.cat && paqCatDe(p) !== F.cat) return false;
+        return !q || q.split(/\s+/).every(w=>i.texto.includes(w)); });
+      const dm = x=>x.i.min || 99999;
+      res.sort((a, b)=>F.orden === 'largo' ? dm(b) % 99999 - dm(a) % 99999 : F.orden === 'precio' ? (Number(a.p.precio) || 0) - (Number(b.p.precio) || 0) : F.orden === 'nombre' ? String(a.p.nombre).localeCompare(String(b.p.nombre)) : dm(a) - dm(b));
+      return `<div class="ag-muted" style="font-size:12.5px;margin-top:10px">${res.length ? res.length + ' paquete' + (res.length === 1 ? '' : 's') : '😕 Ningún paquete cumple todo eso. Quita algún filtro.'}</div>` + res.map(({ p, i })=>`
+        <div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><span style="min-width:0"><strong>${esc(p.nombre)}</strong> <span style="color:var(--teal-d);font-weight:700;white-space:nowrap">(⏱️ ${i.min ? '~' + durTxt(i.min) : (i.dias ? 'programa de ' + i.dias + ' días' : 'sin tiempo')})</span></span><span class="ag-badge" style="flex:0 0 auto">${dinero(p.precio)}</span></div>
+          <div style="font-size:12.5px">${i.personas === 1 ? '👤 1 persona' : (i.personas === 2 ? '💞 2 personas' : '👯 ' + i.personas + ' personas')} · ${Object.keys(ICO).filter(k=>i[k]).map(k=>ICO[k]).join(' ') || '—'}${i.todo ? ' · 🌟 todo incluido' : ''}${p.activo ? '' : ' · 💤 desactivado'}</div>
+          ${i.detalle ? `<div class="ag-muted" style="font-size:11.5px">${esc(i.detalle)}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px"><button type="button" class="ag-btn sm ghost" data-pqf-ed="${esc(p.id)}" style="flex:1 1 30%">✏️ Editar</button>${p.oferta ? `<button type="button" class="ag-btn sm ghost" data-pqf-wa="${esc(p.id)}" style="flex:1 1 30%">📱 Enviar</button><button type="button" class="ag-btn sm ghost" data-pqf-cp="${esc(p.id)}" style="flex:1 1 30%">📋 Copiar</button>` : ''}</div>
+        </div>`).join('');
+    };
+    const wireRes = ()=>{
+      const r = box.querySelector('#pqf-res'); r.innerHTML = resultados();
+      const bt = r.querySelector('#pqf-todos'); if(bt) bt.onclick = ()=>{ F.todos = true; wireRes(); };
+      const pq = id=>(state.agenda.paquetes || []).find(x=>x.id === id) || {};
+      r.querySelectorAll('[data-pqf-ed]').forEach(b=>b.onclick = ()=>{ A.editId = b.dataset.pqfEd; render(); const a = document.getElementById('pq-editor-ancla'); if(a) a.scrollIntoView({ block:'start' }); });
+      r.querySelectorAll('[data-pqf-wa]').forEach(b=>b.onclick = ()=>window.open(sgGenerico(pq(b.dataset.pqfWa).oferta || ''), '_blank'));
+      r.querySelectorAll('[data-pqf-cp]').forEach(b=>b.onclick = ()=>sgCopiar(pq(b.dataset.pqfCp).oferta || ''));
+    };
+    const pintar = ()=>{
+      box.innerHTML = `<details class="ag-card" style="margin-top:10px" ${A.editId && !hayFiltro() && !F.todos ? '' : 'open'}><summary style="cursor:pointer;font-weight:700;font-size:15px">🔎 Buscar paquete <span class="ag-muted" style="font-weight:400;font-size:12px">· por duración, personas o lo que incluye</span></summary>
+        <input id="pqf-q" value="${esc(F.q)}" placeholder="Escribe: masaje, pescado, cumpleaños…" style="margin-top:8px"/>
+        ${fila('⏱️ Duración aproximada', DUR.map(x=>chip('dur', x[0], x[1], F.dur === x[0])).join(''))}
+        ${fila('👥 Para quién', PER.map(x=>chip('per', x[0], x[1], F.per === x[0])).join(''))}
+        ${fila('✨ Qué incluye <span class="ag-muted" style="font-weight:400">(puedes marcar varios)</span>', CON.map(x=>chip('con', x[0], x[1], F.con.includes(x[0]))).join(''))}
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <select id="pqf-cat" style="flex:1 1 170px;min-width:0"><option value="">🏷️ Todas las categorías</option>${paqCats().map(c=>`<option value="${esc(c[0])}" ${F.cat === c[0] ? 'selected' : ''}>${esc(c[1])} ${esc(c[2])}</option>`).join('')}</select>
+          <select id="pqf-orden" style="flex:1 1 170px;min-width:0">${[['dur','⏱️ Más corto primero'],['largo','⏱️ Más largo primero'],['precio','💲 Más económico primero'],['nombre','🔤 Por nombre']].map(o=>`<option value="${o[0]}" ${F.orden === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <label style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="pqf-inact" style="width:auto" ${F.inact ? 'checked' : ''}/> Incluir desactivados</label>
+          ${hayFiltro() || F.todos ? '<button type="button" class="ag-btn sm ghost" id="pqf-limpiar" style="flex:0 0 auto;width:auto">✖️ Limpiar</button>' : ''}
+        </div>
+        <div id="pqf-res"></div>
+        <div class="ag-muted" style="font-size:11px;margin-top:8px">⏱️ Tiempo aproximado: terapias (las personas del paquete se atienden a la vez) + piscina o comida + llegada, cambio de ropa y salida.</div>
+      </details>`;
+      box.querySelectorAll('[data-pqf]').forEach(b=>b.onclick = ()=>{ const g = b.dataset.pqf, v = b.dataset.v;
+        if(g === 'con') F.con = F.con.includes(v) ? F.con.filter(x=>x !== v) : F.con.concat(v); else F[g] = F[g] === v ? '' : v; pintar(); });
+      box.querySelector('#pqf-q').oninput = e=>{ F.q = e.target.value; wireRes(); };
+      box.querySelector('#pqf-cat').onchange = e=>{ F.cat = e.target.value; pintar(); };
+      box.querySelector('#pqf-orden').onchange = e=>{ F.orden = e.target.value; wireRes(); };
+      box.querySelector('#pqf-inact').onchange = e=>{ F.inact = e.target.checked; wireRes(); };
+      const bl = box.querySelector('#pqf-limpiar'); if(bl) bl.onclick = ()=>{ Object.assign(F, { q:'', dur:'', per:'', con:[], cat:'', todos:false }); pintar(); };
+      wireRes();
+    };
+    pintar();
+  }
   function renderPaquetes(body){
     const A = state.ag;
     if(!state.user.admin){ A.vista='lista'; return renderAgenda(body); }
@@ -12150,6 +12433,7 @@ setTimeout(function(){
     body.innerHTML = `
       ${enVentas() ? '' : mnVolver('id="pq-volver"', 'Agenda')}
       ${mnGrid([{ at:'id="pq-sugerencias"', e:'💡', t:'Sugerencias', sb:'Pareja, amigas, grupos…', c:['#8a5a00','#fff3d6'] }, { at:'id="pq-tarifas"', e:'💲', t:'Tarifas', sb:ed ? 'Y volver a este paquete' : 'Precios de servicios', c:['#1d6b35','#e2f4e6'] }].concat(enVentas() ? [{ at:'id="pq-volver"', e:'📅', t:'Ir a la agenda', sb:'Reservas', c:['#0a5a68','#e2f4f6'] }] : []))}
+      <div id="pq-buscador"></div><div id="pq-editor-ancla"></div>
       <div class="ag-card" style="margin-top:10px">
         <h3>📦 ${ed?'Editar paquete':'Nuevo paquete'}</h3>
         <label class="f">Nombre</label><input id="pq-nombre" value="${esc(ed?ed.nombre:'')}" placeholder="Ej: Día de spa para 2"/>
@@ -12202,7 +12486,7 @@ setTimeout(function(){
       <div class="ag-sec-h" style="margin-top:12px">Paquetes creados <span class="ag-muted" style="font-weight:400;font-size:12px">(toca una categoría para ver sus paquetes)</span></div>
       ${paqCats().map(c=>{ const lc = paqs.filter(p=>paqCatDe(p) === c[0]), abierta = A.pqCatAbierta === c[0];
         return `<button type="button" data-pq-cat-ver="${esc(c[0])}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 6px;padding:10px 12px;border-radius:12px;border:2px solid ${abierta ? 'var(--teal)' : 'transparent'};background:var(--teal-l);cursor:pointer;text-align:left;font-family:inherit"><span style="min-width:0"><strong style="font-size:14px">${esc(c[1])} ${esc(c[2])}</strong><span class="ag-muted" style="display:block;font-size:11.5px">${esc(c[3])}</span></span><span style="flex:0 0 auto;display:flex;align-items:center;gap:6px"><span class="ag-badge" style="background:#fff;color:var(--teal-d)">${lc.length}</span><span style="font-size:16px;color:var(--teal-d)">${abierta ? '▾' : '▸'}</span></span></button>` + (!abierta ? '' : `<button type="button" class="ag-btn sm" data-pq-nuevo-cat="${esc(c[0])}" style="width:100%;margin-bottom:6px">➕ Crear un paquete en ${esc(c[2])}</button>` + (lc.map(p=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px;${p.activo?'':'opacity:.55'}">
-        <div style="display:flex;justify-content:space-between;gap:8px"><strong>${esc(p.nombre)}</strong><span class="ag-badge">${dinero(p.precio)}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="min-width:0"><strong>${esc(p.nombre)}</strong><span style="color:var(--teal-d);font-weight:700;font-size:12.5px">${esc(pqDurCorta(p))}</span></span><span class="ag-badge" style="flex:0 0 auto">${dinero(p.precio)}</span></div>
         ${p.sug && p.sug.id ? `<div style="font-size:12px;color:var(--sub)">${p.sug.manual ? '✏️ Sugerido y personalizado (no se rearma solo)' : '💡 Sugerido (su precio se pone al día con las tarifas)'}</div>` : ''}
         ${p.propuestaPor ? `<div style="font-size:12px;color:#34508a;font-weight:600">🧩 Propuesta de ${esc(p.propuestaPor)}${p.precio?'':' · pendiente de precio'}${p.dias&&p.dias.some(d=>(d.servicios||[]).some(x=>x.nuevo))?' · con procedimientos sin tarifa':''}</div>` : ''}
         ${(p.dias||[]).length ? `<div style="font-size:12px;color:var(--teal-d);font-weight:600">📅 Programa de ${p.dias.length} días</div><div class="ag-muted" style="font-size:12px">${esc(resumenDias(p.dias))}</div>` : ''}
@@ -12405,6 +12689,7 @@ setTimeout(function(){
       body.querySelectorAll('[data-pq-cat]').forEach(x=>{ const on = x === b; x.style.borderColor = on ? 'var(--teal)' : 'var(--line)'; x.style.background = on ? 'var(--teal-l)' : '#fff'; }); });
     body.querySelectorAll('[data-pq-nuevo-cat]').forEach(b=>b.onclick = ()=>{ A.editId = null; A.nuevoPqId = null; A.pqCatNueva = b.dataset.pqNuevoCat; render(); window.scrollTo(0, 0); const n = body.querySelector('#pq-nombre'); if(n) n.focus(); });
     body.querySelectorAll('[data-pq-editar]').forEach(b=>b.onclick=()=>{ A.editId=b.dataset.pqEditar; render(); window.scrollTo(0,0); });
+    pqBuscador(body.querySelector('#pq-buscador'), A);
     body.querySelectorAll('[data-pq-activo]').forEach(b=>b.onclick=async ()=>{
       const p = paqs.find(x=>x.id===b.dataset.pqActivo);
       try{ Object.assign(p, await gs('savePaquete', Object.assign({}, p, { activo: !p.activo }), auth())); render(); }catch(e){ alert('No se pudo cambiar: ' + e); }
@@ -13748,7 +14033,7 @@ setTimeout(function(){
           dibujarItems(); dibujarAgregar(); toast('Comida agregada.');
         };
       } else if(t==='paquete'){
-        addEl.innerHTML = paqs.length ? `<label class="f" style="margin-top:0">Paquete</label><select id="pa-paq">${paqs.map(p=>`<option value="${esc(p.id)}">${esc(p.nombre)} · ${dinero(p.precio)}</option>`).join('')}</select>
+        addEl.innerHTML = paqs.length ? `<label class="f" style="margin-top:0">Paquete</label><select id="pa-paq">${paqs.map(p=>`<option value="${esc(p.id)}">${esc(p.nombre)}${esc(pqDurCorta(p))} · ${dinero(p.precio)}</option>`).join('')}</select>
           <label class="f">Cantidad</label><input id="pa-cant" value="1" inputmode="numeric"/>
           <button class="ag-btn sm" id="pa-ok" style="width:100%;margin-top:6px">Agregar al presupuesto</button>` : '<p class="ag-muted">No hay paquetes activos. Créalos en 📅 Agenda → 📦 Paquetes.</p>';
         const ok = addEl.querySelector('#pa-ok');
