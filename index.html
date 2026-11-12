@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v382' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v383' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10007,7 +10007,12 @@ setTimeout(function(){
       '📦 En cada presupuesto: botón <strong>«Presentar como paquete»</strong>. Le pones un nombre y la hoja, el PDF y el WhatsApp salen resumidos (ej. <em>9 × Masaje antiestrés</em>), sin «Adulto 1, Adulto 2…».',
       '👥 Arriba sale el <strong>precio del paquete por persona</strong> y el total del grupo. El total cobrado no cambia.' ] },
     { v:382, fecha:'11 nov', titulo:'🥤 Sabores en el paquete', puntos:[
-      '🥤 En el presupuesto como paquete, los jugos y platos muestran lo elegido entre paréntesis, ej. <em>2 × Jugo Natural (Parchita, Melón)</em>.' ] }
+      '🥤 En el presupuesto como paquete, los jugos y platos muestran lo elegido entre paréntesis, ej. <em>2 × Jugo Natural (Parchita, Melón)</em>.' ] },
+    { v:383, fecha:'12 nov', titulo:'🧭 Catálogo guiado paso a paso', puntos:[
+      '🎯 El catálogo para clientes pregunta qué busca y recomienda hasta 3 opciones.',
+      '⏱️ Los tiempos se eligen con botones; las categorías se abren una a la vez.',
+      '💧 Pregunta aparte por piscina e hidromasajes (si el paquete ya lo incluye, no pregunta) y 🍽️ si desea comer.',
+      '🌿 Resumen «Disfrutarás de…». 👥 Los grupos también van paso a paso.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
