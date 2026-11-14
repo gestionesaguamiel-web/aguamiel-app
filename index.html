@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v385' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v386' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10183,7 +10183,12 @@ setTimeout(function(){
       '💚 Clientes → Postventa: a quién toca escribir hoy (día siguiente de la visita; a los 7 días en fisioterapia y programa reductivo).',
       '📱 Un toque abre WhatsApp con el mensaje listo. El cliente oye el audio del equipo y responde con botones: 😴 sueño, 💆 tensión, ✨ energía.',
       '🔴 Si alguien no se siente bien: aviso a César Zamora y sale en «Llamar hoy» con el botón «Ya lo llamé».',
-      '🎙️ Administración edita el mensaje y graba los audios en la misma pantalla.' ] }
+      '🎙️ Administración edita el mensaje y graba los audios en la misma pantalla.' ] },
+    { v:386, fecha:'13 nov', titulo:'💲 Precios de paquetes siempre coherentes', puntos:[
+      '💡 Al armar o editar un paquete, la app propone el precio: la suma de todo menos un descuento (10 %, 12 % desde $200, 5 % en combos de piscina y fisioterapia), terminado en ,99.',
+      '🔁 «Recalcular solo»: si cambias lo que incluye, el precio se pone al día solo.',
+      '⛔ Aviso en rojo si el precio iguala o supera la suma, o si falta una piscina o hidroterapia para alguna persona.',
+      '🌙 Cada noche se revisan los paquetes; si uno quedó sin ahorro por un cambio de tarifa, llega un aviso por Telegram.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -11910,7 +11915,28 @@ setTimeout(function(){
     const comidas = (p.comidas || []).map(c=>{ const m = (state.menu || []).find(y=>y.id === c.menuId); return m ? Object.assign({}, c, { precio:Number(m.precio) || 0 }) : c; });
     return { servicios, comidas };
   }
-  function pqSumaHoy(p){ const h = pqConPreciosHoy(p); return Math.round((h.servicios.reduce((a,x)=>a + (Number(x.precio)||0) * (Number(x.cantidad)||1), 0) + h.comidas.reduce((a,c)=>a + (Number(c.precio)||0) * (Number(c.cantidad)||1), 0)) * 100) / 100; }
+  function pqSumaHoy(p){ const h = pqConPreciosHoy(p); return Math.round((h.servicios.reduce((a,x)=>a + (Number(x.precio)||0) * (Number(x.cantidad)||1), 0) + h.comidas.reduce((a,c)=>a + (Number(c.precio)||0) * (Number(c.cantidad)||1), 0) + (Number(p.saldoConsumo)||0)) * 100) / 100; }
+  // 💲 v386: regla única del precio de un paquete. Descuento: 5 % combos de piscina y fisioterapia, 12 % si suma $200 o más, 10 % el resto.
+  // Precio = suma − descuento, al entero más cercano menos 1 centavo ($25,40 → $24,99). Nunca llega a la suma.
+  function pqDescRegla(suma, cat){ return (cat === 'piscina' || /^fisio/.test(String(cat || ''))) ? 5 : (Number(suma) >= 200 ? 12 : 10); }
+  function pqPrecioRegla(suma, pct){ const s = Number(suma) || 0; if(!(s > 0)) return 0; let p = Math.round(s * (1 - (Number(pct) || 0) / 100)) - 0.01; if(p >= s) p = Math.floor(s) - 0.01; return Math.max(0, Math.round(p * 100) / 100); }
+  // Piscina o hidroterapia con menos unidades que los demás servicios (ej. 2 masajes y 1 piscina): falta una para alguien.
+  function pqFaltanUnidades(servs){
+    const esPH = x=>/piscina|hidroterapia/i.test(String(x.servicio || '')), otros = (servs || []).filter(x=>!esPH(x)).map(x=>Number(x.cantidad) || 1);
+    const max = otros.length ? Math.max.apply(null, otros) : 0;
+    return (servs || []).filter(x=>esPH(x) && (Number(x.cantidad) || 1) < max).map(x=>x.mostrar || x.servicio);
+  }
+  // Estado del precio frente a la suma: rojo (sin ahorro), ámbar (ahorro menor a 3 % o faltan unidades), verde.
+  function pqEstadoPrecio(precio, suma, servs){
+    precio = Number(precio) || 0; suma = Number(suma) || 0; const faltan = pqFaltanUnidades(servs);
+    if(!(precio > 0) || !(suma > 0)) return { nivel:'', texto:'' };
+    const ah = Math.round((suma - precio) * 100) / 100, pct = ah / suma * 100;
+    let nivel = 'ok', texto = '🟢 El cliente ahorra ' + dinero(ah) + ' (' + pctAhorro(ah, suma) + '%) frente a pagar cada cosa por separado.';
+    if(ah <= 0){ nivel = 'rojo'; texto = '⛔ El precio ' + (ah < 0 ? 'SUPERA en ' + dinero(-ah) : 'es IGUAL a') + ' la suma de todo por separado: el cliente no ahorra nada.'; }
+    else if(pct < 3){ nivel = 'ambar'; texto = '⚠️ Ahorro muy bajo: ' + dinero(ah) + ' (' + pctAhorro(ah, suma) + '%).'; }
+    if(faltan.length){ if(nivel === 'ok') nivel = 'ambar'; texto += '<br>⚠️ Hay más masajes que ' + faltan.join(' / ') + ': ¿falta uno para alguna persona?'; }
+    return { nivel, texto };
+  }
   function sgAuto(){
     if(!state.user || !state.user.admin) return;
     clearTimeout(state._sgAutoT); state._sgAutoT = setTimeout(sgAutoYa, 12000);
@@ -12462,9 +12488,11 @@ setTimeout(function(){
         <div id="pq-servicios" style="margin-top:6px">${serviciosSelectorHTML('pqs', servIni)}</div></details></div>
         <div id="pq-com-wrap" style="display:${diasIni.length?'none':''}"><details class="pq-plegable" style="margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px"><summary style="cursor:pointer;font-weight:700;font-size:14px">🍽️ Comidas incluidas <span class="ag-muted" style="font-weight:400;font-size:12px" data-pq-resumen="com">${Object.values(cant).reduce((t,n)=>t+(Number(n)||0),0) ? '· ' + Object.values(cant).reduce((t,n)=>t+(Number(n)||0),0) + ' elegida(s)' : '· opcional, toca para elegir'}</span></summary><div id="pq-comidas" style="margin-top:6px">${comidasSelectorHTML('pqc', cant)}</div></details></div>
         <div id="pq-ocultos"></div>
-        <div style="background:#f6fafa;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:13px"><span id="pq-suma"></span> <button type="button" class="ag-btn sm ghost" id="pq-usar-suma" style="padding:2px 8px;margin-left:4px">Usar la suma</button></div>
+        <div style="background:#f6fafa;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:13px"><span id="pq-suma"></span> <button type="button" class="ag-btn sm ghost" id="pq-usar-suma" style="padding:2px 8px;margin-left:4px">Usar la suma</button>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">💡 Descuento <input id="pq-desc-pct" inputmode="decimal" style="width:58px;padding:4px 6px" value=""/> % <button type="button" class="ag-btn sm" id="pq-regla" style="padding:4px 10px">Poner precio sugerido</button></div>
+          <label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12.5px"><input type="checkbox" id="pq-auto" style="width:auto"/> 🔁 Recalcular el precio solo cuando cambie lo que incluye</label></div>
         <label class="f">Precio final del paquete ($)</label><input id="pq-precio" inputmode="decimal" value="${esc(ed?ed.precio:'')}"/>
-        <p class="ag-muted" style="font-size:11.5px">Puedes poner un precio de paquete menor a la suma (eso es el ahorro para el cliente).</p>
+        <div id="pq-precio-estado" style="font-size:12.5px;line-height:1.45;border-radius:8px;padding:6px 10px;margin-top:6px;display:none"></div>
         <label class="f">📣 Mensaje para ofrecerlo <span class="ag-muted" style="font-weight:400">(opcional; para enviar por WhatsApp)</span></label>
         <div id="pq-of-aviso" style="display:none;background:#fff7e6;border:1px solid #f0d9a8;border-radius:8px;padding:8px 10px;margin:4px 0 6px;font-size:12.5px;line-height:1.45">⚠️ Cambiaste el nombre, los servicios o el precio, y el mensaje sigue con los datos anteriores. Toca <strong>🔄 Actualizar mensaje</strong> para ponerlo al día.</div>
         <textarea id="pq-oferta" rows="8" style="font-size:13px" placeholder="Ej: Un mensaje atractivo con lo que incluye, el precio y el ahorro">${esc(ed?(ed.oferta||''):'')}</textarea>
@@ -12476,17 +12504,17 @@ setTimeout(function(){
         </div>
       </div>
       ${(()=>{ // 💲 Revisar en un solo lugar el precio final de cada paquete contra la suma de hoy (tarifas y menú de Rosita actuales).
-        const filas = paqs.filter(p=>p.activo && !(p.dias||[]).length && Number(p.precio) > 0).map(p=>({ p, hoy:pqSumaHoy(p) })).filter(x=>x.hoy > 0 && Math.abs(x.hoy - Number(x.p.precio)) > 0.005);
+        const filas = paqs.filter(p=>p.activo && !(p.dias||[]).length && Number(p.precio) > 0).map(p=>({ p, hoy:pqSumaHoy(p) })).filter(x=>x.hoy > 0 && (Number(x.p.precio) >= x.hoy - 0.004 || (!(Number(x.p.saldoConsumo) > 0) && (x.hoy - Number(x.p.precio)) / x.hoy < 0.03) || pqFaltanUnidades(x.p.servicios).length)).map(x=>Object.assign(x, { sug:pqPrecioRegla(x.hoy, pqDescRegla(x.hoy, x.p.categoria)) }));
         if(!filas.length) return '';
         return `<details class="ag-card" style="margin-top:12px" id="pq-rev" ${A.pqRevAbierto ? 'open' : ''}><summary style="font-weight:700;cursor:pointer">💲 Revisar precios de los paquetes <span class="ag-badge" style="background:var(--amber-l);color:var(--amber-d)">${filas.length}</span></summary>
-          <p class="ag-muted" style="font-size:12px;margin:6px 0">Estos paquetes tienen un precio final distinto de la suma de lo que incluyen <strong>con los precios de hoy</strong>. Marca los que quieras poner al precio de la suma y toca «Aplicar». Los que tienen un descuento a propósito, déjalos sin marcar.</p>
-          ${filas.map(x=>{ const d = Math.round((x.hoy - Number(x.p.precio)) * 100) / 100; return `<label style="display:flex;gap:8px;align-items:flex-start;border-top:1px solid var(--line);padding:7px 0;font-size:13px"><input type="checkbox" data-pq-rev="${esc(x.p.id)}" style="width:auto;margin-top:3px"/><span style="flex:1;min-width:0"><strong>${esc(x.p.nombre)}</strong><br><span class="ag-muted">Precio final ${dinero(x.p.precio)} · suma de hoy <strong>${dinero(x.hoy)}</strong> · ${d > 0 ? 'está ' + dinero(d) + ' por debajo' : 'está ' + dinero(-d) + ' por encima'}</span></span></label>`; }).join('')}
-          <div class="ag-row" style="gap:6px;margin-top:8px"><button type="button" class="ag-btn sm ghost" id="pq-rev-todos" style="flex:1">Marcar todos</button><button type="button" class="ag-btn sm" id="pq-rev-ok" style="flex:2">✅ Aplicar la suma a los marcados</button></div>
+          <p class="ag-muted" style="font-size:12px;margin:6px 0">Estos paquetes casi no dejan ahorro (o ninguno) frente a la suma de lo que incluyen <strong>con los precios de hoy</strong>, o les falta una piscina o hidroterapia para alguien. Marca los que quieras y toca «Poner precio sugerido» (suma − 10 %, 12 % desde $200, 5 % combos; terminado en ,99).</p>
+          ${filas.map(x=>{ const d = Math.round((x.hoy - Number(x.p.precio)) * 100) / 100; return `<label style="display:flex;gap:8px;align-items:flex-start;border-top:1px solid var(--line);padding:7px 0;font-size:13px"><input type="checkbox" data-pq-rev="${esc(x.p.id)}" style="width:auto;margin-top:3px"/><span style="flex:1;min-width:0"><strong>${esc(x.p.nombre)}</strong><br><span class="ag-muted">Precio ${dinero(x.p.precio)} · suma de hoy <strong>${dinero(x.hoy)}</strong> · ${d > 0 ? 'ahorra ' + dinero(d) : (d < 0 ? '⛔ cobra ' + dinero(-d) + ' de más' : '⛔ sin ahorro')} · sugerido <strong>${dinero(x.sug)}</strong>${pqFaltanUnidades(x.p.servicios).length ? ' · ⚠️ falta ' + esc(pqFaltanUnidades(x.p.servicios).join(' / ')) : ''}</span></span></label>`; }).join('')}
+          <div class="ag-row" style="gap:6px;margin-top:8px"><button type="button" class="ag-btn sm ghost" id="pq-rev-todos" style="flex:1">Marcar todos</button><button type="button" class="ag-btn sm" id="pq-rev-ok" style="flex:2">✅ Poner precio sugerido a los marcados</button></div>
         </details>`; })()}
       <div class="ag-sec-h" style="margin-top:12px">Paquetes creados <span class="ag-muted" style="font-weight:400;font-size:12px">(toca una categoría para ver sus paquetes)</span></div>
       ${paqCats().map(c=>{ const lc = paqs.filter(p=>paqCatDe(p) === c[0]), abierta = A.pqCatAbierta === c[0];
         return `<button type="button" data-pq-cat-ver="${esc(c[0])}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 6px;padding:10px 12px;border-radius:12px;border:2px solid ${abierta ? 'var(--teal)' : 'transparent'};background:var(--teal-l);cursor:pointer;text-align:left;font-family:inherit"><span style="min-width:0"><strong style="font-size:14px">${esc(c[1])} ${esc(c[2])}</strong><span class="ag-muted" style="display:block;font-size:11.5px">${esc(c[3])}</span></span><span style="flex:0 0 auto;display:flex;align-items:center;gap:6px"><span class="ag-badge" style="background:#fff;color:var(--teal-d)">${lc.length}</span><span style="font-size:16px;color:var(--teal-d)">${abierta ? '▾' : '▸'}</span></span></button>` + (!abierta ? '' : `<button type="button" class="ag-btn sm" data-pq-nuevo-cat="${esc(c[0])}" style="width:100%;margin-bottom:6px">➕ Crear un paquete en ${esc(c[2])}</button>` + (lc.map(p=>`<div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:4px;${p.activo?'':'opacity:.55'}">
-        <div style="display:flex;justify-content:space-between;gap:8px"><span style="min-width:0"><strong>${esc(p.nombre)}</strong><span style="color:var(--teal-d);font-weight:700;font-size:12.5px">${esc(pqDurCorta(p))}</span></span><span class="ag-badge" style="flex:0 0 auto">${dinero(p.precio)}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="min-width:0"><strong>${esc(p.nombre)}</strong><span style="color:var(--teal-d);font-weight:700;font-size:12.5px">${esc(pqDurCorta(p))}</span></span><span class="ag-badge" style="flex:0 0 auto">${dinero(p.precio)}${(()=>{ const s = pqSumaHoy(p), pr = Number(p.precio) || 0; if(!(s > 0) || !(pr > 0) || (p.dias || []).length) return ''; const a = s - pr; return a <= 0.004 ? ' <span style="color:#b00020">⛔ sin ahorro</span>' : ' <span style="color:#1d6b35">−' + pctAhorro(Math.round(a * 100) / 100, s) + '%</span>'; })()}</span></div>
         ${p.sug && p.sug.id ? `<div style="font-size:12px;color:var(--sub)">${p.sug.manual ? '✏️ Sugerido y personalizado (no se rearma solo)' : '💡 Sugerido (su precio se pone al día con las tarifas)'}</div>` : ''}
         ${p.propuestaPor ? `<div style="font-size:12px;color:#34508a;font-weight:600">🧩 Propuesta de ${esc(p.propuestaPor)}${p.precio?'':' · pendiente de precio'}${p.dias&&p.dias.some(d=>(d.servicios||[]).some(x=>x.nuevo))?' · con procedimientos sin tarifa':''}</div>` : ''}
         ${(p.dias||[]).length ? `<div style="font-size:12px;color:var(--teal-d);font-weight:600">📅 Programa de ${p.dias.length} días</div><div class="ag-muted" style="font-size:12px">${esc(resumenDias(p.dias))}</div>` : ''}
@@ -12523,9 +12551,11 @@ setTimeout(function(){
       el.querySelectorAll('[data-pq-octodo]').forEach(b=>b.onclick = ()=>{ l.forEach(c=>{ if(b.dataset.pqOctodo === '1') ocultosPq.add(c.k); else ocultosPq.delete(c.k); }); pintarOcultos(); chequearOferta(); });
     };
     let chequearOferta = ()=>{};
+    let precioRegla = ()=>{};   // 💲 v386: se define más abajo (recalcula el precio y pinta su estado)
     const suma = ()=>{
-      const t = serviciosTodos().reduce((a,x)=>a+x.precio*x.cantidad,0) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0);
+      const t = serviciosTodos().reduce((a,x)=>a+x.precio*x.cantidad,0) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0) + (ed ? (Number(ed.saldoConsumo) || 0) : 0);
       body.querySelector('#pq-suma').innerHTML = 'Suma de lo incluido: <strong>' + dinero(t) + '</strong>';
+      precioRegla(t);
       // Resumen en la cabecera de los bloques plegados (servicios y comidas), para saber qué lleva sin abrirlos.
       const rs = body.querySelector('[data-pq-resumen="serv"]'), rc = body.querySelector('[data-pq-resumen="com"]');
       if(rs){ const n = leerServicios().reduce((a,x)=>a+(Number(x.cantidad)||0),0); rs.textContent = n ? '· ' + n + ' elegido(s)' : '· toca para elegir'; }
@@ -12609,7 +12639,34 @@ setTimeout(function(){
       body.querySelector('#pq-of-aviso').style.display = 'none'; toast('Mensaje actualizado. Revísalo y guarda el paquete.');
     };
     body.querySelector('#pq-of-deshacer').onclick = ()=>{ if(ofertaPrev === null) return; autoOff = true; body.querySelector('#pq-oferta').value = ofertaPrev; ofertaPrev = null; body.querySelector('#pq-of-deshacer').style.display = 'none'; chequearOferta(); };
-    body.querySelector('#pq-usar-suma').onclick = ()=>{ body.querySelector('#pq-precio').value = Math.round(suma()*100)/100; };
+    body.querySelector('#pq-usar-suma').onclick = ()=>{ body.querySelector('#pq-auto').checked = false; body.querySelector('#pq-precio').value = Math.round(suma()*100)/100; precioRegla(); };
+    // 💲 v386: precio sugerido = suma − descuento, terminado en ,99. Con «Recalcular solo», se pone al día al cambiar lo que incluye.
+    {
+      const inPct = body.querySelector('#pq-desc-pct'), inPre = body.querySelector('#pq-precio'), chk = body.querySelector('#pq-auto'), est = body.querySelector('#pq-precio-estado');
+      const sumaYa = ()=>Math.round((serviciosTodos().reduce((a,x)=>a+x.precio*x.cantidad,0) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0) + (ed ? (Number(ed.saldoConsumo) || 0) : 0)) * 100) / 100;
+      const s0 = sumaYa(), pct0 = pqDescRegla(s0, val('pq-cat'));
+      inPct.value = pct0;
+      // Recalcular solo: encendido en paquetes nuevos y en los que ya tienen el precio de la regla.
+      chk.checked = !ed || !(numPrecio(ed.precio) > 0) || Math.abs(numPrecio(ed.precio) - pqPrecioRegla(s0, pct0)) < 0.005;
+      let contUlt = JSON.stringify([serviciosTodos().map(x=>[x.servicio, x.variante, x.cantidad]), comidasTodas().map(x=>[x.menuId, x.cantidad])]);
+      const pintar = (t)=>{
+        const s = (t === undefined) ? sumaYa() : Math.round(t * 100) / 100;
+        const e = pqEstadoPrecio(numPrecio(inPre.value), s, serviciosTodos());
+        est.style.display = e.texto ? '' : 'none'; est.innerHTML = e.texto;
+        est.style.background = e.nivel === 'rojo' ? '#fdecec' : (e.nivel === 'ambar' ? '#fff7e6' : '#eaf7ef');
+        est.style.color = e.nivel === 'rojo' ? '#b00020' : (e.nivel === 'ambar' ? '#8a5a00' : '#1d6b35');
+      };
+      precioRegla = (t)=>{
+        const c = JSON.stringify([serviciosTodos().map(x=>[x.servicio, x.variante, x.cantidad]), comidasTodas().map(x=>[x.menuId, x.cantidad])]);
+        if(c !== contUlt){ contUlt = c; if(chk.checked){ const s = (t === undefined) ? sumaYa() : t; inPre.value = pqPrecioRegla(s, numPrecio(inPct.value)); } }
+        pintar(t);
+      };
+      body.querySelector('#pq-regla').onclick = ()=>{ const s = sumaYa(); if(!(s > 0)){ alert('Elige primero lo que incluye el paquete.'); return; } inPre.value = pqPrecioRegla(s, numPrecio(inPct.value)); pintar(); chequearOferta(); };
+      inPct.addEventListener('change', ()=>{ if(chk.checked){ inPre.value = pqPrecioRegla(sumaYa(), numPrecio(inPct.value)); chequearOferta(); } pintar(); });
+      inPre.addEventListener('input', ()=>{ chk.checked = false; pintar(); });
+      chk.addEventListener('change', ()=>{ if(chk.checked){ inPre.value = pqPrecioRegla(sumaYa(), numPrecio(inPct.value)); chequearOferta(); } pintar(); });
+      pintar();
+    }
     body.querySelector('#pq-volver').onclick = ()=>{ A.vista='lista'; A.editId=null; A.nuevoPqId = null; state.tab = 'agenda'; render(); };
     body.querySelector('#pq-tarifas').onclick = ()=>{
       if(!confirm('Vas a ir a 💲 Tarifas. Si cambiaste algo en este paquete y no lo has guardado, guárdalo primero.\n\n¿Ir a tarifas ahora?')) return;
@@ -12630,6 +12687,10 @@ setTimeout(function(){
       const p = { id: ed ? ed.id : A.nuevoPqId, nombre: val('pq-nombre').trim(), descripcion: val('pq-desc').trim(), precio: val('pq-precio') || Math.round(suma()*100)/100, tipoFicha: progOn() ? val('pq-prog-tipo') : val('pq-tipo'),
         servicios, terapias: servicios.map(terapiaDeServicio), comidas: comidasTodas(), activo: ed?ed.activo:true, oferta: val('pq-oferta'), dias, tipoPrograma: progOn() ? val('pq-prog-tipo') : undefined, categoria: val('pq-cat') };
       if(!p.nombre){ alert('Escribe el nombre del paquete.'); return; }
+      { const sG = Math.round(suma() * 100) / 100, eG = pqEstadoPrecio(numPrecio(p.precio), sG, servicios);
+        if(eG.nivel === 'rojo' && !confirm('⛔ El precio ' + dinero(numPrecio(p.precio)) + ' es igual o mayor que la suma de todo por separado (' + dinero(sG) + '): el cliente no ahorra nada.\n\nPrecio sugerido: ' + dinero(pqPrecioRegla(sG, numPrecio(val('pq-desc-pct')))) + '.\n\n¿Guardar igual con este precio?')) return;
+        const fG = pqFaltanUnidades(servicios);
+        if(fG.length && !confirm('⚠️ Hay más masajes que ' + fG.join(' / ') + '. ¿Falta uno para alguna persona?\n\nAceptar = guardar así\nCancelar = volver y corregir la cantidad')) return; }
       if(ed && ed.sug) p.sug = sugActual();
       // Si cambió el paquete y el mensaje para WhatsApp sigue exactamente como estaba, se ofrece ponerlo al día antes de guardar.
       if(ed && p.oferta.trim() && p.oferta === ofertaIni && firmaPaq() !== sigIni && confirm('Cambiaste el paquete, pero el mensaje para ofrecerlo por WhatsApp sigue como estaba.\n\n¿Actualizarlo con los datos nuevos antes de guardar?\n\nAceptar = actualizar el mensaje\nCancelar = dejarlo como está')) p.oferta = pqTextoOferta(datosPaq());
@@ -12655,16 +12716,16 @@ setTimeout(function(){
       boxRev.querySelector('#pq-rev-ok').onclick = async (ev)=>{
         const ids = Array.from(boxRev.querySelectorAll('[data-pq-rev]:checked')).map(c=>c.dataset.pqRev);
         if(!ids.length){ alert('Marca al menos un paquete.'); return; }
-        if(!confirm('¿Poner ' + ids.length + ' paquete(s) al precio de la suma de hoy?')) return;
+        if(!confirm('¿Poner el precio sugerido a ' + ids.length + ' paquete(s)? (suma de hoy − descuento, terminado en ,99)')) return;
         ev.target.disabled = true; ev.target.textContent = 'Guardando…'; let ok = 0;
         for(const id of ids){
           const p = paqs.find(x=>x.id === id); if(!p) continue;
-          const h = pqConPreciosHoy(p), precio = pqSumaHoy(p), nuevo = Object.assign({}, p, h, { precio });
+          const h = pqConPreciosHoy(p), sh = pqSumaHoy(p), precio = pqPrecioRegla(sh, pqDescRegla(sh, p.categoria)), nuevo = Object.assign({}, p, h, { precio });
           const oferta = /\*Precio del paquete:/.test(String(p.oferta || '')) ? pqTextoOferta(nuevo) : p.oferta;
           try{ Object.assign(p, await gs('savePaquete', Object.assign({}, nuevo, { terapias:h.servicios.map(terapiaDeServicio), oferta }), auth())); ok++; }
           catch(e){ alert('No se pudo guardar «' + p.nombre + '»: ' + (e && e.message ? e.message : e)); break; }
         }
-        toast('💲 ' + ok + ' paquete(s) con el precio de hoy.'); render();
+        toast('💲 ' + ok + ' paquete(s) con el precio sugerido.'); render();
       };
     }
     // ⚙️ Mis categorías: crear, renombrar, cambiar ícono/frase y borrar.
