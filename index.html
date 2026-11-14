@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v387' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v388' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2724,7 +2724,7 @@ setTimeout(function(){
     if(o.sub) state.adminSub = o.sub;
     if(o.ag){ if(!state.ag) state.ag = { vista:'lista', filtro:'proximas', editId:null }; state.ag.vista = o.ag; state.ag.editId = null; }
     if(o.ro){ if(!state.rosita) state.rosita = { vista:'lista', filtro: esCocina() ? 'cocina' : 'abiertas', editId:null }; state.rosita.vista = o.ro; state.rosita.editId = null; if(o.ro==='enlace') state.rosita.enlace = null; }
-    if(o.pr){ if(!state.pr) state.pr = { vista:'lista', editId:null }; state.pr.vista = o.pr; state.pr.editId = null; state.pr.cat = null; state.pr.catPresu = null; state.pr.items = null; state.pr.pub = null; }
+    if(o.pr){ if(!state.pr) state.pr = { vista:'lista', editId:null }; state.pr.vista = o.pr; state.pr.editId = null; state.pr.cat = null; state.pr.catPresu = null; state.pr.items = null; state.pr.pub = null; state.pr.vg = null; }
     if(o.cm) state.cmAbierto = true;
     render(); try{ window.scrollTo(0, 0); }catch(e){}
   }
@@ -2748,6 +2748,7 @@ setTimeout(function(){
     add('🔗', 'Enviar el menú al cliente', 'Rosita → enlace del menú', 'enlace menu cliente whatsapp enviar link', ()=>irA({ tab:'rosita', ro:'enlace' }), !cocina && puedeEnviarWhatsapp());
     add('🕒', 'Disponibilidad', 'Tu disponibilidad semanal / la del equipo', 'disponibilidad disponible horarios semana equipo', ()=>irA({ tab:'disp' }), !!(elegibleDisp() || admin));
     add('💲', 'Tarifas', 'Admin → precios, eventos y alquiler', 'tarifas precios tarifa tabulador eventos alquiler gasolina planta lenceria costos servicios margen', ()=>irA({ tab:'adminpanel', sub:'tarifas' }), admin);
+    add('🛒', 'Vender paso a paso', 'Asistente de ventas: te guía hasta cerrar', 'vender venta vendedor asistente guia guiada paso a paso cliente quiere comprar cotizar ofrecer fisioterapia dias', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'guiada' }), admin);
     add('🧾', 'Presupuestos', 'Admin → presupuestos', 'presupuestos presupuesto cotizacion eventos regalo propuesta', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'lista' }), admin);
     add('🌐', 'Enlace público de reservas', 'Admin → presupuestos → enlace público', 'enlace publico universal instagram web qr reservar estados whatsapp dudas', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'publico' }), admin);
     add('🛍️', 'Enviar catálogo al cliente', 'Admin → presupuestos → catálogo por enlace', 'catalogo enlace cliente elegir servicios link enviar whatsapp', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'catalogo' }), admin);
@@ -3229,7 +3230,7 @@ setTimeout(function(){
   const MANUAL_ADMIN = [
     ['⚡ Inicio y Atención hoy', '<p>Atención hoy reúne lo pendiente: novedades de la app, pagos por verificar, citas sin profesional o sin confirmar, clientes que no podrán asistir, cuentas vencidas, disponibilidad que falta y los respaldos (con «Respaldar ahora»). César ve además qué frase de Aguamiel Tips salió y cuándo toca la próxima.</p>'],
     ['📅 Agenda y reservas', '<ol><li>Crear: Agenda → ➕ Nueva reserva, o desde el presupuesto aceptado (trae servicios, comidas y abonos).</li><li>Asignar fisios: si no marcó disponibilidad, se le pide cobertura y queda asignada al aceptar.</li><li>Botones de cada reserva: ✅ Confirmación de asistencia, 🌿 Recomendaciones (horario, puntualidad, desconexión, menú; se editan ahí), 🍽️ Pedir comida del paquete, 🙋 Cobertura, mensajes al cliente, 🔁 Posponer, ❌ Cancelar, 💵 Pagos.</li><li>El día: la fisio marca el inicio; 15 min antes del final recibe el aviso; al terminar responde Ya terminó o extiende 20/30 min y te llega el resumen de cierre.</li></ol>'],
-    ['🛍️ Ventas: catálogo, presupuestos y pagos', '<ol><li>Admin → Ventas → Presupuestos → Catálogo por enlace: elige cliente, qué mostrar y los días; opcional grupo, catálogo para grupos o regalo ya pagado.</li><li>El cliente elige paso a paso (sola, acompañada o regalo) y queda un presupuesto. Te avisa al abrirlo y al enviarlo.</li><li>Verifica los pagos reportados (con capture) en Atención hoy y convierte el presupuesto en reserva.</li></ol><p>El descuento en divisas aplica solo si todos los pagos fueron en divisas y desde el monto mínimo. La descripción de cada servicio en el tarifario es la frase que ve el cliente.</p>'],
+    ['🛍️ Ventas: catálogo, presupuestos y pagos', '<ol><li><strong>Lo más fácil: Inicio → 🛒 Vender paso a paso.</strong> Responde las preguntas (qué quiere, quién es, quiénes vienen, qué busca, cuándo) y la app recomienda, suma y deja el presupuesto listo para enviar, cobrar o reservar.</li><li>Admin → Ventas → Presupuestos → Catálogo por enlace: elige cliente, qué mostrar y los días; opcional grupo, catálogo para grupos o regalo ya pagado.</li><li>El cliente elige paso a paso (sola, acompañada o regalo) y queda un presupuesto. Te avisa al abrirlo y al enviarlo.</li><li>Verifica los pagos reportados (con capture) en Atención hoy y convierte el presupuesto en reserva.</li></ol><p>El descuento en divisas aplica solo si todos los pagos fueron en divisas y desde el monto mínimo. La descripción de cada servicio en el tarifario es la frase que ve el cliente.</p>'],
     ['🍽️ Rincón de Rosita', '<p>Lo incluido en un paquete nunca se factura en Rosita: sale como «🎁 Incluido» y solo se cobran los extras. Al cerrar una orden de reserva: cargar a la cuenta de la reserva o cobrar aparte. En un regalo con extras, la app pregunta quién los paga (quien disfruta o quien regaló).</p>'],
     ['💰 Finanzas', '<ul><li>Balance, Fondo de reserva, Ingresos, Gastos y Pagos.</li><li>Lo comprado con costo en la Lista de compras llega solo a Gastos (Compras del día).</li><li>Honorarios → 🧾 Terapias por pagar: elige con qué se paga y toca $5, $7, $10 u otro; luego 🚗+$2 / +$3 para el bono de transporte. ↩ deshace el pago.</li></ul>'],
     ['📦 Inventario y lista de compras', '<ul><li>Tres inventarios; lo que llega a su escasez se agrega solo a Compras.</li><li>🛒 Comprar → costo → ✓ Listo: pasa a Compras hechas con su suma y a Gastos.</li><li>Domingo y lunes 8 am la administración recibe la lista por Telegram con un botón por producto para marcarlo comprado.</li></ul>'],
@@ -3271,6 +3272,7 @@ setTimeout(function(){
       <div class="ag-sec"><div class="ag-card">
         <h3 style="margin-bottom:10px">Hola, ${esc(state.user.nombre.split(' ')[0])} 🌿</h3>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+          ${esAdm ? '<div style="grid-column:1 / -1">' + tile('ag-vender', '🛒', 'Vender paso a paso', 'Te guía con preguntas sencillas hasta cerrar la venta', true) + '</div>' : ''}
           ${tile('ag-go-nueva', '📝', 'Nueva ficha', 'Registrar una atención', true)}
           ${tile('ag-go-clientes', '👥', 'Clientes', 'Buscar, ver fichas e historial')}
           ${tile('ag-go-cliente', '➕', 'Nuevo cliente', 'Registrar a alguien nuevo')}
@@ -3290,6 +3292,7 @@ setTimeout(function(){
     `;
     pintarTarjetaPush(body.querySelector('#home-push'));
     body.querySelector('#ag-go-clientes').onclick = ()=>{ state.tab='clientes'; state.selClienteId=null; state.selFichaId=null; state.editing=false; state.informeMode=false; state.editFichaMeta=false; render(); };
+    const bVd = body.querySelector('#ag-vender'); if(bVd){ bVd.style.width = '100%'; bVd.onclick = ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'guiada' }); }
     const bAy = body.querySelector('#ag-ayuda'); if(bAy){ bAy.style.width = '100%'; bAy.onclick = ()=>mostrarManual(); }
     const bTm = body.querySelector('#ag-timer'); if(bTm){ bTm.style.width = '100%'; bTm.onclick = ()=>timerElegir(null); }
     const bPr = body.querySelector('#ag-propinas'); if(bPr){ bPr.style.width = '100%'; bPr.onclick = ()=>{ openFullscreen('💝 ' + (state.user && state.user.admin ? 'Propinas del equipo' : 'Mis propinas'), '<div id="ag-prop"><p class="ag-empty">Cargando…</p></div>'); renderPropinas(document.getElementById('ag-prop')); }; }
@@ -9404,7 +9407,20 @@ setTimeout(function(){
       if(PX.modo==='individual'){ leerPersonas().forEach(pp=>{ extra += (pp.servicios||[]).reduce((t,x)=>t+(Number(x.precio)||0)*(Number(x.cantidad)||0),0) + (pp.comidas||[]).reduce((t,c)=>t+(Number(c.precio)||0)*(Number(c.cantidad)||0),0); }); }
       else extra = leerComidas().reduce((t,c)=>t+c.precio*c.cantidad,0) + leerServicios().reduce((t,x)=>t+x.precio*x.cantidad,0);
       extra = Math.round(extra*100)/100;
-      body.querySelector('#rf-sugerido').innerHTML = (p ? 'Precio del paquete: ' + dinero(p.precio) + '. ' : '') + (extra ? 'Lo elegido suma <strong>' + dinero(extra) + '</strong>. <a href="#" id="rf-usar-suma">Usar la suma</a>' : '');
+      // 🩺 v388: con fisioterapia y rehabilitación se sugiere el precio por día (día 1 o día adicional) en vez de sumar procedimientos.
+      let fisioTxt = '';
+      if(fisioDiaOn()){
+        const sv = PX.modo==='individual' ? [].concat(...leerPersonas().map(pp=>pp.servicios||[])) : leerServicios();
+        const fis = sv.filter(x=>x.categoria===CAT_FISIO);
+        if(fis.length){
+          const sF = fis.reduce((t,x)=>t+(Number(x.precio)||0)*(Number(x.cantidad)||0),0), base = Math.round((extra - sF)*100)/100, c = fisioDiaCfg();
+          const d1 = Math.round((base + Number(c.dia1))*100)/100, d2 = Math.round((base + Number(c.adicional))*100)/100;
+          fisioTxt = '<br/>🩺 Fisioterapia por día: <a href="#" data-rf-fd="' + d1 + '">día 1: ' + dinero(d1) + '</a> · <a href="#" data-rf-fd="' + d2 + '">día adicional: ' + dinero(d2) + '</a> <span class="ag-muted">(los procedimientos no se cobran aparte)</span>';
+          extra = d1;
+        }
+      }
+      body.querySelector('#rf-sugerido').innerHTML = (p ? 'Precio del paquete: ' + dinero(p.precio) + '. ' : '') + (extra ? 'Lo elegido suma <strong>' + dinero(extra) + '</strong>. <a href="#" id="rf-usar-suma">Usar la suma</a>' : '') + fisioTxt;
+      body.querySelectorAll('[data-rf-fd]').forEach(a=>a.onclick = (e)=>{ e.preventDefault(); body.querySelector('#rf-monto').value = a.dataset.rfFd; });
       const us = body.querySelector('#rf-usar-suma'); if(us) us.onclick = (e)=>{ e.preventDefault(); body.querySelector('#rf-monto').value = extra; };
     };
     // Disponibilidad que el equipo indicó para el día y la hora elegidos (solo es una guía).
@@ -10191,7 +10207,11 @@ setTimeout(function(){
       '🌙 Cada noche se revisan los paquetes; si uno quedó sin ahorro por un cambio de tarifa, llega un aviso por Telegram.' ] },
     { v:387, fecha:'13 nov', titulo:'🔗 Enlaces más cortos', puntos:[
       '🔗 Catálogo, menú de Rosita, encuestas, postventa, informes y confirmaciones salen con un enlace corto (la mitad o menos).',
-      '✅ Los enlaces que ya se enviaron siguen sirviendo.' ] }
+      '✅ Los enlaces que ya se enviaron siguen sirviendo.' ] },
+    { v:388, fecha:'14 nov', titulo:'🛒 Vender paso a paso y 🩺 fisioterapia por día', puntos:[
+      '🛒 Inicio → <strong>Vender paso a paso</strong>: qué quiere el cliente, quién es, quiénes vienen, qué busca y cuándo. La app recomienda 3 opciones, suma Rosita y gift card y deja el presupuesto listo para WhatsApp, enlace de pago, abono o reserva.',
+      '💬 En cada paso, una frase corta de «Qué decirle». Arriba, las ventas por cerrar para volver a escribirles.',
+      '🩺 Fisioterapia y rehabilitación se cobra por día: día 1 $24,99 y cada día adicional $19,50, sin importar los procedimientos (1, 2, 3, 5 o 10 días). Se ajusta en Admin → Ventas → Tarifas.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -11918,9 +11938,40 @@ setTimeout(function(){
     const comidas = (p.comidas || []).map(c=>{ const m = (state.menu || []).find(y=>y.id === c.menuId); return m ? Object.assign({}, c, { precio:Number(m.precio) || 0 }) : c; });
     return { servicios, comidas };
   }
-  function pqSumaHoy(p){ const h = pqConPreciosHoy(p); return Math.round((h.servicios.reduce((a,x)=>a + (Number(x.precio)||0) * (Number(x.cantidad)||1), 0) + h.comidas.reduce((a,c)=>a + (Number(c.precio)||0) * (Number(c.cantidad)||1), 0) + (Number(p.saldoConsumo)||0)) * 100) / 100; }
+  // 🩺 v388: suma de los servicios de un paquete con la fisioterapia por día (todos sus procedimientos = los días, 1 si no es programa).
+  function pqSumaServs(servs, dias){ const esF = x=>fisioDiaOn() && String(x.categoria||'')===CAT_FISIO, hay = (servs||[]).some(esF);
+    return (servs||[]).reduce((a,x)=>a + (esF(x) ? 0 : (Number(x.precio)||0) * (Number(x.cantidad)||1)), 0) + (hay ? precioFisioDias(Math.max(1, Number(dias)||1)) : 0); }
+  function pqSumaHoy(p){ const h = pqConPreciosHoy(p);
+    return Math.round((pqSumaServs(h.servicios, (p.tipoPrograma==='fisiatria' && (p.dias||[]).length) ? p.dias.length : 1) + h.comidas.reduce((a,c)=>a + (Number(c.precio)||0) * (Number(c.cantidad)||1), 0) + (Number(p.saldoConsumo)||0)) * 100) / 100; }
   // 💲 v386: regla única del precio de un paquete. Descuento: 5 % combos de piscina y fisioterapia, 12 % si suma $200 o más, 10 % el resto.
   // Precio = suma − descuento, al entero más cercano menos 1 centavo ($25,40 → $24,99). Nunca llega a la suma.
+  // 🩺 v388: fisioterapia y rehabilitación por día (Admin → Ventas → Tarifas). Los procedimientos no se cobran aparte.
+  const FISIO_DIA_DEF = { activo:true, dia1:24.99, adicional:19.5 };
+  const CAT_FISIO = 'Fisioterapia y rehabilitación';
+  function fisioDiaCfg(){ return state.fisioDia || FISIO_DIA_DEF; }
+  function fisioDiaOn(){ return !!fisioDiaCfg().activo; }
+  function precioFisioDias(n){ const c = fisioDiaCfg(); n = Math.max(0, Math.round(Number(n) || 0)); return n ? Math.round((Number(c.dia1) + (n - 1) * Number(c.adicional)) * 100) / 100 : 0; }
+  function fisioDiaCardHTML(){
+    const c = fisioDiaCfg(), coma = v=>String(v).replace('.', ',');
+    return `<div class="ag-card" id="fd-card" style="margin-top:10px;border:2px solid var(--teal)"><h3 style="font-size:15px;margin:0 0 4px">🩺 Fisioterapia por día</h3>
+      <p class="ag-muted" style="font-size:12.5px;margin:0 0 8px">Fisioterapia y rehabilitación se cobra <strong>por día</strong>, sin importar los procedimientos. Los precios de cada procedimiento (abajo) se conservan para cobrar uno aparte cuando haga falta.</p>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13.5px"><input type="checkbox" id="fd-on" style="width:auto" ${c.activo?'checked':''}/> Cobrar por día</label>
+      <div class="ag-row"><div><label class="f">Día 1 ($)</label><input id="fd-d1" inputmode="decimal" value="${esc(coma(c.dia1))}"/></div><div><label class="f">Cada día adicional ($)</label><input id="fd-ad" inputmode="decimal" value="${esc(coma(c.adicional))}"/></div></div>
+      <p class="ag-muted" id="fd-ej" style="font-size:12px;margin:6px 0 0"></p>
+      <button class="ag-btn sm" id="fd-guardar" style="width:100%;margin-top:8px">Guardar</button></div>`;
+  }
+  function wireFisioDia(body){
+    const card = body.querySelector('#fd-card'); if(!card) return;
+    const d1 = ()=>numPrecio(card.querySelector('#fd-d1').value), ad = ()=>numPrecio(card.querySelector('#fd-ad').value);
+    const ej = ()=>{ card.querySelector('#fd-ej').textContent = 'Así queda: ' + [1,2,3,5,10].map(n=>n + (n===1 ? ' día ' : ' días ') + dinero(Math.round((d1() + (n - 1) * ad()) * 100) / 100)).join(' · '); };
+    card.querySelectorAll('input').forEach(i=>i.oninput = ej); ej();
+    card.querySelector('#fd-guardar').onclick = async ()=>{
+      const b = card.querySelector('#fd-guardar'); if(!(d1() > 0)){ alert('Escribe el precio del día 1.'); return; } b.disabled = true;
+      try{ state.fisioDia = await gs('setFisioDiaCfg', { activo: card.querySelector('#fd-on').checked, dia1: d1(), adicional: ad() }, auth()); toast('🩺 Guardado.'); ej(); }
+      catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+      b.disabled = false;
+    };
+  }
   function pqDescRegla(suma, cat){ return (cat === 'piscina' || /^fisio/.test(String(cat || ''))) ? 5 : (Number(suma) >= 200 ? 12 : 10); }
   function pqPrecioRegla(suma, pct){ const s = Number(suma) || 0; if(!(s > 0)) return 0; let p = Math.round(s * (1 - (Number(pct) || 0) / 100)) - 0.01; if(p >= s) p = Math.floor(s) - 0.01; return Math.max(0, Math.round(p * 100) / 100); }
   // Piscina o hidroterapia con menos unidades que los demás servicios (ej. 2 masajes y 1 piscina): falta una para alguien.
@@ -12556,7 +12607,7 @@ setTimeout(function(){
     let chequearOferta = ()=>{};
     let precioRegla = ()=>{};   // 💲 v386: se define más abajo (recalcula el precio y pinta su estado)
     const suma = ()=>{
-      const t = serviciosTodos().reduce((a,x)=>a+x.precio*x.cantidad,0) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0) + (ed ? (Number(ed.saldoConsumo) || 0) : 0);
+      const t = pqSumaServs(serviciosTodos()) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0) + (ed ? (Number(ed.saldoConsumo) || 0) : 0);
       body.querySelector('#pq-suma').innerHTML = 'Suma de lo incluido: <strong>' + dinero(t) + '</strong>';
       precioRegla(t);
       // Resumen en la cabecera de los bloques plegados (servicios y comidas), para saber qué lleva sin abrirlos.
@@ -12609,7 +12660,7 @@ setTimeout(function(){
       const dias = progOn() ? leerDias() : [], servicios = serviciosTodos();
       // Sin precio escrito se usa la suma, calculada aquí directo: suma() vuelve a llamar a chequearOferta → datosPaq y se quedaba en un ciclo sin fin
       // («Maximum call stack size exceeded»: el teléfono se trababa en el editor de paquetes).
-      const comidas = comidasTodas(), sumaPura = servicios.reduce((a,x)=>a+x.precio*x.cantidad,0) + comidas.reduce((a,c)=>a+c.precio*c.cantidad,0);
+      const comidas = comidasTodas(), sumaPura = pqSumaServs(servicios) + comidas.reduce((a,c)=>a+c.precio*c.cantidad,0);
       return { nombre: val('pq-nombre').trim() || 'Paquete', descripcion: val('pq-desc').trim(), precio: val('pq-precio') || Math.round(sumaPura*100)/100, servicios, comidas, dias, sug: sugTexto() };
     };
     const firmaPaq = ()=>JSON.stringify([val('pq-nombre').trim(), val('pq-desc').trim(), String(val('pq-precio')).trim(), serviciosTodos().map(x=>[x.servicio, x.variante, x.cantidad, x.precio, !!x.oculto]), comidasTodas().map(x=>[x.menuId, x.cantidad, x.precio, !!x.oculto]), progOn() ? leerDias() : 0]);
@@ -12646,7 +12697,7 @@ setTimeout(function(){
     // 💲 v386: precio sugerido = suma − descuento, terminado en ,99. Con «Recalcular solo», se pone al día al cambiar lo que incluye.
     {
       const inPct = body.querySelector('#pq-desc-pct'), inPre = body.querySelector('#pq-precio'), chk = body.querySelector('#pq-auto'), est = body.querySelector('#pq-precio-estado');
-      const sumaYa = ()=>Math.round((serviciosTodos().reduce((a,x)=>a+x.precio*x.cantidad,0) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0) + (ed ? (Number(ed.saldoConsumo) || 0) : 0)) * 100) / 100;
+      const sumaYa = ()=>Math.round((pqSumaServs(serviciosTodos()) + comidasTodas().reduce((a,c)=>a+c.precio*c.cantidad,0) + (ed ? (Number(ed.saldoConsumo) || 0) : 0)) * 100) / 100;
       const s0 = sumaYa(), pct0 = pqDescRegla(s0, val('pq-cat'));
       inPct.value = pct0;
       // Recalcular solo: encendido en paquetes nuevos y en los que ya tienen el precio de la regla.
@@ -12780,8 +12831,8 @@ setTimeout(function(){
   function claveTarifa(c, s, v){ return c + '|' + s + '|' + (v||''); }
   async function cargarTarifas(forzar){
     if(state.tarifas && state.cfgAlquiler && !forzar) return state.tarifas;
-    const [t, cfg] = await Promise.all([ gs('getTarifas', auth()), gs('getConfigAlquiler', auth()).catch(()=>null) ]);
-    state.tarifas = t; state.cfgAlquiler = cfg || state.cfgAlquiler || {}; state.tarifasAt = Date.now();
+    const [t, cfg, fd] = await Promise.all([ gs('getTarifas', auth()), gs('getConfigAlquiler', auth()).catch(()=>null), gs('getFisioDiaCfg', auth()).catch(()=>null) ]);
+    state.tarifas = t; state.cfgAlquiler = cfg || state.cfgAlquiler || {}; state.tarifasAt = Date.now(); if(fd) state.fisioDia = fd;
     return state.tarifas;
   }
   // Las tarifas (servicios, duraciones visibles u ocultas, precios) son las mismas para todos, pero cada teléfono guardaba la copia
@@ -12910,6 +12961,7 @@ setTimeout(function(){
         ${sinPrecio?`<p class="ag-muted" style="font-size:12px">Faltan ${sinPrecio} precio${sinPrecio!==1?'s':''} por llenar; los que dejes vacíos no aparecerán con precio en los presupuestos.</p>`:''}
         <button class="ag-btn ghost sm" id="tf-nueva-cat" style="width:100%;margin-top:6px">➕ Nueva categoría</button>
       </div>
+      ${fisioDiaCardHTML()}
       ${tabuladorAlquilerHTML()}
       ${arbol.map((c,ci)=>`
         <details class="ag-card" style="margin-top:10px" data-tf-cat="${esc(c.nombre)}" ${state.tfAbiertas[c.nombre]!==undefined ? (state.tfAbiertas[c.nombre]?'open':'') : (ci===0?'open':'')}>
@@ -12956,6 +13008,7 @@ setTimeout(function(){
       state.tarifas = Object.values(mapa);
     };
     const agregar = (c, sv, v)=>{ leerPantalla(); if(!state.tarifas.some(t=>t.categoria===c&&t.servicio===sv&&(t.variante||'')===(v||''))) state.tarifas.push({ categoria:c, servicio:sv, variante:v||'', etiqueta:'', precio:'', activo:true }); state.tfAbiertas[c] = true; render(); };
+    wireFisioDia(body);
     body.querySelector('#tf-nueva-cat').onclick = ()=>{ const c = (prompt('Nombre de la nueva categoría (ej: Paquetes especiales):')||'').trim(); if(!c) return; const sv = (prompt('Primer servicio de "' + c + '":')||'').trim(); if(!sv) return; agregar(c, sv, ''); };
     body.querySelectorAll('[data-tf-addsv]').forEach(b=>b.onclick=()=>{ const sv = (prompt('Nombre del servicio nuevo en "' + b.dataset.tfAddsv + '":')||'').trim(); if(sv) agregar(b.dataset.tfAddsv, sv, ''); });
     body.querySelectorAll('[data-tf-addvar]').forEach(b=>b.onclick=()=>{ const [c,sv] = b.dataset.tfAddvar.split('|'); const v = (prompt('Nueva variante de "' + sv + '" (ej: 90 minutos, Pareja, Espalda completa):')||'').trim(); if(v) agregar(c, sv, v); });
@@ -13246,18 +13299,20 @@ setTimeout(function(){
     if(P.vista==='ver') return renderPresupuestoVer(body);
     if(P.vista==='catalogo') return renderCatalogoEnlace(body);
     if(P.vista==='publico') return renderEnlacePublico(body);
+    if(P.vista==='guiada') return renderVentaGuiada(body);
     const lista = state.presupuestos.slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
     const colorP = e=> e==='Aceptado' ? 'background:#e2f4e6;color:#1d6b35' : e==='Rechazado' ? 'background:#eee;color:#777' : e==='Enviado' ? 'background:var(--teal-l);color:var(--teal-d)' : e==='Contestó' ? 'background:#efeaff;color:#5b3f8f' : 'background:var(--amber-l);color:var(--amber-d)';
     body.innerHTML = `
       ${(()=>{ const PC = { g:['#1d6b35','#e2f4e6'], t:['#0a5a68','#e2f4f6'], a:['#8a5a00','#fff3d6'], p:['#5b3f8f','#efe9f8'] };   // 🗂️ v363
         return mnHero('🧾 Presupuestos', 'Terapias, comidas y paquetes', [[lista.filter(p=>!/Aceptado|Rechazado/.test(p.estado||'')).length, 'abiertos', PC.t], [lista.filter(p=>(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado).length, 'pagos por ver', PC.a], [lista.filter(p=>p.estado==='Aceptado').length, 'aceptados', PC.g]])
-          + mnGrid([{ at:'id="pr-nuevo"', e:'➕', t:'Nuevo presupuesto', sb:'Armarlo yo', c:PC.g }, { at:'id="pr-catalogo"', e:'🛍️', t:'Enviar catálogo', sb:'Que elija el cliente', c:PC.t }, { at:'id="pr-publico"', e:'🌐', t:'Enlace público', sb:'Web, Instagram y QR', c:PC.p }]); })()}
+          + mnGrid([{ at:'id="pr-vender"', e:'🛒', t:'Vender paso a paso', sb:'Te guía hasta cerrar', c:PC.g }, { at:'id="pr-nuevo"', e:'➕', t:'Nuevo presupuesto', sb:'Armarlo yo', c:PC.a }, { at:'id="pr-catalogo"', e:'🛍️', t:'Enviar catálogo', sb:'Que elija el cliente', c:PC.t }, { at:'id="pr-publico"', e:'🌐', t:'Enlace público', sb:'Web, Instagram y QR', c:PC.p }]); })()}
       ${(()=>{ const pend = lista.filter(p=>(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado); return pend.length ? `<div class="ag-card" style="background:#fff7e6;border-color:#f0d9a8"><div style="font-weight:700;font-size:14.5px">💳 ${pend.length} pago${pend.length>1?'s':''} por verificar</div>${pend.map(p=>`<div class="ag-list-item" data-pr-ver="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px"><div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${p.pagoReportadoPct ? 'Dice que pagó el ' + p.pagoReportadoPct + '% (' + dinero(p.pagoReportadoMonto) + ')' : 'Adjuntó un comprobante'}${p.comprobante ? ' · 📎 con capture' : ' · sin capture'}</div></div><span class="ag-badge" style="background:#fff0cc;color:#8a5a00">Verificar</span></div>`).join('')}</div>` : ''; })()}
       ${lista.map(p=>`<div class="ag-list-item" data-pr-ver="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px">
         <div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${esc(isoToDMY(p.fecha))} · ${p.items.length} concepto${p.items.length!==1?'s':''}${p.beneficiario?' · 🎁 para '+esc(p.beneficiario.nombre.split(' ')[0]):''}${(p.items||[]).some(it=>it.clave)?' · 📲 lo armó el cliente':''}${(p.comprobante || p.pagoReportadoPct) && !p.pagoVerificado ? ' · <strong style="color:#8a5a00">💳 pago reportado: verificar</strong>' : ''}</div></div>
         <div style="text-align:right"><strong>${dinero(p.total)}</strong><br/><span class="ag-badge" style="${colorP(p.estado)}">${esc(p.estado)}</span>${(p.pagos||[]).length?`<br/><span class="ag-badge" style="${p.saldo>0.009?'background:var(--danger-l);color:var(--danger)':'background:#e2f4e6;color:#1d6b35'}">${p.saldo>0.009?'Debe '+dinero(p.saldo):'Pagado'}</span>`:''}</div>
       </div>`).join('') || '<p class="ag-empty">Aún no hay presupuestos.</p>'}`;
     body.querySelector('#pr-nuevo').onclick = ()=>{ P.vista='form'; P.editId=null; render(); };
+    body.querySelector('#pr-vender').onclick = ()=>{ P.vista='guiada'; P.vg = null; render(); try{ window.scrollTo(0, 0); }catch(e){} };
     body.querySelector('#pr-catalogo').onclick = ()=>{ P.vista='catalogo'; P.cat = null; P.catPresu = null; render(); };
     body.querySelector('#pr-publico').onclick = ()=>{ P.vista='publico'; P.pub = null; render(); };
     body.querySelectorAll('[data-pr-ver]').forEach(el=>el.onclick=()=>{ P.vista='ver'; P.editId=el.dataset.prVer; render(); });
@@ -13851,6 +13906,426 @@ setTimeout(function(){
     };
   }
 
+  // ======================= 🛒 v388: VENDER PASO A PASO =======================
+  // Asistente para quien vende (hoy: administración). Preguntas sencillas → arma un presupuesto con lo que ya existe
+  // (tarifas, paquetes, programas por días, menú de Rosita, gift card) y lo deja listo para enviarlo, cobrarlo o convertirlo en reserva.
+  // No duplica nada: guarda con savePresupuesto y el cierre usa los mismos botones del presupuesto (WhatsApp, enlace, abono, reserva).
+  const VG_QUIERE = [
+    ['spa','💆','Terapias / spa','Masajes, hidro, faciales'],
+    ['paquete','🎁','Un paquete','Todo en uno'],
+    ['fisio','🩺','Fisioterapia por días','1, 2, 3, 5 o 10 días'],
+    ['grupo','👨‍👩‍👧','Grupo o niños','Familia, amigas, empresa'],
+    ['regalo','🎀','Regalar','Para otra persona'],
+    ['piscina','🏊','Día de piscina',''],
+    ['rosita','🍽️','Comer en Rosita','Abre una orden'],
+    ['evento','🎉','Evento privado','Alquiler del espacio'],
+    ['nosabe','🤔','No sabe qué quiere','Le damos ideas'],
+    ['reserva','📅','Ya tiene reserva','Pagar, cambiar, agregar']
+  ];
+  const VG_DECIR = {
+    quiere:'«¡Hola, bienvenida a Aguamiel! ¿Qué te gustaría vivir: relajarte, aliviar un dolor o celebrar algo?»',
+    cliente:'«¿Me regalas tu nombre y tu WhatsApp para enviarte todo por escrito?»',
+    quienes:'«¿Vienes sola o te acompaña alguien? ¿Vienen niños?»',
+    busca:'«¿Tienes alguna molestia o es para consentirte? ¿Cuánto tiempo tienes para quedarte?»',
+    elegir:'«Por lo que me cuentas, te recomiendo esto…» (lee el nombre, lo que incluye y cuánto dura).',
+    fisio:'«La fisioterapia se cobra por día, sin importar los procedimientos. Mientras más días, mejor resultado y mejor precio por día.»',
+    extras:'«¿Quieres que te tengamos el almuerzo o unos jugos listos al salir?»',
+    cuando:'«¿Qué día y a qué hora te queda mejor?»',
+    resumen:'«Te leo cómo quedó…» (total y, si son varios, lo que sale por persona). Pregunta embarazo, alergias o lesiones.',
+    cierre:'«¿Prefieres reservarlo ya con un abono, o te lo envío para que lo revises con calma?»'
+  };
+  const VG_OBJ = [['relajarse','😌','Relajarse',''],['dolor','💪','Aliviar un dolor','Contracturas, lesiones'],['bien','✨','Verse bien','Facial, exfoliación'],['celebrar','🥂','Celebrar','Cumpleaños, aniversario']];
+  const VG_OBJ_RX = { relajarse:/relaj|antiestr|piedra|bambu|hidro|aroma|reflexolog|desconect|craneo/, dolor:/descontract|terapeut|fisio|dolor|deport|lumbar|cervical|ventosa|madero|rehab/, bien:/facial|exfol|vichy|drenaje|reduct|belleza|limpieza|piel|maderoterapia/, celebrar:/cumple|aniversar|celebr|pareja|amigas|deluxe|regalo|evento|dos|madre/ };
+  const VG_TIEMPO = [['1','⚡ 1 hora',0,80],['2','2 horas',60,150],['3','Medio día',120,270],['4','Todo el día',240,99999]];
+  const VG_PRESU = [['a','Hasta $40',0,40],['b','$40 a $80',40,80],['c','Más de $80',80,99999],['','No dijo',0,99999]];
+  const VG_DIAS_FISIO = [1,2,3,5,10];
+  const VG_FISIO_BASE = ['Electroterapia','Termoterapia','Movilizaciones Esp.','Ejercicios terap.','Masoterapia'];
+
+  function vgNuevo(){ return { paso:'quiere', quiere:'', cli:null, nuevo:{ nombre:'', tel:'', ced:'' }, q:'', adultos:1, ninos:0, nombres:[], ben:{ nombre:'', tel:'' }, obj:'', tiempo:'', presu:'', items:[], verTodos:false, buscarSrv:'', fisioDias:0, fisioProc:VG_FISIO_BASE.slice(), fecha:'', hora:'', pagoMetodo:'', desc:0, salud:'', conocio:'', comoPaqueteOn:null, paqNombre:'', cierre:'', guardado:null }; }
+  // Quién viene: clave c = cliente; a1, a2… acompañantes (adultos) y n1, n2… niños.
+  function vgPersonas(V){ return V.adultos + V.ninos; }
+  function vgFlujo(V){
+    if(V.quiere==='reserva') return ['quiere','cliente','reservas'];
+    if(V.quiere==='fisio') return ['quiere','cliente','fisio','extras','cuando','resumen','cierre'];
+    return ['quiere','cliente','quienes','busca','elegir','extras','cuando','resumen','cierre'];
+  }
+  function vgTotal(V){
+    const sub = Math.round(V.items.reduce((t,it)=>t + (Number(it.precio)||0) * (Number(it.cantidad)||0), 0) * 100) / 100;
+    const base = Math.max(0, sub - sub * (Number(V.desc)||0) / 100);
+    const m = metodosLista().find(x=>x.nombre===V.pagoMetodo), pct = m && m.descuento ? Number(m.descuento) : 0;
+    return { sub, base: Math.round(base*100)/100, pct, total: Math.round((base - base * pct / 100) * 100) / 100 };
+  }
+  function vgCumpleMes(c){ const pr = String(c && c.fnac || '').split('-').map(Number); return pr.length >= 3 && pr[1] === new Date().getMonth() + 1; }
+  // Recomienda paquetes según personas, tiempo, objetivo, presupuesto por persona y lo que quiere.
+  function vgRecomendar(V){
+    const n = vgPersonas(V) || 1, T = VG_TIEMPO.find(t=>t[0]===V.tiempo), PZ = VG_PRESU.find(t=>t[0]===V.presu && t[0]), rx = VG_OBJ_RX[V.obj];
+    const paqs = ((state.agenda&&state.agenda.paquetes)||[]).filter(p=>p.activo && Number(p.precio) > 0 && !(p.dias||[]).length);
+    return paqs.filter(p=>{ const i = pqInfo(p); return n >= 3 || i.personas <= Math.max(2, n * 2); }).map(p=>{
+      const i = pqInfo(p), cant = i.personas >= n ? 1 : Math.ceil(n / i.personas), total = Number(p.precio) * cant, porPer = total / n;
+      let s = 0;
+      if(i.personas === n || (n >= 3 && i.personas >= 3)) s += 3; else if(i.personas === 1 && n > 1) s += 1; else if(i.personas > n) s -= 2;
+      if(T && i.min){ s += (i.min >= T[2] && i.min <= T[3]) ? 2 : -1; }
+      if(rx && rx.test(i.texto)) s += 2;
+      if(PZ){ s += (porPer >= PZ[2] && porPer <= PZ[3]) ? 2 : (porPer > PZ[3] ? -2 : 0); }
+      if(V.quiere==='regalo' && /regal/.test(i.texto)) s += 2;
+      if(V.quiere==='piscina') s += i.piscina ? 3 : -3;
+      if(V.quiere==='grupo' && i.personas >= 3) s += 2;
+      if(V.ninos && /nino|kids|infantil/.test(i.texto)) s += 2;
+      return { p, i, cant, total, porPer, s };
+    }).sort((a,b)=>b.s - a.s || a.total - b.total);
+  }
+  function vgItemPaquete(p, cant){
+    return { tipo:'paquete', descripcion:'Paquete: ' + p.nombre, detalle: desglosePaquete(p), cantidad:cant, precio:p.precio, paqueteId:p.id };
+  }
+  // Fisioterapia por días: un programa con N días; cada día lleva los procedimientos sin precio aparte (se cobra el precio por día).
+  function vgItemFisio(V){
+    const n = V.fisioDias, cats = arbolTarifas(), cf = cats.find(c=>c.nombre===CAT_FISIO);
+    const servs = V.fisioProc.map(nom=>{ const sv = cf ? cf.servicios.find(x=>x.nombre===nom) : null, v = sv && sv.variantes[0];
+      return { categoria:CAT_FISIO, servicio:nom, mostrar: sv ? sv.mostrar : nom, variante: v ? v.variante : '', varianteNombre: v ? (v.nombre||'') : '', tipoFicha:'fisiatria', cantidad:1, precio:0 }; });
+    const dias = []; for(let k = 0; k < n; k++) dias.push({ n:k+1, titulo:'Día ' + (k+1), servicios: JSON.parse(JSON.stringify(servs)), comidas:[], notas:'' });
+    const c = fisioDiaCfg();
+    return { tipo:'programa', descripcion:'Programa: Fisioterapia y rehabilitación · ' + n + (n===1?' día':' días'), detalle: (n===1 ? '1 día: ' + dinero(c.dia1) : 'Día 1: ' + dinero(c.dia1) + ' + ' + (n-1) + ' × ' + dinero(c.adicional)) + ' · ' + V.fisioProc.join(', '),
+      cantidad:1, precio: precioFisioDias(n), dias, programaTipo:'fisiatria', tipoFicha:'fisiatria', vgFisio:true };
+  }
+  function vgBtn(at, e, t, s, on){ return `<button type="button" ${at} style="display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;padding:12px 8px;border-radius:16px;border:2px solid ${on?'var(--teal)':'var(--line)'};background:${on?'var(--teal-l)':'var(--card,#fff)'};color:inherit;cursor:pointer;min-width:0"><span style="font-size:28px;line-height:1">${e}</span><b style="font-size:13.5px;line-height:1.2">${t}</b>${s?`<span class="ag-muted" style="font-size:11px;line-height:1.25">${s}</span>`:''}</button>`; }
+  function vgChip(at, t, on){ return `<button type="button" ${at} class="ag-btn sm ${on?'':'ghost'}" style="flex:0 0 auto;border-radius:999px;padding:7px 12px">${t}</button>`; }
+  function vgFila(at, e, t, s, on, der){ return `<button type="button" ${at} style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:14px;border:2px solid ${on?'var(--teal)':'var(--line)'};background:${on?'var(--teal-l)':'var(--card,#fff)'};color:inherit;cursor:pointer"><span style="font-size:22px">${e}</span><span style="flex:1;min-width:0;display:flex;flex-direction:column"><b style="font-size:14px">${t}</b>${s?`<span class="ag-muted" style="font-size:11.5px">${s}</span>`:''}</span>${der||''}</button>`; }
+  function vgDecir(k){ return VG_DECIR[k] ? `<div style="background:#fff3d6;color:#5d3d00;border-radius:12px;padding:9px 11px;font-size:12.5px;line-height:1.4;margin-top:12px"><b style="display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px">💬 Qué decirle</b>${VG_DECIR[k]}</div>` : ''; }
+  function vgOjo(t, tono){ const c = tono==='a' ? 'background:#fff7e0;color:#6b4a00;border:1px solid #f0d27a' : 'background:#e2f4e6;color:#1d4d2a'; return `<div style="${c};border-radius:12px;padding:9px 11px;font-size:12.5px;line-height:1.4;margin-top:8px">${t}</div>`; }
+  function vgGrid(h){ return `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px">${h}</div>`; }
+  function vgChips(h){ return `<div style="display:flex;gap:6px;flex-wrap:wrap">${h}</div>`; }
+  function vgPreg(t){ return `<div style="font-weight:800;font-size:15px;margin:12px 0 6px">${t}</div>`; }
+  // Lista de lo elegido con − / + y quitar (sale en los pasos de elegir y extras).
+  function vgCanasta(V){
+    if(!V.items.length) return '';
+    const t = vgTotal(V);
+    return `<div class="ag-card" style="margin-top:12px;padding:10px 12px"><div style="font-weight:800;font-size:13.5px;margin-bottom:6px">🧺 Lo que lleva</div>
+      ${V.items.map((it,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:${i?'1px solid var(--line)':'0'}">
+        <div style="flex:1;min-width:0;font-size:13px"><b>${esc(it.descripcion)}</b><div class="ag-muted" style="font-size:11.5px">${dinero(it.precio)} c/u</div></div>
+        ${it.tipo==='programa' ? '' : `<button type="button" class="ag-btn sm ghost" data-vg-cant="${i}" data-d="-1" aria-label="Uno menos" style="padding:4px 10px">−</button><b style="min-width:18px;text-align:center">${it.cantidad}</b><button type="button" class="ag-btn sm ghost" data-vg-cant="${i}" data-d="1" aria-label="Uno más" style="padding:4px 10px">+</button>`}
+        <button type="button" class="ag-btn sm ghost" data-vg-quitar="${i}" aria-label="Quitar" style="padding:4px 9px">✕</button></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:6px;margin-top:4px;font-weight:800"><span>Total</span><span>${dinero(t.sub)}</span></div></div>`;
+  }
+  // Buscador de servicios del tarifario: categoría → servicio → tiempos con precio. Un toque agrega para todas las personas.
+  function vgServiciosHTML(V, soloCat){
+    const q = sinAcentos(V.buscarSrv || ''), n = V.adultos, nk = V.ninos;
+    let cats = arbolTarifas().filter(c=>soloCat ? c.nombre===soloCat : true);
+    if(!soloCat && V.obj==='dolor') cats = cats.slice().sort((a,b)=>(b.nombre===CAT_FISIO) - (a.nombre===CAT_FISIO));
+    if(!soloCat && !nk) cats = cats.filter(c=>c.tipo!=='kids');
+    const filas = [];
+    cats.forEach(c=>{
+      const sv = c.servicios.filter(s=>s.variantes.some(v=>v.precio!=='' && v.precio!==null) && (!q || sinAcentos(s.mostrar + ' ' + c.mostrar).includes(q)));
+      if(!sv.length) return;
+      filas.push(`<details class="ag-card" style="margin-top:8px;padding:8px 10px" ${q || soloCat ? 'open' : ''}><summary style="cursor:pointer;font-weight:700">${esc(c.mostrar)} <span class="ag-muted" style="font-weight:400">(${sv.length})</span></summary>
+        ${sv.map(s=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><div style="font-weight:600;font-size:13.5px">${esc(s.mostrar)}</div>${vgChips(s.variantes.filter(v=>v.precio!=='' && v.precio!==null).map(v=>vgChip(`data-vg-srv="${esc(c.nombre)}|${esc(s.nombre)}|${esc(v.variante)}"`, esc(v.nombre || 'Agregar') + ' · ' + dinero(v.precio), false)).join(''))}</div>`).join('')}</details>`);
+    });
+    return `<input id="vg-bsrv" placeholder="🔎 Buscar servicio (masaje, facial, piscina…)" value="${esc(V.buscarSrv||'')}" style="margin-top:4px"/>` + (filas.join('') || '<p class="ag-muted">No hay servicios con ese nombre.</p>') +
+      `<p class="ag-muted" style="font-size:11.5px;margin-top:6px">Cada toque agrega ${nk && soloCat!==CAT_FISIO ? 'para los adultos (' + n + ') o para los niños (' + nk + ') según la categoría' : 'para ' + n + ' persona' + (n>1?'s':'')}. Ajusta con − / + abajo.</p>`;
+  }
+
+  function renderVentaGuiada(body){
+    const P = state.pr;
+    if(!P.vg) P.vg = vgNuevo();
+    const V = P.vg, flujo = vgFlujo(V), iPaso = Math.max(0, flujo.indexOf(V.paso));
+    if(!state.fidelCfg) gs('getFidelCfg', auth()).then(cf=>{ state.fidelCfg = cf; }).catch(()=>{});
+    const cliNom = V.cli ? V.cli.nombre : (V.nuevo.nombre || '');
+    const n = vgPersonas(V);
+    let tit = '', h = '', ok = true, sig = 'Siguiente';
+    const P_ = V.paso;
+    if(P_==='quiere'){
+      tit = '🛒 ¿Qué quiere el cliente?';
+      const pend = (state.presupuestos||[]).filter(p=>/Borrador|Enviado|Contestó/.test(p.estado||'') && !p.reservaId).sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+      const hace = iso=>{ const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); return d <= 0 ? 'hoy' : (d===1 ? 'ayer' : 'hace ' + d + ' días'); };
+      h = (pend.length ? `<details class="ag-card" style="margin-bottom:10px;background:#fff7e6;border-color:#f0d9a8"><summary style="cursor:pointer;font-weight:700">📌 ${pend.length} venta${pend.length>1?'s':''} por cerrar <span class="ag-muted" style="font-weight:400">· presupuestos sin respuesta</span></summary>
+          ${pend.slice(0, 8).map(p=>`<div class="ag-list-item" data-vg-pend="${p.id}" style="cursor:pointer;justify-content:space-between;gap:8px"><div><strong>${esc(p.numero)} · ${esc(p.clienteNombre)}</strong><div class="ag-muted" style="font-size:12px">${esc(p.estado)} · ${hace(p.updatedAt||p.createdAt)}</div></div><strong>${dinero(p.total)}</strong></div>`).join('')}
+          <p class="ag-muted" style="font-size:11.5px;margin:6px 0 0">Toca uno para escribirle de nuevo, cobrarle o hacer la reserva.</p></details>` : '')
+        + vgGrid(VG_QUIERE.map(q=>vgBtn(`data-vg-q="${q[0]}"`, q[1], q[2], q[3], V.quiere===q[0])).join('')) + vgDecir('quiere');
+      ok = !!V.quiere;
+    } else if(P_==='cliente'){
+      tit = V.quiere==='regalo' ? '👤 ¿Quién compra el regalo?' : '👤 ¿Quién es el cliente?';
+      const q = sinAcentos(V.q || ''), dq = String(V.q||'').replace(/\D/g, '');
+      const res = q.length >= 2 ? state.clientes.filter(c=>sinAcentos(c.nombre||'').includes(q) || (dq.length >= 4 && (String(c.cedula||'').replace(/\D/g,'').includes(dq) || String(c.telefono||'').replace(/\D/g,'').includes(dq)))).slice(0, 8) : [];
+      h = `<input id="vg-q" placeholder="Nombre, teléfono o cédula" value="${esc(V.q||'')}" autocomplete="off"/>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          ${res.map(c=>vgFila(`data-vg-cli="${c.id}"`, '👤', esc(c.nombre), [c.telefono, c.cedula ? 'C.I. ' + c.cedula : ''].filter(Boolean).map(esc).join(' · ') + (vgCumpleMes(c) ? ' · 🎂 cumple este mes' : ''), V.cli && V.cli.id===c.id)).join('')}
+          ${vgFila('data-vg-cli="__nuevo"', '➕', 'Cliente nuevo', 'Nombre y WhatsApp (la cédula es opcional)', !V.cli && V.nuevo._abierto)}
+        </div>
+        ${!V.cli && V.nuevo._abierto ? `<div class="ag-card" style="margin-top:8px"><label class="f" style="margin-top:0">Nombre y apellido</label><input id="vg-nnom" value="${esc(V.nuevo.nombre)}"/>
+          <div class="ag-row"><div><label class="f">WhatsApp</label><input id="vg-ntel" inputmode="tel" placeholder="0414-1234567" value="${esc(V.nuevo.tel)}"/></div><div><label class="f">Cédula</label><input id="vg-nced" inputmode="numeric" value="${esc(V.nuevo.ced)}"/></div></div>
+          <p class="ag-muted" style="font-size:11.5px">Si ya existe con esa cédula, se enlaza solo. Queda registrado cuando abone o se haga la reserva.</p></div>` : ''}
+        ${V.cli ? `<div id="vg-sellos"></div>${vgCumpleMes(V.cli) ? vgOjo('🎂 <b>Cumple este mes.</b> ' + esc(((state.fidelCfg&&state.fidelCfg.cumple&&state.fidelCfg.cumple.regalo)||'Recuérdale su regalo de cumpleaños.').replace(/Agenda al[^.!]*[.!]?/i,''))) : ''}` : ''}
+        ${vgDecir('cliente')}`;
+      ok = !!V.cli || (V.nuevo._abierto && !!V.nuevo.nombre.trim());
+    } else if(P_==='reservas'){
+      tit = '📅 Sus reservas';
+      const hoy = hoyISO(), rs = ((state.agenda&&state.agenda.reservas)||[]).filter(r=>V.cli && String(r.clienteId)===String(V.cli.id) && r.fecha >= hoy && r.estado!=='Cancelada').sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+      h = rs.length ? rs.map(r=>{ const sp = saldoReserva(r); return `<div class="ag-card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;gap:8px"><strong>${esc(isoToDMY(r.fecha))} · ${esc(r.hora||'')}</strong>${r.montoTotal ? `<span class="ag-badge" style="${sp.saldo<=0.009?'background:#e2f4e6;color:#1d6b35':'background:var(--danger-l);color:var(--danger)'}">${sp.saldo<=0.009?'Pagado':'Debe '+dinero(sp.saldo)}</span>` : ''}</div>
+          <div class="ag-muted" style="font-size:12.5px">${esc(r.paqueteNombre ? 'Paquete ' + r.paqueteNombre : (r.terapias||[]).join(', '))}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+            <button type="button" class="ag-btn sm" data-vg-res="pagos|${r.id}">💵 Pagar</button><button type="button" class="ag-btn sm ghost" data-vg-res="form|${r.id}">➕ Agregar o cambiar</button>
+            <button type="button" class="ag-btn sm ghost" data-vg-res="posponer|${r.id}">📅 Otra fecha</button><button type="button" class="ag-btn sm ghost" data-vg-res="cancelar|${r.id}">❌ Cancelar</button></div></div>`; }).join('')
+        : '<p class="ag-empty">No tiene reservas próximas. Vuelve atrás y elige qué quiere comprar.</p>';
+      ok = false; sig = '';
+    } else if(P_==='quienes'){
+      tit = V.quiere==='regalo' ? '🎀 ¿Para quién es el regalo?' : '👥 ¿Quiénes vienen?';
+      const G = state.fidelCfg && state.fidelCfg.grupo;
+      const cont = (k, e, t, v)=>`<div class="ag-card" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:10px 12px"><span>${e} ${t}</span><span style="display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px"><button type="button" class="ag-btn sm ghost" data-vg-pers="${k}" data-d="-1" aria-label="Menos">−</button>${v}<button type="button" class="ag-btn sm ghost" data-vg-pers="${k}" data-d="1" aria-label="Más">+</button></span></div>`;
+      const extras = []; for(let k = 1; k < V.adultos; k++) extras.push(['a' + k, 'Acompañante ' + k]); for(let k = 1; k <= V.ninos; k++) extras.push(['n' + k, 'Niño(a) ' + k]);
+      h = (V.quiere==='regalo' ? `<div class="ag-card"><label class="f" style="margin-top:0">Nombre de quien lo disfruta</label><input id="vg-bnom" value="${esc(V.ben.nombre)}"/>
+          <label class="f">Su WhatsApp (opcional)</label><input id="vg-btel" inputmode="tel" value="${esc(V.ben.tel)}"/>
+          <p class="ag-muted" style="font-size:11.5px">La reserva y la ficha serán de quien lo disfruta; el pago, de ${esc(cliNom.split(' ')[0] || 'quien compra')}.</p></div>` + vgPreg('¿Cuántas personas lo van a disfrutar?') : '')
+        + vgChips(vgChip('data-vg-tipo="1"', 'Sola / solo', V.adultos===1 && !V.ninos) + vgChip('data-vg-tipo="2"', 'En pareja', V.adultos===2 && !V.ninos) + vgChip('data-vg-tipo="4"', 'Grupo', n >= 3))
+        + cont('a', '🧑', 'Adultos', V.adultos) + cont('n', '🧒', 'Niños', V.ninos)
+        + (extras.length ? vgPreg('Nombres <span class="ag-muted" style="font-weight:400;font-size:12px">(opcional, para sus fichas)</span>') + extras.map((x,i)=>`<input data-vg-nom="${i}" placeholder="${x[1]}" value="${esc(V.nombres[i]||'')}" style="margin-top:6px"/>`).join('') : '')
+        + (G && G.activo && G.regalo && n >= (Number(G.n)||3) ? vgOjo('🎉 <b>Grupo de ' + n + ':</b> le corresponde el premio por grupo: <b>' + esc(G.regalo) + '</b>. Díselo, ¡ayuda a cerrar!', 'a') : '')
+        + vgDecir('quienes');
+      ok = n > 0 && (V.quiere!=='regalo' || !!V.ben.nombre.trim());
+    } else if(P_==='busca'){
+      tit = '🎯 ¿Qué busca?';
+      h = vgPreg('¿Para qué viene?') + vgGrid(VG_OBJ.map(o=>vgBtn(`data-vg-obj="${o[0]}"`, o[1], o[2], o[3], V.obj===o[0])).join(''))
+        + vgPreg('¿Cuánto tiempo tiene?') + vgChips(VG_TIEMPO.map(t=>vgChip(`data-vg-tiempo="${t[0]}"`, t[1], V.tiempo===t[0])).join(''))
+        + vgPreg('¿Cuánto quiere gastar? <span class="ag-muted" style="font-weight:400;font-size:12px">(por persona, opcional)</span>') + vgChips(VG_PRESU.map(t=>vgChip(`data-vg-presu="${t[0]}"`, t[1], V.presu===t[0])).join(''))
+        + vgDecir('busca');
+      ok = !!V.obj;
+    } else if(P_==='elegir'){
+      tit = '⭐ Te recomiendo';
+      const sueltos = V.quiere==='spa' || V.quiere==='piscina' ? !V.verPaq : !!V.verSueltos;
+      const rec = vgRecomendar(V), mostrar = V.verTodos ? rec.slice(0, 40) : rec.slice(0, 3);
+      const etq = ['Mejor opción','También le sirve','Otra idea'];
+      const paqH = mostrar.map((x,k)=>{ const enC = V.items.some(it=>it.paqueteId===x.p.id);
+        return `<button type="button" data-vg-paq="${x.p.id}" style="display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;padding:11px 12px;border-radius:16px;border:2px solid ${enC?'var(--teal)':'var(--line)'};background:${enC?'var(--teal-l)':'var(--card,#fff)'};color:inherit;cursor:pointer;margin-top:8px">
+          ${!V.verTodos ? `<span style="font-size:10.5px;font-weight:800;color:#8a5a00;letter-spacing:.05em;text-transform:uppercase">${etq[k]}</span>` : ''}
+          <span style="display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:14.5px"><span>${enC?'✅ ':''}${esc(x.p.nombre)}</span><span style="color:#1d6b35;white-space:nowrap">${dinero(x.total)}</span></span>
+          <span class="ag-muted" style="font-size:12px">${esc(x.p.descripcion || desglosePaquete(x.p))}${x.i.min ? ' · ⏱️ ~' + durTxt(x.i.min) : ''}${x.cant > 1 ? ' · ' + x.cant + ' × ' + dinero(x.p.precio) : ''}${n > 1 ? ' · ' + dinero(x.porPer) + ' por persona' : ''}</span>
+          <span style="display:flex;gap:4px;flex-wrap:wrap">${[x.i.hidro?'💧 hidro':'', x.i.piscina?'🏊 piscina':'', x.i.masaje?'💆 masajes':'', x.i.comida?'🍽️ comida':'', x.i.bebida?'🥤 bebidas':'', '👥 ' + x.i.personas].filter(Boolean).map(t=>`<i style="font-style:normal;font-size:11px;background:var(--bg,#f3f6f7);border-radius:999px;padding:1px 7px">${t}</i>`).join('')}</span></button>`; }).join('');
+      h = vgChips(vgChip('data-vg-modo="paq"', '🎁 Paquetes', !sueltos) + vgChip('data-vg-modo="srv"', '💆 Servicios sueltos', sueltos))
+        + (sueltos ? vgServiciosHTML(V, '') : (paqH || '<p class="ag-empty">No hay paquetes activos con precio.</p>') + (rec.length > 3 ? `<button type="button" class="ag-btn sm ghost" id="vg-todos" style="width:100%;margin-top:8px">${V.verTodos ? '⭐ Ver solo las 3 recomendadas' : '🔎 Ver todos los paquetes (' + rec.length + ')'}</button>` : ''))
+        + vgCanasta(V) + vgDecir('elegir');
+      ok = V.items.length > 0;
+    } else if(P_==='fisio'){
+      tit = '🩺 Fisioterapia por días';
+      const c = fisioDiaCfg(), cf = arbolTarifas().find(x=>x.nombre===CAT_FISIO), procs = cf ? cf.servicios.map(s=>s.nombre) : DIA_FISIO.slice();
+      const progs = ((state.agenda&&state.agenda.paquetes)||[]).filter(p=>p.activo && (p.dias||[]).length && (p.tipoPrograma==='fisiatria' || /fisio|rehab/i.test(p.nombre||'')));
+      h = (fisioDiaOn() ? '' : vgOjo('⚠️ El precio por día está apagado en Admin → Ventas → Tarifas → 🩺 Fisioterapia por día. Se usa igual con los valores guardados.', 'a'))
+        + vgPreg('¿Cuántos días?') + vgGrid(VG_DIAS_FISIO.map(d=>vgBtn(`data-vg-fd="${d}"`, d===1 ? '1️⃣' : (d===10 ? '🔟' : ['','','2️⃣','3️⃣','','5️⃣'][d]), d + (d===1?' día':' días'), dinero(precioFisioDias(d)) + (d > 1 ? ' · ' + dinero(precioFisioDias(d)/d) + '/día' : ''), V.fisioDias===d)).join(''))
+        + `<p class="ag-muted" style="font-size:12px;margin-top:6px">Día 1: ${dinero(c.dia1)} · cada día adicional: ${dinero(c.adicional)}. Los procedimientos no se cobran aparte.</p>`
+        + vgPreg('Procedimientos de cada día <span class="ag-muted" style="font-weight:400;font-size:12px">(la fisioterapeuta los ajusta)</span>') + vgChips(procs.map(pn=>vgChip(`data-vg-proc="${esc(pn)}"`, (V.fisioProc.includes(pn)?'✓ ':'') + esc(pn), V.fisioProc.includes(pn))).join(''))
+        + (progs.length ? vgPreg('O un programa ya armado') + progs.map(p=>vgFila(`data-vg-prog="${p.id}"`, '📅', esc(p.nombre), (p.dias||[]).length + ' días · ' + dinero(p.precio), V.items.some(it=>it.paqueteId===p.id))).join('') : '')
+        + `<details class="ag-card" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">➕ Cobrar un procedimiento aparte</summary><p class="ag-muted" style="font-size:12px">Solo si hay que destacar uno y facturarlo aparte (usa su tarifa).</p>${vgServiciosHTML(V, CAT_FISIO)}</details>`
+        + vgCanasta(V) + vgDecir('fisio');
+      ok = V.items.length > 0;
+    } else if(P_==='extras'){
+      tit = '➕ ¿Algo más?';
+      const yaComida = V.items.some(it=>it.tipo==='comida') || V.items.some(it=>{ const p = it.paqueteId && ((state.agenda&&state.agenda.paquetes)||[]).find(x=>x.id===it.paqueteId); return p && pqInfo(p).comida; });
+      const menu = (state.menu||[]).filter(m=>m.activo && Number(m.precio) > 0), cats = [...new Set(menu.map(m=>m.categoria||'Otros'))];
+      const gc = V.items.some(it=>it.categoria===GIFT_CARD.categoria);
+      h = (V.quiere==='regalo' || V.ben.nombre ? vgFila('data-vg-gift', '🎁', 'Gift card profesional (+ ' + dinero(GIFT_CARD.precio) + ')', 'Tarjeta de regalo digital y física', gc, gc ? '✅' : '➕') : '')
+        + (yaComida ? vgOjo('🍽️ Ya lleva comida. Puedes sumar bebidas o postres.') : '')
+        + vgPreg('🍽️ Del Rincón de Rosita') + cats.map(ct=>`<details class="ag-card" style="margin-top:6px;padding:8px 10px"><summary style="cursor:pointer;font-weight:700">${esc(ct)}</summary>${menu.filter(m=>(m.categoria||'Otros')===ct).map(m=>{ const c = V.items.filter(it=>it.menuId===m.id).reduce((t,it)=>t+it.cantidad,0);
+            return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)"><span style="flex:1;font-size:13px">${esc(m.nombre)} <span class="ag-muted">${dinero(m.precio)}</span></span>${c ? '<b>' + c + '</b>' : ''}<button type="button" class="ag-btn sm ${c?'':'ghost'}" data-vg-menu="${m.id}" style="padding:4px 12px">+</button></div>`; }).join('')}</details>`).join('')
+        + vgCanasta(V) + vgDecir('extras');
+    } else if(P_==='cuando'){
+      tit = '📅 ¿Cuándo viene?';
+      const dias = [], hoy = new Date(); const nom = ['dom','lun','mar','mié','jue','vie','sáb'];
+      for(let k = 0; k < 7; k++){ const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + k), iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); dias.push([iso, k===0 ? 'Hoy' : (k===1 ? 'Mañana' : nom[d.getDay()] + ' ' + d.getDate())]); }
+      const horas = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+      const ocup = hr=>((state.agenda&&state.agenda.reservas)||[]).filter(r=>r.fecha===V.fecha && r.estado!=='Cancelada' && String(r.hora||'').slice(0,2)===hr.slice(0,2)).length;
+      h = vgChips(dias.map(d=>vgChip(`data-vg-dia="${d[0]}"`, d[1], V.fecha===d[0])).join('') + vgChip('data-vg-dia="__sin"', 'Aún no sabe', V.fecha==='__sin'))
+        + `<label class="f">Otra fecha</label><input type="date" id="vg-fecha" value="${V.fecha && V.fecha!=='__sin' ? esc(V.fecha) : ''}" min="${hoyISO()}"/>`
+        + (V.fecha && V.fecha!=='__sin' ? vgPreg('¿A qué hora? <span class="ag-muted" style="font-weight:400;font-size:12px">(🟢 sin reservas a esa hora)</span>') + vgChips(horas.map(hr=>{ const o = ocup(hr); return vgChip(`data-vg-hora="${hr}"`, (o ? '🟡' + o + ' ' : '🟢 ') + hr, V.hora===hr); }).join(''))
+          + `<input type="time" id="vg-hora" value="${esc(V.hora||'')}" style="margin-top:8px"/>` + vgOjo('Al hacer la reserva, la app revisa choques y te deja asignar a las fisioterapeutas.') : '')
+        + (V.fecha==='__sin' ? vgOjo('Se guarda como presupuesto y queda en «📌 Ventas por cerrar» para escribirle luego.') : '')
+        + vgDecir('cuando');
+      ok = V.fecha==='__sin' || (!!V.fecha && !!V.hora);
+    } else if(P_==='resumen'){
+      tit = '🧾 Resumen';
+      const t = vgTotal(V), metodos = metodosLista();
+      if(V.comoPaqueteOn === null) V.comoPaqueteOn = n >= 3;
+      h = `<div class="ag-card" style="padding:12px">${V.items.map(it=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:3px 0"><span>${it.cantidad > 1 ? it.cantidad + ' × ' : ''}${esc(it.descripcion)}</span><span>${dinero(it.precio * it.cantidad)}</span></div>`).join('')}
+          ${V.desc ? `<div style="display:flex;justify-content:space-between;font-size:13px" class="ag-muted"><span>Descuento ${V.desc} %</span><span>− ${dinero(t.sub - t.base)}</span></div>` : ''}
+          ${t.pct ? `<div style="display:flex;justify-content:space-between;font-size:13px" class="ag-muted"><span>Pago en ${esc(V.pagoMetodo)} (−${t.pct} %)</span><span>− ${dinero(t.base - t.total)}</span></div>` : ''}
+          <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:6px;margin-top:4px;font-weight:800;font-size:16px"><span>Total</span><span>${dinero(t.total)}</span></div>
+          ${n > 1 ? `<div class="ag-muted" style="display:flex;justify-content:space-between;font-size:12.5px"><span>Por persona (${n})</span><span>${dinero(t.total / n)}</span></div>` : ''}
+          <div class="ag-muted" style="font-size:12.5px;margin-top:4px">👤 ${esc(cliNom)}${V.ben.nombre ? ' · 🎀 para ' + esc(V.ben.nombre) : ''}${V.fecha && V.fecha!=='__sin' ? ' · 📅 ' + esc(isoToDMY(V.fecha)) + ' ' + esc(V.hora||'') : ''}</div></div>`
+        + vgPreg('🎯 Descuento <span class="ag-muted" style="font-weight:400;font-size:12px">(si lo decides tú)</span>') + vgChips([0,5,10,15].map(d=>vgChip(`data-vg-desc="${d}"`, d ? d + ' %' : 'Sin descuento', Number(V.desc)===d)).join(''))
+        + vgPreg('💳 ¿Cómo piensa pagar?') + vgChips(metodos.map(m=>vgChip(`data-vg-met="${esc(m.nombre)}"`, esc(m.nombre) + (m.descuento ? ' (−' + m.descuento + ' %)' : ''), V.pagoMetodo===m.nombre)).join('') + vgChip('data-vg-met=""', 'No sabe aún', !V.pagoMetodo))
+        + (metodos.some(m=>m.descuento) && !t.pct ? vgOjo('💵 Si paga todo en divisas tiene descuento: díselo, ayuda a cerrar.') : '')
+        + (t.pct ? '<p class="ag-muted" style="font-size:11.5px;margin-top:4px">El descuento por forma de pago se confirma al guardar (si cumple el monto mínimo).</p>' : '')
+        + (n >= 2 ? `<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13.5px"><input type="checkbox" id="vg-comopaq" style="width:auto" ${V.comoPaqueteOn?'checked':''}/> 📦 Presentarlo como paquete con precio por persona</label>${V.comoPaqueteOn ? `<input id="vg-paqnom" placeholder="Nombre del paquete (ej. Día de amigas)" value="${esc(V.paqNombre)}" style="margin-top:6px"/>` : ''}` : '')
+        + vgPreg('Antes de cerrar, pregunta') + `<label class="f" style="margin-top:0">🩺 ¿Embarazo, alergias, lesiones o algo de salud?</label><input id="vg-salud" placeholder="Ej: lesión en rodilla derecha · Nada" value="${esc(V.salud)}"/>
+          <label class="f">📣 ¿Cómo nos conoció?</label>${vgChips(['Instagram','Recomendación','Google','Ya es cliente','Otro'].map(x=>vgChip(`data-vg-conocio="${x}"`, x, V.conocio===x)).join(''))}`
+        + vgDecir('resumen');
+    } else if(P_==='cierre'){
+      tit = '✅ ¿Cómo cierra?';
+      const tel = V.cli ? V.cli.telefono : V.nuevo.tel;
+      h = `<div style="display:flex;flex-direction:column;gap:8px">
+          ${vgFila('data-vg-cierre="pago"', '💵', 'Paga ahora', 'Abono o completo: divisas, pago móvil o Bs (tasa BCV de hoy). Luego se hace la reserva.', V.cierre==='pago')}
+          ${vgFila('data-vg-cierre="enlace"', '🔗', 'Enviarle el enlace para pagar', 'Lo revisa, paga y manda el capture desde su teléfono', V.cierre==='enlace')}
+          ${V.fecha && V.fecha!=='__sin' ? vgFila('data-vg-cierre="dia"', '🗓️', 'Paga el día de la visita', 'Se reserva el espacio igual', V.cierre==='dia') : ''}
+          ${vgFila('data-vg-cierre="wa"', '📲', 'Solo enviarle el presupuesto', 'Por WhatsApp; queda en «Ventas por cerrar»', V.cierre==='wa')}
+        </div>${!tel && /enlace|wa/.test(V.cierre) ? vgOjo('⚠️ No tiene WhatsApp anotado: vuelve al paso del cliente y agrégalo.', 'a') : ''}` + vgDecir('cierre');
+      ok = !!V.cierre; sig = '💾 Guardar y seguir';
+    } else if(P_==='listo'){
+      tit = '🎉 ¡Venta lista!';
+      const g = V.guardado || {};
+      const acc = { pago:['💵 Registrar el pago','pago'], enlace:['🔗 Enviar el enlace para pagar','enlace'], dia:['📅 Hacer la reserva','dia'], wa:['📲 Abrir WhatsApp con el presupuesto','wa'] };
+      const a = acc[V.cierre] || acc.wa;
+      h = `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:10px 0"><span style="font-size:48px">✅</span><b style="font-size:17px">Presupuesto ${esc(g.numero||'')} guardado</b><span class="ag-muted">${esc(g.clienteNombre||'')} · ${dinero(g.total)}</span></div>
+        <button type="button" class="ag-btn" data-vg-fin="${a[1]}" style="width:100%;font-size:16px;padding:14px">${a[0]}</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">${Object.keys(acc).filter(k=>k!==V.cierre && (k!=='dia' || (V.fecha && V.fecha!=='__sin'))).map(k=>`<button type="button" class="ag-btn sm ghost" data-vg-fin="${k}">${acc[k][0]}</button>`).join('')}<button type="button" class="ag-btn sm ghost" data-vg-fin="ver">🧾 Ver el presupuesto</button></div>
+        ${V.cierre==='pago' ? vgOjo('Al abrirlo, baja a «Registrar abono», anota el monto y luego toca «📅 Convertir en reserva». La fecha y la hora ya van puestas.') : ''}
+        ${V.cierre==='dia' ? vgOjo('Se abre la reserva con la fecha, la hora y la nota «paga el día de la visita». Solo asigna a las fisioterapeutas y guarda.') : ''}
+        <button type="button" class="ag-btn sm ghost" id="vg-otra" style="width:100%;margin-top:12px">🛒 Nueva venta</button>`;
+      ok = false; sig = '';
+    }
+    const pct = V.paso==='listo' ? 100 : Math.round(iPaso / Math.max(1, flujo.length) * 100);
+    const tot = vgTotal(V);
+    body.innerHTML = `${mnVolver('id="vg-salir"', 'Presupuestos')}
+      <div class="ag-card" style="margin-top:10px;padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:8px">${iPaso > 0 && V.paso!=='listo' ? '<button type="button" class="ag-btn sm ghost" id="vg-atras" aria-label="Volver al paso anterior" style="padding:6px 12px">‹</button>' : ''}
+          <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:17px;color:var(--teal-d)">${tit}</div>${cliNom && V.paso!=='cliente' && V.paso!=='quiere' ? `<div class="ag-muted" style="font-size:12px">👤 ${esc(cliNom)}${n > 1 ? ' + ' + (n-1) : ''}</div>` : ''}</div>
+          ${V.paso!=='listo' ? `<span class="ag-muted" style="font-size:12px;white-space:nowrap">Paso ${iPaso+1} de ${flujo.length}</span>` : ''}</div>
+        <div style="height:6px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:8px"><i style="display:block;height:100%;width:${pct}%;background:var(--teal);border-radius:999px"></i></div>
+      </div>
+      <div style="margin-top:10px">${h}</div>
+      ${sig ? `<div style="position:sticky;bottom:calc(64px + env(safe-area-inset-bottom, 0px));display:flex;align-items:center;gap:10px;background:var(--card,#fff);border:1px solid var(--line);border-radius:16px;padding:9px 12px;margin-top:14px;box-shadow:0 6px 18px rgba(16,40,46,.10)">
+        ${V.items.length ? `<span style="font-size:11.5px;line-height:1.2" class="ag-muted">Total<b style="display:block;font-size:15px;color:var(--ink)">${dinero(tot.total)}</b></span>` : ''}
+        <button type="button" class="ag-btn" id="vg-sig" style="flex:1;padding:12px" ${ok ? '' : 'disabled'}>${sig}</button></div>` : ''}`;
+
+    // ---- Acciones ----
+    const $ = s=>body.querySelector(s), $$ = s=>body.querySelectorAll(s);
+    const ir = paso=>{ V.paso = paso; render(); try{ window.scrollTo(0, 0); }catch(e){} };
+    const sigPaso = ()=>{ const f = vgFlujo(V), i = f.indexOf(V.paso); return f[i+1]; };
+    $('#vg-salir').onclick = ()=>{ P.vista = 'lista'; render(); };
+    const at = $('#vg-atras'); if(at) at.onclick = ()=>{ const f = vgFlujo(V), i = f.indexOf(V.paso); ir(f[Math.max(0, i-1)]); };
+    $$('[data-vg-pend]').forEach(b=>b.onclick = ()=>{ P.vista = 'ver'; P.editId = b.dataset.vgPend; render(); });
+    $$('[data-vg-q]').forEach(b=>b.onclick = ()=>{
+      const q = b.dataset.vgQ;
+      if(q==='rosita'){ P.vg = null; irA({ tab:'rosita', ro:'form' }); toast('🍽️ Nueva orden de Rosita.'); return; }
+      if(q==='evento'){ P.vg = null; P.vista = 'form'; P.editId = null; P.items = null; P.addTipo = 'alquiler'; render(); toast('🎉 Evento: elige horas y personas en «Evento».'); return; }
+      if(V.quiere !== q){ V.items = []; V.verTodos = false; V.verPaq = false; V.verSueltos = false; V.buscarSrv = q==='piscina' ? 'piscina' : ''; if(q==='grupo' && vgPersonas(V) < 3) V.adultos = 3; if(q!=='regalo') V.ben = { nombre:'', tel:'' }; }
+      V.quiere = q; render();
+    });
+    const qi = $('#vg-q'); if(qi){ qi.oninput = ()=>{ V.q = qi.value; const pos = qi.selectionStart; render(); const q2 = body.querySelector('#vg-q'); if(q2){ q2.focus(); try{ q2.setSelectionRange(pos, pos); }catch(e){} } }; }
+    $$('[data-vg-cli]').forEach(b=>b.onclick = ()=>{
+      if(b.dataset.vgCli==='__nuevo'){ V.cli = null; V.nuevo._abierto = true; if(!V.nuevo.nombre && V.q && !/\d/.test(V.q)) V.nuevo.nombre = V.q; else if(!V.nuevo.tel && /^\D*\d[\d\s-]{6,}$/.test(V.q||'')) V.nuevo.tel = V.q; }
+      else { V.cli = state.clientes.find(c=>c.id===b.dataset.vgCli) || null; V.nuevo._abierto = false; }
+      render();
+    });
+    [['#vg-nnom','nombre'],['#vg-ntel','tel'],['#vg-nced','ced']].forEach(([s,k])=>{ const el = $(s); if(el) el.oninput = ()=>{ V.nuevo[k] = el.value; const bs = $('#vg-sig'); if(bs) bs.disabled = !V.nuevo.nombre.trim(); }; });
+    if(V.cli && $('#vg-sellos')) pintarSellosCliente($('#vg-sellos'), V.cli);
+    $$('[data-vg-res]').forEach(b=>b.onclick = ()=>{ const [v, id] = b.dataset.vgRes.split('|'); P.vg = null; state.ag = { vista:v, filtro:'proximas', editId:id }; state.tab = 'agenda'; render(); try{ window.scrollTo(0, 0); }catch(e){} });
+    const bn = $('#vg-bnom'); if(bn) bn.oninput = ()=>{ V.ben.nombre = bn.value; const bs = $('#vg-sig'); if(bs) bs.disabled = !(V.ben.nombre.trim() && vgPersonas(V) > 0); };
+    const bt = $('#vg-btel'); if(bt) bt.oninput = ()=>{ V.ben.tel = bt.value; };
+    $$('[data-vg-tipo]').forEach(b=>b.onclick = ()=>{ const k = +b.dataset.vgTipo; V.adultos = k===4 ? Math.max(3, V.adultos) : k; if(k!==4) V.ninos = 0; render(); });
+    $$('[data-vg-pers]').forEach(b=>b.onclick = ()=>{ const k = b.dataset.vgPers==='a' ? 'adultos' : 'ninos'; V[k] = Math.max(k==='adultos' ? 1 : 0, Math.min(30, V[k] + (+b.dataset.d))); render(); });
+    $$('[data-vg-nom]').forEach(el=>el.oninput = ()=>{ V.nombres[+el.dataset.vgNom] = el.value; });
+    $$('[data-vg-obj]').forEach(b=>b.onclick = ()=>{ V.obj = b.dataset.vgObj; render(); });
+    $$('[data-vg-tiempo]').forEach(b=>b.onclick = ()=>{ V.tiempo = V.tiempo===b.dataset.vgTiempo ? '' : b.dataset.vgTiempo; render(); });
+    $$('[data-vg-presu]').forEach(b=>b.onclick = ()=>{ V.presu = b.dataset.vgPresu; render(); });
+    $$('[data-vg-modo]').forEach(b=>b.onclick = ()=>{ const srv = b.dataset.vgModo==='srv'; if(V.quiere==='spa' || V.quiere==='piscina') V.verPaq = !srv; else V.verSueltos = srv; render(); });
+    const vt = $('#vg-todos'); if(vt) vt.onclick = ()=>{ V.verTodos = !V.verTodos; render(); };
+    $$('[data-vg-paq]').forEach(b=>b.onclick = ()=>{
+      const id = b.dataset.vgPaq, i = V.items.findIndex(it=>it.paqueteId===id);
+      if(i > -1) V.items.splice(i, 1);
+      else { const x = vgRecomendar(V).find(r=>r.p.id===id); if(x) V.items.push(vgItemPaquete(x.p, x.cant)); }
+      render();
+    });
+    const bsrv = $('#vg-bsrv'); if(bsrv){ let tb; bsrv.oninput = ()=>{ V.buscarSrv = bsrv.value; clearTimeout(tb); tb = setTimeout(()=>{ render(); const b2 = body.querySelector('#vg-bsrv'); if(b2){ b2.focus(); const L = b2.value.length; try{ b2.setSelectionRange(L, L); }catch(e){} } }, 300); }; }
+    $$('[data-vg-srv]').forEach(b=>b.onclick = ()=>{
+      const [cn, sn, vv] = b.dataset.vgSrv.split('|'), c = arbolTarifas().find(x=>x.nombre===cn), s = c && c.servicios.find(x=>x.nombre===sn), v = s && s.variantes.find(x=>(x.variante||'')===(vv||''));
+      if(!v) return;
+      const cant = c.tipo==='kids' ? Math.max(1, V.ninos) : Math.max(1, V.adultos);
+      const ya = V.items.find(it=>it.tipo==='terapia' && it.categoria===cn && it.terapia===sn && (it.variante||'')===(vv||''));
+      if(ya) ya.cantidad += 1;
+      else V.items.push({ tipo:'terapia', descripcion: s.mostrar + (v.nombre ? ' · ' + v.nombre : ''), detalle: c.mostrar, cantidad: cant, precio: Number(v.precio)||0, terapia: sn, categoria: cn, tipoFicha: c.tipo, variante: v.variante });
+      toast('➕ ' + s.mostrar + (v.nombre ? ' · ' + v.nombre : '')); render();
+    });
+    $$('[data-vg-cant]').forEach(b=>b.onclick = ()=>{ const it = V.items[+b.dataset.vgCant]; if(!it) return; it.cantidad = Math.max(1, it.cantidad + (+b.dataset.d)); render(); });
+    $$('[data-vg-quitar]').forEach(b=>b.onclick = ()=>{ V.items.splice(+b.dataset.vgQuitar, 1); render(); });
+    $$('[data-vg-fd]').forEach(b=>b.onclick = ()=>{ V.fisioDias = +b.dataset.vgFd; V.items = V.items.filter(it=>!it.vgFisio); if(V.fisioProc.length) V.items.unshift(vgItemFisio(V)); render(); });
+    $$('[data-vg-proc]').forEach(b=>b.onclick = ()=>{ const pn = b.dataset.vgProc, i = V.fisioProc.indexOf(pn); if(i > -1) V.fisioProc.splice(i, 1); else V.fisioProc.push(pn);
+      V.items = V.items.filter(it=>!it.vgFisio); if(V.fisioDias && V.fisioProc.length) V.items.unshift(vgItemFisio(V)); render(); });
+    $$('[data-vg-prog]').forEach(b=>b.onclick = ()=>{
+      const p = ((state.agenda&&state.agenda.paquetes)||[]).find(x=>x.id===b.dataset.vgProg); if(!p) return;
+      const i = V.items.findIndex(it=>it.paqueteId===p.id);
+      if(i > -1) V.items.splice(i, 1);
+      else V.items.push({ tipo:'paquete', descripcion:'Paquete: ' + p.nombre, detalle:[resumenDias(p.dias), (p.comidas||[]).map(c=>c.cantidad+'× '+c.nombre).join(', ')].filter(Boolean).join(' · '), cantidad:1, precio:p.precio, paqueteId:p.id, dias:JSON.parse(JSON.stringify(p.dias)), programaTipo:p.tipoPrograma||'fisiatria' });
+      render();
+    });
+    const bg = $('[data-vg-gift]'); if(bg) bg.onclick = ()=>{ const i = V.items.findIndex(it=>it.categoria===GIFT_CARD.categoria); if(i > -1) V.items.splice(i, 1); else V.items.push({ tipo:'libre', descripcion:GIFT_CARD.descripcion, detalle:GIFT_CARD.detalle, cantidad:1, precio:GIFT_CARD.precio, categoria:GIFT_CARD.categoria }); render(); };
+    $$('[data-vg-menu]').forEach(b=>b.onclick = ()=>{
+      const m = (state.menu||[]).find(x=>x.id===b.dataset.vgMenu); if(!m) return;
+      const ya = V.items.find(it=>it.tipo==='comida' && it.menuId===m.id);
+      if(ya) ya.cantidad += 1; else V.items.push({ tipo:'comida', descripcion:m.nombre, detalle:'Rincón de Rosita' + (m.descripcion ? ' · ' + m.descripcion : ''), cantidad:1, precio:Number(m.precio)||0, menuId:m.id });
+      render();
+    });
+    $$('[data-vg-dia]').forEach(b=>b.onclick = ()=>{ V.fecha = b.dataset.vgDia; render(); });
+    const fi = $('#vg-fecha'); if(fi) fi.onchange = ()=>{ if(fi.value){ V.fecha = fi.value; render(); } };
+    $$('[data-vg-hora]').forEach(b=>b.onclick = ()=>{ V.hora = b.dataset.vgHora; render(); });
+    const hi = $('#vg-hora'); if(hi) hi.onchange = ()=>{ if(hi.value){ V.hora = hi.value; render(); } };
+    $$('[data-vg-desc]').forEach(b=>b.onclick = ()=>{ V.desc = +b.dataset.vgDesc; render(); });
+    $$('[data-vg-met]').forEach(b=>b.onclick = ()=>{ V.pagoMetodo = b.dataset.vgMet; render(); });
+    const cp = $('#vg-comopaq'); if(cp) cp.onchange = ()=>{ V.comoPaqueteOn = cp.checked; render(); };
+    const pn = $('#vg-paqnom'); if(pn) pn.oninput = ()=>{ V.paqNombre = pn.value; };
+    const sa = $('#vg-salud'); if(sa) sa.oninput = ()=>{ V.salud = sa.value; };
+    $$('[data-vg-conocio]').forEach(b=>b.onclick = ()=>{ V.conocio = b.dataset.vgConocio; render(); });
+    $$('[data-vg-cierre]').forEach(b=>b.onclick = ()=>{ V.cierre = b.dataset.vgCierre; render(); });
+    const bo = $('#vg-otra'); if(bo) bo.onclick = ()=>{ P.vg = vgNuevo(); render(); try{ window.scrollTo(0, 0); }catch(e){} };
+    // Cierre: abre el presupuesto guardado y usa SUS botones (WhatsApp, enlace, abono, reserva). Es el mismo toque: el navegador deja abrir WhatsApp.
+    $$('[data-vg-fin]').forEach(b=>b.onclick = ()=>{
+      const g = V.guardado; if(!g) return;
+      const k = b.dataset.vgFin;
+      P.vista = 'ver'; P.editId = g.id; render();
+      const clic = s=>{ const el = document.querySelector(s); if(el){ el.click(); return true; } return false; };
+      if(k==='wa') clic('#pv-wa');
+      else if(k==='enlace'){ if(!clic('#pv-catalogo')) toast('Este presupuesto ya no se puede enviar por enlace.'); }
+      else if(k==='dia'){ if(!clic('#pv-reserva')) toast('Este presupuesto ya tiene reserva.'); }
+      else if(k==='pago'){ const m = document.querySelector('#pv-pmonto'); if(m){ try{ m.scrollIntoView({ block:'center' }); }catch(e){} m.focus(); toast('💵 Anota el abono y luego «📅 Convertir en reserva».'); } }
+    });
+    const bs = $('#vg-sig');
+    if(bs) bs.onclick = async ()=>{
+      if(V.paso==='cliente' && !V.cli){
+        if(V.nuevo.tel.trim() && !esTelefonoValido(V.nuevo.tel.trim())){ alert('El WhatsApp ' + motivoTelefono(V.nuevo.tel.trim()) + '.'); return; }
+        const dq = V.nuevo.ced.replace(/\D/g, ''), dt = V.nuevo.tel.replace(/\D/g, '').slice(-7);
+        const dup = state.clientes.find(c=>(dq && String(c.cedula||'').replace(/\D/g,'')===dq) || (dt.length===7 && String(c.telefono||'').replace(/\D/g,'').slice(-7)===dt));
+        if(dup && confirm('Ya existe ' + dup.nombre + (dup.cedula ? ' (C.I. ' + dup.cedula + ')' : '') + ' con esos datos.\n\nAceptar: usar ese cliente.\nCancelar: seguir como cliente nuevo.')){ V.cli = dup; V.nuevo._abierto = false; }
+      }
+      if(V.paso==='quienes' && V.ben.tel.trim() && !esTelefonoValido(V.ben.tel.trim())){ alert('El WhatsApp de quien lo disfruta ' + motivoTelefono(V.ben.tel.trim()) + '.'); return; }
+      if(V.paso==='cliente' && V.quiere==='fisio'){ V.adultos = 1; V.ninos = 0; }
+      if(V.paso !== 'cierre'){ const s = sigPaso(); if(s) ir(s); return; }
+      // ---- Guardar el presupuesto ----
+      const cli = V.cli, t = vgTotal(V);
+      const personas = []; let k = 0;
+      for(let a = 1; a < V.adultos; a++){ personas.push({ key:'a' + a, nombre:(V.nombres[k]||'').trim() || ('Acompañante ' + a), clienteId:'' }); k++; }
+      for(let c = 1; c <= V.ninos; c++){ personas.push({ key:'n' + c, nombre:(V.nombres[k]||'').trim() || ('Niño(a) ' + c), clienteId:'' }); k++; }
+      const fechaTxt = V.fecha && V.fecha!=='__sin' ? isoToDMY(V.fecha) + (V.hora ? ' a las ' + V.hora : '') : '';
+      const notas = ['Precios expresados en dólares ($). Para confirmar la reserva se requiere un abono. Sujeto a disponibilidad.',
+        fechaTxt ? '📅 Para el ' + fechaTxt + '.' : '', V.ninos ? '🧒 Incluye ' + V.ninos + (V.ninos===1 ? ' niño(a).' : ' niños.') : '',
+        V.cierre==='dia' ? '🗓️ Paga el día de la visita.' : ''].filter(Boolean).join('\n');
+      const pres = { clienteId: cli ? cli.id : '', clienteNombre: cli ? cli.nombre : V.nuevo.nombre.trim(), clienteTelefono: cli ? '' : V.nuevo.tel.trim(), clienteCedula: cli ? '' : V.nuevo.ced.trim(),
+        fecha: hoyISO(), validezDias: 7, items: V.items.map(it=>{ const o = Object.assign({}, it); delete o.vgFisio; return o; }), personas,
+        descuento: V.desc ? String(V.desc) : '', descuentoTipo: 'porcentaje', notas, pagoMetodo: t.pct ? V.pagoMetodo : '', pagoPct: t.pct, mostrarPagos: true,
+        beneficiario: V.ben.nombre.trim() ? { clienteId:'', nombre:V.ben.nombre.trim(), telefono:V.ben.tel.trim() } : null };
+      bs.disabled = true; bs.textContent = 'Guardando…';
+      try{
+        const saved = await gs('savePresupuesto', pres, auth());
+        saved.items = saved.items.map((it,i)=>Object.assign({}, pres.items[i]||{}, it));
+        state.presupuestos = (state.presupuestos||[]).filter(x=>x.id!==saved.id).concat([saved]);
+        if(V.comoPaqueteOn && vgPersonas(V) >= 2){
+          try{ const r = await gs('setPaquetePresupuesto', saved.id, { nombre: V.paqNombre.trim() || ('Paquete ' + (saved.clienteNombre||'').split(' ')[0]), personas: 0 }, auth()); if(r) Object.assign(saved, r); }catch(e){ toast('No se pudo presentar como paquete: ' + (e && e.message ? e.message : e)); }
+        }
+        // Lo que la reserva necesita y el presupuesto no guarda: fecha, hora y notas internas (salud, cómo nos conoció, pago el día).
+        if(!state.vgCierre) state.vgCierre = {};
+        state.vgCierre[saved.id] = { fecha: V.fecha && V.fecha!=='__sin' ? V.fecha : '', hora: V.hora || '',
+          nota: [V.salud.trim() ? '🩺 Salud: ' + V.salud.trim() : '', V.conocio ? '📣 Nos conoció por: ' + V.conocio : '', V.cierre==='dia' ? '🗓️ Paga el día de la visita (acordado al vender).' : '', '🛒 Vendido con el asistente por ' + (state.user.nombre||'').split(' ')[0] + '.'].filter(Boolean).join('\n') };
+        V.guardado = saved; V.paso = 'listo'; render(); try{ window.scrollTo(0, 0); }catch(e){}
+      }catch(e){ alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); bs.disabled = false; bs.textContent = '💾 Guardar y seguir'; }
+    };
+  }
+  // Fecha, hora y notas que dejó el asistente para la reserva de ese presupuesto.
+  function vgPre(id){ return (state.vgCierre && state.vgCierre[id]) || {}; }
+
   function renderPresupuestoForm(body){
     const P = state.pr;
     const prev = P.editId ? state.presupuestos.find(p=>p.id===P.editId) : null;
@@ -14117,7 +14592,13 @@ setTimeout(function(){
         const precioEl = addEl.querySelector('#pa-prog-precio');
         precioEl.addEventListener('input', ()=>{ precioTocado = true; });
         let leerD = ()=>[];
-        const sumaProg = ()=>{ const s = sumaDias(leerD()); addEl.querySelector('#pa-prog-suma').innerHTML = 'Suma de las terapias de todos los días: <strong>' + dinero(s) + '</strong> <span class="ag-muted">(puedes poner un precio menor)</span>'; if(!precioTocado) precioEl.value = s || ''; };
+        const sumaProg = ()=>{
+          const dd = leerD(), s = sumaDias(dd);
+          // 🩺 v388: fisioterapia y rehabilitación se cobra por día (día 1 y días adicionales), sin importar los procedimientos.
+          if(val('pa-prog-tipo')==='fisiatria' && fisioDiaOn() && dd.length){ const pf = precioFisioDias(dd.length), c = fisioDiaCfg();
+            addEl.querySelector('#pa-prog-suma').innerHTML = '🩺 Fisioterapia por día: ' + dd.length + (dd.length===1 ? ' día' : ' días') + ' = día 1 ' + dinero(c.dia1) + (dd.length > 1 ? ' + ' + (dd.length - 1) + ' × ' + dinero(c.adicional) : '') + ' = <strong>' + dinero(pf) + '</strong> <span class="ag-muted">(los procedimientos no se cobran aparte)</span>';
+            if(!precioTocado) precioEl.value = pf; return; }
+          addEl.querySelector('#pa-prog-suma').innerHTML = 'Suma de las terapias de todos los días: <strong>' + dinero(s) + '</strong> <span class="ag-muted">(puedes poner un precio menor)</span>'; if(!precioTocado) precioEl.value = s || ''; };
         leerD = wireDiasEditor(addEl, 'prp', sumaProg, ()=>val('pa-prog-tipo'));
         addEl.querySelector('#pa-prog-tipo').onchange = ()=>{ leerD.redibujar(); };
         sumaProg();
@@ -14390,7 +14871,8 @@ setTimeout(function(){
           return '\n💵 Abonó ' + dinero(p.pagado) + '. Resta ' + dinero(resta) + ' a pagar el día de la cita' + (p.restoModo==='divisas' ? ' en divisas' : (p.restoModo==='bs' ? ' en bolívares (tasa BCV del día)' : '')) + '.';
         })(),
         programa: prog ? { nombre: String(prog.descripcion||'Programa').replace(/^(Paquete|Programa):\s*/i,''), tipo: tipoFicha, dias: JSON.parse(JSON.stringify(prog.dias)) } : null,
-        personas, modoPersonas: porPersona ? 'individual' : 'conjunto', fecha: p.fechaDeseada || '', hora: p.horaDeseada || '' };
+        personas, modoPersonas: porPersona ? 'individual' : 'conjunto', fecha: p.fechaDeseada || vgPre(p.id).fecha || '', hora: p.horaDeseada || vgPre(p.id).hora || '' };
+      if(vgPre(p.id).nota) state.ag.prefill.notas = (state.ag.prefill.notas ? state.ag.prefill.notas + '\n' : '') + vgPre(p.id).nota;
       state.tab = 'agenda'; render();
     };
     body.querySelector('#pv-borrar').onclick = async ()=>{
