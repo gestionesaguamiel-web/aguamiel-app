@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v388' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v389' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10211,7 +10211,13 @@ setTimeout(function(){
     { v:388, fecha:'14 nov', titulo:'🛒 Vender paso a paso y 🩺 fisioterapia por día', puntos:[
       '🛒 Inicio → <strong>Vender paso a paso</strong>: qué quiere el cliente, quién es, quiénes vienen, qué busca y cuándo. La app recomienda 3 opciones, suma Rosita y gift card y deja el presupuesto listo para WhatsApp, enlace de pago, abono o reserva.',
       '💬 En cada paso, una frase corta de «Qué decirle». Arriba, las ventas por cerrar para volver a escribirles.',
-      '🩺 Fisioterapia y rehabilitación se cobra por día: día 1 $24,99 y cada día adicional $19,50, sin importar los procedimientos (1, 2, 3, 5 o 10 días). Se ajusta en Admin → Ventas → Tarifas.' ] }
+      '🩺 Fisioterapia y rehabilitación se cobra por día: día 1 $24,99 y cada día adicional $19,50, sin importar los procedimientos (1, 2, 3, 5 o 10 días). Se ajusta en Admin → Ventas → Tarifas.' ] },
+    { v:389, fecha:'14 nov', titulo:'🛒 Vender más rápido y 📍 enlaces que no se pierden', puntos:[
+      '👆 En Vender paso a paso, al tocar qué quiere el cliente pasa solo al siguiente paso.',
+      '👤 Paso del cliente: <strong>Ya es cliente</strong> (busca por nombre, cédula o teléfono) o <strong>Cliente nuevo</strong>. Si la cédula ya existe, avisa y no deja registrarlo dos veces.',
+      '📍 El enlace que recibe el cliente guarda su avance: si sale por una llamada, al volver sigue donde iba.',
+      '💬 La caja amarilla «Qué decirle» ahora copia la frase al tocarla, para pegarla en WhatsApp.',
+      '🪪 En el enlace público la cédula ahora es opcional.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -13941,6 +13947,23 @@ setTimeout(function(){
   const VG_DIAS_FISIO = [1,2,3,5,10];
   const VG_FISIO_BASE = ['Electroterapia','Termoterapia','Movilizaciones Esp.','Ejercicios terap.','Masoterapia'];
 
+  // 🛒 v389: busca clientes registrados (nombre sin acentos, o 3+ dígitos de cédula o teléfono).
+  function vgBuscarClientes(t){ const q = sinAcentos(String(t||'').trim()), dq = String(t||'').replace(/\D/g, '');
+    if(q.length < 2 && dq.length < 3) return [];
+    const soloNum = /^[\d\s.-]+$/.test(q);
+    return (state.clientes||[]).filter(c=>(q.length >= 2 && !soloNum && sinAcentos(c.nombre||'').includes(q)) || (dq.length >= 3 && (String(c.cedula||'').replace(/\D/g,'').includes(dq) || String(c.telefono||'').replace(/\D/g,'').includes(dq)))).slice(0, 8); }
+  function vgResClientes(t){
+    if(!String(t||'').trim()) return '<p class="ag-muted" style="font-size:12.5px;margin:0">Escribe al menos 2 letras o 3 números.</p>';
+    const res = vgBuscarClientes(t);
+    if(!res.length) return '<p class="ag-muted" style="font-size:12.5px;margin:0">No encontré a nadie con eso. Prueba con otro dato o toca «➕ Cliente nuevo».</p>';
+    return res.map(c=>vgFila(`data-vg-cli="${c.id}"`, '👤', esc(c.nombre), [c.telefono, c.cedula ? 'C.I. ' + c.cedula : ''].filter(Boolean).map(esc).join(' · ') + (vgCumpleMes(c) ? ' · 🎂 cumple este mes' : ''), false)).join(''); }
+  // Cliente nuevo: misma cédula = es la misma persona (no deja seguir); mismo teléfono = avisa (puede ser un familiar).
+  function vgDupCliente(nv){ const dq = String(nv.ced||'').replace(/\D/g, ''), dt = String(nv.tel||'').replace(/\D/g, '').slice(-10);
+    const ced = dq.length >= 5 ? (state.clientes||[]).find(c=>String(c.cedula||'').replace(/\D/g,'')===dq) : null;
+    const tel = !ced && dt.length >= 10 ? (state.clientes||[]).find(c=>String(c.telefono||'').replace(/\D/g,'').slice(-10)===dt) : null;
+    return ced ? { c:ced, ced:true } : (tel ? { c:tel, ced:false } : null); }
+  function vgDupHTML(d){ if(!d) return '';
+    return `<div class="ag-card" style="margin-top:8px;border:2px solid ${d.ced ? '#c0392b' : '#d4a017'};padding:10px"><b>${d.ced ? '⛔ Esa cédula ya está registrada' : '⚠️ Ese WhatsApp ya es de un cliente'}</b><div style="font-size:13px;margin:4px 0 8px">${esc(d.c.nombre)}${d.c.cedula ? ' · C.I. ' + esc(d.c.cedula) : ''}${d.c.telefono ? ' · ' + esc(d.c.telefono) : ''}</div><button type="button" class="ag-btn" data-vg-cli="${d.c.id}" style="width:100%">✅ Usar este cliente</button>${d.ced ? '' : '<p class="ag-muted" style="font-size:11.5px;margin:6px 0 0">Si es otra persona (por ejemplo un familiar), sigue llenando y toca «Siguiente».</p>'}</div>`; }
   function vgNuevo(){ return { paso:'quiere', quiere:'', cli:null, nuevo:{ nombre:'', tel:'', ced:'' }, q:'', adultos:1, ninos:0, nombres:[], ben:{ nombre:'', tel:'' }, obj:'', tiempo:'', presu:'', items:[], verTodos:false, buscarSrv:'', fisioDias:0, fisioProc:VG_FISIO_BASE.slice(), fecha:'', hora:'', pagoMetodo:'', desc:0, salud:'', conocio:'', comoPaqueteOn:null, paqNombre:'', cierre:'', guardado:null }; }
   // Quién viene: clave c = cliente; a1, a2… acompañantes (adultos) y n1, n2… niños.
   function vgPersonas(V){ return V.adultos + V.ninos; }
@@ -13990,7 +14013,9 @@ setTimeout(function(){
   function vgBtn(at, e, t, s, on){ return `<button type="button" ${at} style="display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;padding:12px 8px;border-radius:16px;border:2px solid ${on?'var(--teal)':'var(--line)'};background:${on?'var(--teal-l)':'var(--card,#fff)'};color:inherit;cursor:pointer;min-width:0"><span style="font-size:28px;line-height:1">${e}</span><b style="font-size:13.5px;line-height:1.2">${t}</b>${s?`<span class="ag-muted" style="font-size:11px;line-height:1.25">${s}</span>`:''}</button>`; }
   function vgChip(at, t, on){ return `<button type="button" ${at} class="ag-btn sm ${on?'':'ghost'}" style="flex:0 0 auto;border-radius:999px;padding:7px 12px">${t}</button>`; }
   function vgFila(at, e, t, s, on, der){ return `<button type="button" ${at} style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border-radius:14px;border:2px solid ${on?'var(--teal)':'var(--line)'};background:${on?'var(--teal-l)':'var(--card,#fff)'};color:inherit;cursor:pointer"><span style="font-size:22px">${e}</span><span style="flex:1;min-width:0;display:flex;flex-direction:column"><b style="font-size:14px">${t}</b>${s?`<span class="ag-muted" style="font-size:11.5px">${s}</span>`:''}</span>${der||''}</button>`; }
-  function vgDecir(k){ return VG_DECIR[k] ? `<div style="background:#fff3d6;color:#5d3d00;border-radius:12px;padding:9px 11px;font-size:12.5px;line-height:1.4;margin-top:12px"><b style="display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px">💬 Qué decirle</b>${VG_DECIR[k]}</div>` : ''; }
+  // 🛒 v389: la caja amarilla parecía un botón y no hacía nada. Ahora al tocarla copia la frase (lo que va entre «») para pegarla en WhatsApp.
+  function vgDecir(k){ return VG_DECIR[k] ? `<div data-vg-decir="${k}" role="button" style="cursor:pointer;background:#fff3d6;color:#5d3d00;border-radius:12px;padding:9px 11px;font-size:12.5px;line-height:1.4;margin-top:12px"><b style="display:flex;justify-content:space-between;gap:8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px"><span>💬 Qué decirle</span><span style="font-weight:600;letter-spacing:0;text-transform:none">📋 Toca para copiar</span></b>${VG_DECIR[k]}</div>` : ''; }
+  function vgFraseDecir(k){ const t = VG_DECIR[k] || '', m = t.match(/«([^»]+)»/); return (m ? m[1] : t).trim(); }
   function vgOjo(t, tono){ const c = tono==='a' ? 'background:#fff7e0;color:#6b4a00;border:1px solid #f0d27a' : 'background:#e2f4e6;color:#1d4d2a'; return `<div style="${c};border-radius:12px;padding:9px 11px;font-size:12.5px;line-height:1.4;margin-top:8px">${t}</div>`; }
   function vgGrid(h){ return `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px">${h}</div>`; }
   function vgChips(h){ return `<div style="display:flex;gap:6px;flex-wrap:wrap">${h}</div>`; }
@@ -14043,19 +14068,20 @@ setTimeout(function(){
       ok = !!V.quiere;
     } else if(P_==='cliente'){
       tit = V.quiere==='regalo' ? '👤 ¿Quién compra el regalo?' : '👤 ¿Quién es el cliente?';
-      const q = sinAcentos(V.q || ''), dq = String(V.q||'').replace(/\D/g, '');
-      const res = q.length >= 2 ? state.clientes.filter(c=>sinAcentos(c.nombre||'').includes(q) || (dq.length >= 4 && (String(c.cedula||'').replace(/\D/g,'').includes(dq) || String(c.telefono||'').replace(/\D/g,'').includes(dq)))).slice(0, 8) : [];
-      h = `<input id="vg-q" placeholder="Nombre, teléfono o cédula" value="${esc(V.q||'')}" autocomplete="off"/>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-          ${res.map(c=>vgFila(`data-vg-cli="${c.id}"`, '👤', esc(c.nombre), [c.telefono, c.cedula ? 'C.I. ' + c.cedula : ''].filter(Boolean).map(esc).join(' · ') + (vgCumpleMes(c) ? ' · 🎂 cumple este mes' : ''), V.cli && V.cli.id===c.id)).join('')}
-          ${vgFila('data-vg-cli="__nuevo"', '➕', 'Cliente nuevo', 'Nombre y WhatsApp (la cédula es opcional)', !V.cli && V.nuevo._abierto)}
-        </div>
-        ${!V.cli && V.nuevo._abierto ? `<div class="ag-card" style="margin-top:8px"><label class="f" style="margin-top:0">Nombre y apellido</label><input id="vg-nnom" value="${esc(V.nuevo.nombre)}"/>
-          <div class="ag-row"><div><label class="f">WhatsApp</label><input id="vg-ntel" inputmode="tel" placeholder="0414-1234567" value="${esc(V.nuevo.tel)}"/></div><div><label class="f">Cédula</label><input id="vg-nced" inputmode="numeric" value="${esc(V.nuevo.ced)}"/></div></div>
-          <p class="ag-muted" style="font-size:11.5px">Si ya existe con esa cédula, se enlaza solo. Queda registrado cuando abone o se haga la reserva.</p></div>` : ''}
-        ${V.cli ? `<div id="vg-sellos"></div>${vgCumpleMes(V.cli) ? vgOjo('🎂 <b>Cumple este mes.</b> ' + esc(((state.fidelCfg&&state.fidelCfg.cumple&&state.fidelCfg.cumple.regalo)||'Recuérdale su regalo de cumpleaños.').replace(/Agenda al[^.!]*[.!]?/i,''))) : ''}` : ''}
+      // 🛒 v389: dos caminos claros. «Ya es cliente» busca por nombre, cédula o teléfono; «Cliente nuevo» revisa la cédula y el teléfono mientras se escriben para no registrar dos veces.
+      const modo = V.cli ? 'existe' : (V.nuevo._abierto ? 'nuevo' : (V.modoCli || ''));
+      const dupN = modo==='nuevo' ? vgDupCliente(V.nuevo) : null;
+      h = vgGrid(vgBtn('data-vg-modo-cli="existe"', '🔎', 'Ya es cliente', 'Buscar por nombre, cédula o teléfono', modo==='existe') + vgBtn('data-vg-modo-cli="nuevo"', '➕', 'Cliente nuevo', 'Primera vez en Aguamiel', modo==='nuevo'))
+        + (modo==='existe' && !V.cli ? `<input id="vg-q" style="margin-top:10px" placeholder="Escribe nombre, cédula o teléfono" value="${esc(V.q||'')}" autocomplete="off"/><div id="vg-res" style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${vgResClientes(V.q)}</div>` : '')
+        + (V.cli ? `<div style="margin-top:10px">${vgFila('data-vg-cambiar', '👤', esc(V.cli.nombre), [V.cli.telefono, V.cli.cedula ? 'C.I. ' + V.cli.cedula : ''].filter(Boolean).map(esc).join(' · ') + ' · toca para cambiar', true)}</div>` : '')
+        + (modo==='nuevo' ? `<div class="ag-card" style="margin-top:10px"><label class="f" style="margin-top:0">Cédula</label><input id="vg-nced" inputmode="numeric" placeholder="Escríbela primero: así vemos si ya existe" value="${esc(V.nuevo.ced)}"/>
+          <div id="vg-dup">${vgDupHTML(dupN)}</div>
+          <label class="f">Nombre y apellido</label><input id="vg-nnom" value="${esc(V.nuevo.nombre)}"/>
+          <label class="f">WhatsApp</label><input id="vg-ntel" inputmode="tel" placeholder="0414-1234567" value="${esc(V.nuevo.tel)}"/>
+          <p class="ag-muted" style="font-size:11.5px">Queda registrado cuando abone o se haga la reserva.</p></div>` : '')
+        + `${V.cli ? `<div id="vg-sellos"></div>${vgCumpleMes(V.cli) ? vgOjo('🎂 <b>Cumple este mes.</b> ' + esc(((state.fidelCfg&&state.fidelCfg.cumple&&state.fidelCfg.cumple.regalo)||'Recuérdale su regalo de cumpleaños.').replace(/Agenda al[^.!]*[.!]?/i,''))) : ''}` : ''}
         ${vgDecir('cliente')}`;
-      ok = !!V.cli || (V.nuevo._abierto && !!V.nuevo.nombre.trim());
+      ok = !!V.cli || (V.nuevo._abierto && !!V.nuevo.nombre.trim() && !(dupN && dupN.ced));
     } else if(P_==='reservas'){
       tit = '📅 Sus reservas';
       const hoy = hoyISO(), rs = ((state.agenda&&state.agenda.reservas)||[]).filter(r=>V.cli && String(r.clienteId)===String(V.cli.id) && r.fecha >= hoy && r.estado!=='Cancelada').sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
@@ -14199,20 +14225,27 @@ setTimeout(function(){
     $('#vg-salir').onclick = ()=>{ P.vista = 'lista'; render(); };
     const at = $('#vg-atras'); if(at) at.onclick = ()=>{ const f = vgFlujo(V), i = f.indexOf(V.paso); ir(f[Math.max(0, i-1)]); };
     $$('[data-vg-pend]').forEach(b=>b.onclick = ()=>{ P.vista = 'ver'; P.editId = b.dataset.vgPend; render(); });
+    $$('[data-vg-decir]').forEach(b=>b.onclick = ()=>sgCopiar(vgFraseDecir(b.dataset.vgDecir)));   // 🛒 v389: copia la frase sugerida
     $$('[data-vg-q]').forEach(b=>b.onclick = ()=>{
       const q = b.dataset.vgQ;
       if(q==='rosita'){ P.vg = null; irA({ tab:'rosita', ro:'form' }); toast('🍽️ Nueva orden de Rosita.'); return; }
       if(q==='evento'){ P.vg = null; P.vista = 'form'; P.editId = null; P.items = null; P.addTipo = 'alquiler'; render(); toast('🎉 Evento: elige horas y personas en «Evento».'); return; }
       if(V.quiere !== q){ V.items = []; V.verTodos = false; V.verPaq = false; V.verSueltos = false; V.buscarSrv = q==='piscina' ? 'piscina' : ''; if(q==='grupo' && vgPersonas(V) < 3) V.adultos = 3; if(q!=='regalo') V.ben = { nombre:'', tel:'' }; }
-      V.quiere = q; render();
+      V.quiere = q;
+      const s1 = sigPaso(); if(s1) ir(s1); else render();   // 🛒 v389: elegir avanza solo
     });
-    const qi = $('#vg-q'); if(qi){ qi.oninput = ()=>{ V.q = qi.value; const pos = qi.selectionStart; render(); const q2 = body.querySelector('#vg-q'); if(q2){ q2.focus(); try{ q2.setSelectionRange(pos, pos); }catch(e){} } }; }
-    $$('[data-vg-cli]').forEach(b=>b.onclick = ()=>{
-      if(b.dataset.vgCli==='__nuevo'){ V.cli = null; V.nuevo._abierto = true; if(!V.nuevo.nombre && V.q && !/\d/.test(V.q)) V.nuevo.nombre = V.q; else if(!V.nuevo.tel && /^\D*\d[\d\s-]{6,}$/.test(V.q||'')) V.nuevo.tel = V.q; }
-      else { V.cli = state.clientes.find(c=>c.id===b.dataset.vgCli) || null; V.nuevo._abierto = false; }
-      render();
-    });
-    [['#vg-nnom','nombre'],['#vg-ntel','tel'],['#vg-nced','ced']].forEach(([s,k])=>{ const el = $(s); if(el) el.oninput = ()=>{ V.nuevo[k] = el.value; const bs = $('#vg-sig'); if(bs) bs.disabled = !V.nuevo.nombre.trim(); }; });
+    // 🛒 v389: elegir un cliente registrado avanza solo; la búsqueda pinta solo la lista (el teclado no se cierra).
+    const elegirCli = id=>{ V.cli = (state.clientes||[]).find(c=>String(c.id)===String(id)) || null; if(!V.cli) return; V.nuevo = { nombre:'', tel:'', ced:'' }; V.modoCli = 'existe'; const s1 = sigPaso(); if(s1) ir(s1); else render(); };
+    const atarCli = ()=>$$('[data-vg-cli]').forEach(b=>b.onclick = ()=>elegirCli(b.dataset.vgCli));
+    atarCli();
+    const qi = $('#vg-q'); if(qi){ qi.oninput = ()=>{ V.q = qi.value; const r = $('#vg-res'); if(r){ r.innerHTML = vgResClientes(V.q); atarCli(); } }; }
+    $$('[data-vg-modo-cli]').forEach(b=>b.onclick = ()=>{ const m = b.dataset.vgModoCli; V.cli = null; V.modoCli = m; V.nuevo._abierto = m==='nuevo';
+      const qq = String(V.q||'').trim();
+      if(m==='nuevo' && qq){ if(/^[\d\s.-]+$/.test(qq)){ const d = qq.replace(/\D/g,''); if(d.length >= 10){ if(!V.nuevo.tel) V.nuevo.tel = qq; } else if(!V.nuevo.ced) V.nuevo.ced = d; } else if(!V.nuevo.nombre) V.nuevo.nombre = qq; }
+      render(); const f = $(m==='nuevo' ? '#vg-nced' : '#vg-q'); if(f) try{ f.focus(); }catch(e){} });
+    { const bc = $('[data-vg-cambiar]'); if(bc) bc.onclick = ()=>{ V.cli = null; V.modoCli = 'existe'; render(); }; }
+    const pintarDup = ()=>{ const d = vgDupCliente(V.nuevo), box = $('#vg-dup'); if(box){ box.innerHTML = vgDupHTML(d); atarCli(); } const bs = $('#vg-sig'); if(bs) bs.disabled = !V.nuevo.nombre.trim() || !!(d && d.ced); };
+    [['#vg-nnom','nombre'],['#vg-ntel','tel'],['#vg-nced','ced']].forEach(([sel,k])=>{ const el = $(sel); if(el) el.oninput = ()=>{ V.nuevo[k] = el.value; pintarDup(); }; });
     if(V.cli && $('#vg-sellos')) pintarSellosCliente($('#vg-sellos'), V.cli);
     $$('[data-vg-res]').forEach(b=>b.onclick = ()=>{ const [v, id] = b.dataset.vgRes.split('|'); P.vg = null; state.ag = { vista:v, filtro:'proximas', editId:id }; state.tab = 'agenda'; render(); try{ window.scrollTo(0, 0); }catch(e){} });
     const bn = $('#vg-bnom'); if(bn) bn.oninput = ()=>{ V.ben.nombre = bn.value; const bs = $('#vg-sig'); if(bs) bs.disabled = !(V.ben.nombre.trim() && vgPersonas(V) > 0); };
@@ -14287,9 +14320,7 @@ setTimeout(function(){
     if(bs) bs.onclick = async ()=>{
       if(V.paso==='cliente' && !V.cli){
         if(V.nuevo.tel.trim() && !esTelefonoValido(V.nuevo.tel.trim())){ alert('El WhatsApp ' + motivoTelefono(V.nuevo.tel.trim()) + '.'); return; }
-        const dq = V.nuevo.ced.replace(/\D/g, ''), dt = V.nuevo.tel.replace(/\D/g, '').slice(-7);
-        const dup = state.clientes.find(c=>(dq && String(c.cedula||'').replace(/\D/g,'')===dq) || (dt.length===7 && String(c.telefono||'').replace(/\D/g,'').slice(-7)===dt));
-        if(dup && confirm('Ya existe ' + dup.nombre + (dup.cedula ? ' (C.I. ' + dup.cedula + ')' : '') + ' con esos datos.\n\nAceptar: usar ese cliente.\nCancelar: seguir como cliente nuevo.')){ V.cli = dup; V.nuevo._abierto = false; }
+        const dup = vgDupCliente(V.nuevo); if(dup && dup.ced){ alert('Esa cédula ya es de ' + dup.c.nombre + '. Toca «✅ Usar este cliente».'); return; }
       }
       if(V.paso==='quienes' && V.ben.tel.trim() && !esTelefonoValido(V.ben.tel.trim())){ alert('El WhatsApp de quien lo disfruta ' + motivoTelefono(V.ben.tel.trim()) + '.'); return; }
       if(V.paso==='cliente' && V.quiere==='fisio'){ V.adultos = 1; V.ninos = 0; }
