@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v386' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v387' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10188,7 +10188,10 @@ setTimeout(function(){
       '💡 Al armar o editar un paquete, la app propone el precio: la suma de todo menos un descuento (10 %, 12 % desde $200, 5 % en combos de piscina y fisioterapia), terminado en ,99.',
       '🔁 «Recalcular solo»: si cambias lo que incluye, el precio se pone al día solo.',
       '⛔ Aviso en rojo si el precio iguala o supera la suma, o si falta una piscina o hidroterapia para alguna persona.',
-      '🌙 Cada noche se revisan los paquetes; si uno quedó sin ahorro por un cambio de tarifa, llega un aviso por Telegram.' ] }
+      '🌙 Cada noche se revisan los paquetes; si uno quedó sin ahorro por un cambio de tarifa, llega un aviso por Telegram.' ] },
+    { v:387, fecha:'13 nov', titulo:'🔗 Enlaces más cortos', puntos:[
+      '🔗 Catálogo, menú de Rosita, encuestas, postventa, informes y confirmaciones salen con un enlace corto (la mitad o menos).',
+      '✅ Los enlaces que ya se enviaron siguen sirviendo.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan

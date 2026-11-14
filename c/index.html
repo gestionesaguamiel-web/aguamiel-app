@@ -12,15 +12,18 @@
 </style>
 </head>
 <body>
-<!-- Enlace corto del catálogo (v341): el código va después de «#» (no llega a GitHub) y se pasa tal cual a la app de Google. -->
-<p id="m">🌿 Abriendo tu catálogo de Aguamiel…</p>
+<!-- Enlace corto (v341, ampliado en v387): el código va después de «#» (no llega a GitHub) y se pasa tal cual a la app de Google.
+     Sin letra delante = catálogo. m- menú · e- encuesta · p- postventa · i- informe · k- confirmar reserva. -->
+<p id="m">🌿 Abriendo Aguamiel…</p>
 <script>
 (function(){
   var APP = 'https://script.google.com/macros/s/AKfycbyvzuGSC4rECcef_3-kZkhHm3rZdtuBx52qr-ZfBZwtpoJP1WwJOdFbfKpyV3_gULNB/exec';
-  var c = String(location.hash || '').replace(/^#/, '');
-  if(!/^[A-Za-z0-9]{10,40}$/.test(c)){ document.getElementById('m').textContent = 'Este enlace no es válido. Pide uno nuevo a quien te lo envió. 🌿'; return; }
-  var url = APP + '?catalogo=' + encodeURIComponent(c);
-  document.getElementById('m').innerHTML = '🌿 Abriendo tu catálogo de Aguamiel… <br><br><a href="' + url + '">Toca aquí si no se abre</a>';
+  var TIPOS = { m:['menu', 'el menú del Rincón de Rosita'], e:['encuesta', 'tu encuesta'], p:['postventa', 'tu mensaje de Aguamiel'], i:['informe', 'tu informe'], k:['confirmar', 'tu confirmación'] };
+  var h = String(location.hash || '').replace(/^#/, ''), x = h.match(/^(?:([a-z])-)?([A-Za-z0-9]{8,48})$/);
+  var t = x ? (x[1] ? TIPOS[x[1]] : ['catalogo', 'tu catálogo']) : null;
+  if(!t){ document.getElementById('m').textContent = 'Este enlace no es válido. Pide uno nuevo a quien te lo envió. 🌿'; return; }
+  var url = APP + '?' + t[0] + '=' + encodeURIComponent(x[2]);
+  document.getElementById('m').innerHTML = '🌿 Abriendo ' + t[1] + ' de Aguamiel… <br><br><a href="' + url + '">Toca aquí si no se abre</a>';
   location.replace(url);
 })();
 </script>
