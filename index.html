@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v389' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v390' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -2246,6 +2246,7 @@ setTimeout(function(){
   // mostramos el error tal cual, para poder diagnosticarlo.
   function render(){
     const t0 = performance.now();
+    try{ if(state.tab && state.tab !== 'home') window._agUltVista = bfVistaActual(); }catch(eV){}
     try{
       renderInner();
       try{ agMovimiento(); }catch(eM){}
@@ -2749,6 +2750,7 @@ setTimeout(function(){
     add('🕒', 'Disponibilidad', 'Tu disponibilidad semanal / la del equipo', 'disponibilidad disponible horarios semana equipo', ()=>irA({ tab:'disp' }), !!(elegibleDisp() || admin));
     add('💲', 'Tarifas', 'Admin → precios, eventos y alquiler', 'tarifas precios tarifa tabulador eventos alquiler gasolina planta lenceria costos servicios margen', ()=>irA({ tab:'adminpanel', sub:'tarifas' }), admin);
     add('🛒', 'Vender paso a paso', 'Asistente de ventas: te guía hasta cerrar', 'vender venta vendedor asistente guia guiada paso a paso cliente quiere comprar cotizar ofrecer fisioterapia dias', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'guiada' }), admin);
+    add('🐞', 'Fallas de la app', 'Reportar una falla escrita o con nota de voz', 'falla fallas error errores reportar problema no funciona buzon voz arreglar', ()=>abrirBuzonFallas(), admin);
     add('🧾', 'Presupuestos', 'Admin → presupuestos', 'presupuestos presupuesto cotizacion eventos regalo propuesta', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'lista' }), admin);
     add('🌐', 'Enlace público de reservas', 'Admin → presupuestos → enlace público', 'enlace publico universal instagram web qr reservar estados whatsapp dudas', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'publico' }), admin);
     add('🛍️', 'Enviar catálogo al cliente', 'Admin → presupuestos → catálogo por enlace', 'catalogo enlace cliente elegir servicios link enviar whatsapp', ()=>irA({ tab:'adminpanel', sub:'presupuestos', pr:'catalogo' }), admin);
@@ -3279,6 +3281,7 @@ setTimeout(function(){
           ${tile('ag-buzon', '📮', 'Sugerencias', 'Ideas para mejorar')}
           ${tile('ag-cuenta', '⚙️', 'Mi cuenta', 'Datos, avisos y PIN')}
           ${tile('ag-refresh', '↻', 'Actualizar', 'Traer lo más reciente')}
+          ${esAdm ? '<div style="grid-column:1 / -1">' + tile('ag-fallas', '🐞', 'Fallas de la app', 'Cuéntalo escrito o con nota de voz') + '</div>' : ''}
           <div style="grid-column:1 / -1">${tile('ag-timer', '⏱️', 'Temporizador de terapia', 'Cuenta regresiva con aviso 5 min antes y alarma al terminar')}</div>
           <div style="grid-column:1 / -1">${tile('ag-propinas', '💝', esAdm ? 'Propinas del equipo' : 'Mis propinas', esAdm ? 'Quién recibe propinas y cuánto (solo informativo)' : 'Lo que te dejan tus clientes y tus datos para recibirlas')}</div>
           <div style="grid-column:1 / -1">${tile('ag-ayuda', '📖', 'Manual de uso', esAdm ? 'Cómo se usa la app (administración y fisioterapeutas)' : 'Cómo se usa la app, paso a paso')}</div>
@@ -3303,6 +3306,7 @@ setTimeout(function(){
     enlazarCumpleEq(body.querySelector('#home-cumples-eq'));
     wireBusqueda(body.querySelector('#home-busqueda'));
     const bBuzon = body.querySelector('#ag-buzon'); if(bBuzon) bBuzon.onclick = ()=>abrirBuzonSugerencias();
+    const bBf = body.querySelector('#ag-fallas'); if(bBf){ bBf.style.width = '100%'; bBf.onclick = ()=>abrirBuzonFallas(); }
     const bCorreo = body.querySelector('#ag-correo'); if(bCorreo) bCorreo.onclick = ()=>abrirMiCorreo();
     const bTg = body.querySelector('#ag-tg'); if(bTg) bTg.onclick = ()=>abrirMiTelegram();
     body.querySelector('#ag-go-nueva').onclick=()=>{ state.tab='nueva'; render(); };
@@ -10217,7 +10221,11 @@ setTimeout(function(){
       '👤 Paso del cliente: <strong>Ya es cliente</strong> (busca por nombre, cédula o teléfono) o <strong>Cliente nuevo</strong>. Si la cédula ya existe, avisa y no deja registrarlo dos veces.',
       '📍 El enlace que recibe el cliente guarda su avance: si sale por una llamada, al volver sigue donde iba.',
       '💬 La caja amarilla «Qué decirle» ahora copia la frase al tocarla, para pegarla en WhatsApp.',
-      '🪪 En el enlace público la cédula ahora es opcional.' ] }
+      '🪪 En el enlace público la cédula ahora es opcional.' ] },
+    { v:390, fecha:'14 nov', titulo:'🐞 Buzón de fallas de la app', puntos:[
+      '🐞 Inicio → <strong>Fallas de la app</strong> (solo administración): cuenta lo que falló o te confunde, escrito o con <strong>nota de voz</strong>, y si quieres con una captura.',
+      '📍 El reporte sale con la pantalla donde estabas; a César le llega el aviso por Telegram.',
+      '✅ Cada reporte muestra cómo va (Nueva, En arreglo, Arreglada) y te avisa cuando cambia.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -10873,6 +10881,7 @@ setTimeout(function(){
       <button type="button" class="ag-btn sm ghost" data-at-descartar style="width:100%;margin-top:6px">🗑️ Quitar los marcados</button>` +
       linea('<span class="ag-muted">Lo que el cliente ya envió no se borra.</span>'), '', 'var(--teal-l)'); }
     if(A.disp && A.disp.faltan.length){ n++; h += bloque('🕒', 'Disponibilidad de la semana del ' + esc(A.disp.rango), linea('Falta que indiquen: ' + esc(A.disp.faltan.join(', '))), 'disp'); }
+    if(A.fallas){ n++; h += bloque('🐞', 'Fallas de la app sin atender: ' + A.fallas, '', 'bfallas', '#fdecea'); }
     if(A.sugerencias){ n++; h += bloque('📮', 'Sugerencias nuevas del equipo: ' + A.sugerencias, '', 'buzon', '#eef3ff'); }
     // Respaldos: el diario debe ser de hoy (o de ayer antes de la 1:00); si falló o se atrasó, se marca en rojo.
     const rd = String(A.respaldo.diario || ''), fechaRd = rd.slice(0, 10), errRd = /ERROR/.test(rd), ayer = isoMasDias(A.hoy, -1);
@@ -11159,6 +11168,7 @@ setTimeout(function(){
       if(k === 'pagos'){ state.presupuestos = null; if(!state.pr) state.pr = { vista:'lista', editId:null }; state.pr.vista = 'lista'; state.pr.editId = null; state.pr._ult = 0; state.pr._cargando = false; state.tab = 'adminpanel'; state.adminSub = 'presupuestos'; }
       else if(k === 'cobrar'){ if(state.cxc) state.cxc.datos = null; state.tab = 'adminpanel'; state.adminSub = 'cobrar'; }
       else if(k === 'disp'){ state.tab = 'disp'; }
+      else if(k === 'bfallas'){ abrirBuzonFallas(); return; }
       else if(k === 'buzon'){ state.tab = 'adminpanel'; state.adminSub = 'staff'; }
       else if(k === 'balance' || k === 'gastos'){ state.tab = 'adminpanel'; state.adminSub = k; }
       else if(k === 'rosita'){ irA({ tab:'rosita', ro:'lista' }); return; }
@@ -18633,6 +18643,163 @@ setTimeout(function(){
     });
   }
 
+  // ---------- 🐞 v390: Buzón de fallas de la app (solo administración) ----------
+  // Dianny cuenta lo que falla o confunde: escrito, nota de voz y/o captura. Sale con la pantalla donde estaba, la versión y el teléfono.
+  // A César le llega aviso por Telegram; cuando cambia el estado, a quien lo reportó le llega cómo va.
+  const BF_AREAS = ['Inicio', 'Clientes y fichas', 'Agenda y reservas', 'Vender, presupuestos y catálogo', 'Rincón de Rosita', 'Inventarios', 'Lista de compras', 'Finanzas (egresos, pagos, balance)', 'Operaciones', 'Equipo y avisos', 'Postventa', 'Otra / general'];
+  function bfAreaDe(v){
+    v = String(v || '');
+    if(!v || v === 'home') return 'Inicio';
+    if(/^(clientes|nueva)/.test(v)) return /postventa/.test(v) ? 'Postventa' : 'Clientes y fichas';
+    if(/^agenda/.test(v)) return 'Agenda y reservas';
+    if(/^rosita/.test(v)) return 'Rincón de Rosita';
+    if(/inv_/.test(v)) return 'Inventarios';
+    if(/compra/.test(v)) return 'Lista de compras';
+    if(/presup|tarifa|paquete|catalog/.test(v)) return 'Vender, presupuestos y catálogo';
+    if(/gasto|egreso|balance|cobrar|factura|pago|ventas|informe/.test(v)) return 'Finanzas (egresos, pagos, balance)';
+    if(/oper/.test(v)) return 'Operaciones';
+    if(/staff|equipo|aviso/.test(v)) return 'Equipo y avisos';
+    return 'Otra / general';
+  }
+  function bfVistaActual(){
+    try{ return state.tab + (state.tab==='rosita' && state.rosita ? '/' + state.rosita.vista : '') + (state.tab==='agenda' && state.ag ? '/' + state.ag.vista : '') + (state.tab==='adminpanel' && state.adminSub ? '/' + state.adminSub : '') + (state.tab==='adminpanel' && state.adminSub==='presupuestos' && state.pr ? '/' + state.pr.vista : ''); }catch(e){ return ''; }
+  }
+  async function abrirBuzonFallas(){
+    const vista = window._agUltVista || bfVistaActual();
+    openFullscreen('🐞 Fallas de la app', '<p class="ag-empty">Cargando…</p>');
+    const fsb = document.getElementById('ag-fs-body');
+    const S = { datos:null, filtro:'pend', donde:bfAreaDe(vista), voz:null, foto:null, grab:null, enviando:false };
+    const err = e=>esc(e && e.message ? e.message : String(e));
+    const fecha = iso=>{ try{ const d = new Date(iso); return d.toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit' }) + ' ' + d.toLocaleTimeString('es-VE', { hour:'2-digit', minute:'2-digit' }); }catch(e){ return ''; } };
+    const colorEst = e=>({ 'Arreglada':'background:#e2f4e6;color:#1d6b35', 'En arreglo':'background:#eef3ff;color:#34508a', 'No es falla':'background:#eee;color:#777' }[e] || 'background:var(--amber-l);color:var(--amber-d)');
+    const leer = (blob, mime)=>new Promise((ok, mal)=>{ const fr = new FileReader(); fr.onload = ()=>{ let s = String(fr.result); if(mime) s = s.replace(/^data:[^;,]*/, 'data:' + mime); ok(s); }; fr.onerror = ()=>mal(new Error('No se pudo leer el archivo.')); fr.readAsDataURL(blob); });
+    const comprimir = f=>new Promise((ok, mal)=>{ const img = new Image(); img.onload = ()=>{ const k = Math.min(1, 1400 / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(img.src); ok(c.toDataURL('image/jpeg', 0.8)); }; img.onerror = ()=>mal(new Error('No se pudo leer la imagen.')); img.src = URL.createObjectURL(f); });
+    const cargar = async ()=>{ try{ S.datos = await gs('getBuzonFallas', auth()); }catch(e){ S.datos = { lista:[], estados:['Nueva','En arreglo','Arreglada','No es falla'], error:e }; } pintarLista(); };
+    const pintarVoz = ()=>{
+      const g = fsb.querySelector('#bf-voz'); if(!g) return;
+      const G = S.grab;
+      if(G && G.rec && G.rec.state === 'recording'){
+        const s = Math.floor((Date.now() - G.t0) / 1000);
+        g.innerHTML = `<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;background:#fdecea;border-radius:12px;padding:10px 12px"><strong style="color:#c62828">⏺ Grabando ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}</strong><button type="button" class="ag-btn sm" id="bf-stop">⏹ Detener</button></div>`;
+        fsb.querySelector('#bf-stop').onclick = ()=>G.rec.stop(); return;
+      }
+      if(S.voz){
+        g.innerHTML = '<audio controls style="width:100%"></audio><button type="button" class="ag-btn ghost sm" id="bf-voz-x" style="margin-top:4px">🗑️ Quitar la nota de voz</button>';
+        g.querySelector('audio').src = URL.createObjectURL(S.voz.blob);
+        fsb.querySelector('#bf-voz-x').onclick = ()=>{ S.voz = null; pintarVoz(); }; return;
+      }
+      const puede = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+      g.innerHTML = `<div style="display:grid;grid-template-columns:${puede ? '1fr 1fr' : '1fr'};gap:8px">${puede ? '<button type="button" class="ag-btn" id="bf-rec">🎙️ Grabar nota de voz</button>' : ''}<label class="ag-btn ghost" style="text-align:center;cursor:pointer">📎 Elegir un audio<input type="file" id="bf-arch" accept="${MU_ACC('audio')}" style="display:none"/></label></div><p class="ag-muted" style="font-size:12px;margin:4px 0 0">Hasta 3 minutos. ${puede ? '' : 'Este navegador no deja grabar aquí: graba la nota con el teléfono (o en WhatsApp) y elígela.'}</p>`;
+      const bA = fsb.querySelector('#bf-arch');
+      bA.onchange = async e=>{
+        const f = e.target.files && e.target.files[0]; if(!f) return;
+        if(f.size > 6 * 1024 * 1024){ alert('El audio pesa más de 6 MB: usa uno más corto.'); return; }
+        const ext = (f.name.match(/\.([a-z0-9]+)$/i) || ['',''])[1].toLowerCase();
+        const mime = (f.type && f.type.indexOf('audio') === 0) ? f.type.split(';')[0] : ({ mp3:'audio/mpeg', m4a:'audio/mp4', aac:'audio/aac', ogg:'audio/ogg', opus:'audio/ogg', wav:'audio/wav', webm:'audio/webm' })[ext];
+        if(!mime){ alert('Ese archivo no parece un audio.'); return; }
+        S.voz = { blob:f, mime }; pintarVoz();
+      };
+      const bR = fsb.querySelector('#bf-rec'); if(!bR) return;
+      bR.onclick = async ()=>{
+        try{
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+          const mime = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find(m=>{ try{ return MediaRecorder.isTypeSupported(m); }catch(e){ return false; } }) || '';
+          const rec = mime ? new MediaRecorder(stream, { mimeType:mime, audioBitsPerSecond:48000 }) : new MediaRecorder(stream);
+          const G2 = S.grab = { rec, partes:[], t0:Date.now() };
+          rec.ondataavailable = ev=>{ if(ev.data && ev.data.size) G2.partes.push(ev.data); };
+          rec.onstop = ()=>{ clearInterval(G2.timer); stream.getTracks().forEach(t=>t.stop()); const tipo = (rec.mimeType || mime || 'audio/webm').split(';')[0]; S.voz = { blob:new Blob(G2.partes, { type:tipo }), mime:tipo }; S.grab = null; pintarVoz(); };
+          rec.start(1000);
+          G2.timer = setInterval(()=>{ if(Date.now() - G2.t0 > 180000 && rec.state === 'recording') rec.stop(); else pintarVoz(); }, 1000);
+          pintarVoz();
+        }catch(e){ alert('No se pudo usar el micrófono: ' + (e && e.message ? e.message : e) + '\nRevisa que el navegador tenga permiso para el micrófono, o usa «📎 Elegir un audio».'); }
+      };
+    };
+    const pintarFoto = ()=>{
+      const g = fsb.querySelector('#bf-foto'); if(!g) return;
+      if(S.foto){ g.innerHTML = `<img src="${S.foto}" alt="" style="max-width:100%;max-height:220px;border-radius:10px;border:1px solid var(--line);display:block"/><button type="button" class="ag-btn ghost sm" id="bf-foto-x" style="margin-top:4px">🗑️ Quitar la captura</button>`; fsb.querySelector('#bf-foto-x').onclick = ()=>{ S.foto = null; pintarFoto(); }; return; }
+      g.innerHTML = '<label class="ag-btn ghost" style="display:block;text-align:center;cursor:pointer">📸 Agregar captura de pantalla (opcional)<input type="file" id="bf-img" accept="' + MU_ACC('image') + '" style="display:none"/></label>';
+      fsb.querySelector('#bf-img').onchange = async e=>{ const f = e.target.files && e.target.files[0]; if(!f) return; try{ S.foto = await comprimir(f); pintarFoto(); }catch(e2){ alert(e2.message); } };
+    };
+    const tarjeta = x=>{
+      const ctx = x.contexto || {};
+      return `<div class="ag-card" style="margin-top:8px;padding:10px 12px" data-bf="${esc(x.id)}">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="ag-muted" style="font-size:12px">${esc(fecha(x.creado))} · ${esc(String(x.staffNombre).split(' ')[0])}${x.donde ? ' · 📍 ' + esc(x.donde) : ''}</span><span class="ag-badge" style="${colorEst(x.estado)}">${esc(x.estado)}</span></div>
+        ${x.texto ? '<div style="font-size:14px;margin-top:6px;white-space:pre-wrap">' + esc(x.texto) + '</div>' : ''}
+        ${(x.audio || x.foto) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${x.audio ? '<button type="button" class="ag-btn sm ghost" data-bf-oir>▶️ Escuchar nota de voz</button>' : ''}${x.foto ? '<button type="button" class="ag-btn sm ghost" data-bf-ver>🖼️ Ver captura</button>' : ''}</div><div data-bf-media style="margin-top:6px"></div>` : ''}
+        ${x.respuesta ? '<div style="font-size:13px;margin-top:6px;background:var(--teal-l);border-radius:8px;padding:6px 8px">💬 ' + esc(x.respuesta) + (x.respondidoPor ? ' <span class="ag-muted" style="font-size:11.5px">— ' + esc(String(x.respondidoPor).split(' ')[0]) + '</span>' : '') + '</div>' : ''}
+        <details style="margin-top:6px"><summary class="ag-muted" style="font-size:12.5px;cursor:pointer">✏️ Cambiar estado o responder</summary>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${(S.datos.estados || []).map(e=>`<button type="button" class="ag-btn sm ${e === x.estado ? '' : 'ghost'}" data-bf-est="${esc(e)}">${esc(e)}</button>`).join('')}</div>
+          <textarea data-bf-resp rows="2" maxlength="800" placeholder="Respuesta (opcional): qué se hizo o en qué versión quedó" style="margin-top:6px">${esc(x.respuesta)}</textarea>
+          <button type="button" class="ag-btn sm" data-bf-guardar style="margin-top:6px">💾 Guardar</button>
+          <div class="ag-muted" style="font-size:11px;margin-top:6px">${esc([ctx.vista ? 'Pantalla: ' + ctx.vista : '', ctx.version || '', ctx.dispositivo ? String(ctx.dispositivo).slice(0, 60) : ''].filter(Boolean).join(' · '))}</div>
+        </details></div>`;
+    };
+    const pintarLista = ()=>{
+      const cont = fsb.querySelector('#bf-lista'); if(!cont) return;
+      const D = S.datos; if(!D){ cont.innerHTML = '<p class="ag-empty">Cargando reportes…</p>'; return; }
+      if(D.error){ cont.innerHTML = '<p class="ag-err">No se pudieron cargar los reportes: ' + err(D.error) + '</p>'; return; }
+      const pend = x=>x.estado === 'Nueva' || x.estado === 'En arreglo';
+      const L = D.lista.filter(x=>S.filtro === 'pend' ? pend(x) : S.filtro === 'listas' ? !pend(x) : true);
+      const chip = (k, t)=>`<button type="button" class="ag-btn sm ${S.filtro === k ? '' : 'ghost'}" data-bf-f="${k}">${t}</button>`;
+      cont.innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chip('pend', '⏳ Pendientes (' + D.lista.filter(pend).length + ')')}${chip('listas', '✅ Atendidas')}${chip('todas', 'Todas')}</div>
+        ${L.length ? L.map(tarjeta).join('') : '<p class="ag-empty" style="margin-top:10px">' + (S.filtro === 'pend' ? 'No hay fallas pendientes. 🎉' : 'Nada por aquí.') + '</p>'}
+        ${D.lista.some(pend) ? '<button type="button" class="ag-btn ghost sm" id="bf-copiar" style="width:100%;margin-top:10px">📋 Copiar las pendientes (para pasarlas a Claude)</button>' : ''}`;
+      cont.querySelectorAll('[data-bf-f]').forEach(b=>b.onclick = ()=>{ S.filtro = b.dataset.bfF; pintarLista(); });
+      const bc = cont.querySelector('#bf-copiar');
+      if(bc) bc.onclick = async ()=>{
+        const T = ['🐞 Fallas pendientes de la app Aguamiel (' + new Date().toLocaleDateString('es-VE') + ')', ''];
+        D.lista.filter(pend).forEach((x, i)=>{ const c = x.contexto || {}; T.push((i + 1) + '. [' + x.estado + '] ' + fecha(x.creado) + ' · ' + x.staffNombre + (x.donde ? ' · ' + x.donde : '')); if(x.texto) T.push('   ' + x.texto.replace(/\n/g, '\n   ')); if(x.audio) T.push('   (tiene nota de voz: escucharla en la app)'); if(x.foto) T.push('   (tiene captura)'); if(c.vista || c.version) T.push('   Pantalla: ' + (c.vista || '?') + ' · ' + (c.version || '')); if(c.errores && c.errores.length) T.push('   Errores recientes: ' + c.errores.join(' | ')); T.push(''); });
+        try{ await navigator.clipboard.writeText(T.join('\n')); toast('📋 Copiado. Pégalo en el chat de Claude.'); }catch(e){ prompt('Copia este texto:', T.join('\n')); }
+      };
+      cont.querySelectorAll('[data-bf]').forEach(card=>{
+        const id = card.dataset.bf, x = D.lista.find(z=>z.id === id), media = card.querySelector('[data-bf-media]');
+        const traer = async (cual, b)=>{ b.disabled = true; const t0 = b.textContent; b.textContent = 'Cargando…'; try{ const url = await gsEspera(90000, 'getArchivoFalla', id, cual, auth()); if(!url) throw new Error('No se encontró el archivo.'); media.innerHTML = cual === 'foto' ? `<img src="${url}" alt="" style="max-width:100%;border-radius:10px;border:1px solid var(--line)"/>` : `<audio controls autoplay style="width:100%" src="${url}"></audio>`; }catch(e){ media.innerHTML = '<p class="ag-err">No se pudo abrir: ' + err(e) + '</p>'; } b.disabled = false; b.textContent = t0; };
+        const bo = card.querySelector('[data-bf-oir]'); if(bo) bo.onclick = ()=>traer('audio', bo);
+        const bv = card.querySelector('[data-bf-ver]'); if(bv) bv.onclick = ()=>traer('foto', bv);
+        let est = x.estado;
+        card.querySelectorAll('[data-bf-est]').forEach(b=>b.onclick = ()=>{ est = b.dataset.bfEst; card.querySelectorAll('[data-bf-est]').forEach(o=>o.classList.toggle('ghost', o.dataset.bfEst !== est)); });
+        card.querySelector('[data-bf-guardar]').onclick = async ev=>{
+          ev.target.disabled = true; ev.target.textContent = 'Guardando…';
+          try{ const nuevo = await gs('actualizarFallaBuzon', id, est, card.querySelector('[data-bf-resp]').value, auth()); Object.assign(x, nuevo); toast('✅ Guardado.'); pintarLista(); }
+          catch(e){ ev.target.disabled = false; ev.target.textContent = '💾 Guardar'; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); }
+        };
+      });
+    };
+    fsb.innerHTML = `<p style="font-size:14px;margin:0 0 10px">Cuéntanos lo que falló o lo que te confunde en la app. Llega directo a César para arreglarlo. 💚</p>
+      <div class="ag-card" style="padding:12px">
+        <label class="f" style="margin-top:0">📍 ¿Dónde pasó?</label>
+        <select id="bf-donde">${BF_AREAS.map(a=>`<option ${a === S.donde ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
+        <label class="f">✍️ ¿Qué pasó?</label>
+        <textarea id="bf-texto" rows="4" maxlength="3000" placeholder="Ej.: En Vender paso a paso, al tocar «Cliente nuevo» se queda cargando."></textarea>
+        <p class="ag-muted" style="font-size:12px;margin:2px 0 0">🎤 También puedes dictarlo con el micrófono del teclado.</p>
+        <label class="f">🎙️ O cuéntalo con tu voz</label>
+        <div id="bf-voz"></div>
+        <div id="bf-foto" style="margin-top:10px"></div>
+        <button type="button" class="ag-btn" id="bf-enviar" style="width:100%;margin-top:12px">📤 Enviar reporte</button>
+        <div id="bf-msg" style="font-size:13px;margin-top:6px"></div>
+      </div>
+      <div class="ag-sec-h" style="margin-top:16px">📋 Reportes</div>
+      <div id="bf-lista"><p class="ag-empty">Cargando reportes…</p></div>`;
+    pintarVoz(); pintarFoto();
+    fsb.querySelector('#bf-enviar').onclick = async ev=>{
+      if(S.enviando) return;
+      if(S.grab && S.grab.rec && S.grab.rec.state === 'recording'){ alert('Primero detén la grabación ⏹.'); return; }
+      const texto = fsb.querySelector('#bf-texto').value.trim();
+      if(texto.length < 3 && !S.voz){ alert('Escribe qué pasó o graba una nota de voz.'); return; }
+      S.enviando = true; ev.target.disabled = true; ev.target.textContent = 'Enviando…';
+      const msg = fsb.querySelector('#bf-msg');
+      try{
+        const contexto = { vista:vista, version:FALLAS.version + (window.AG_WEB ? ' web' : ''), pantalla:window.innerWidth + 'x' + window.innerHeight, dispositivo:String(navigator.userAgent || '').slice(0, 140), errores:Object.keys(FALLAS.ultimas || {}).slice(-3).map(k=>String(k).slice(0, 160)) };
+        const audio = S.voz ? await leer(S.voz.blob, S.voz.mime) : '';
+        await gsEspera(150000, 'reportarFallaBuzon', { donde:fsb.querySelector('#bf-donde').value, texto, audio, foto:S.foto || '', contexto }, auth());
+        S.voz = null; S.foto = null; fsb.querySelector('#bf-texto').value = ''; pintarVoz(); pintarFoto();
+        msg.style.color = '#1d6b35'; msg.textContent = '✅ ¡Gracias! El reporte llegó. Aquí abajo verás cómo va.';
+        S.filtro = 'pend'; cargar();
+      }catch(e){ msg.style.color = 'var(--danger)'; msg.textContent = 'No se pudo enviar: ' + (e && e.message ? e.message : e) + '. Lo que escribiste sigue aquí: vuelve a tocar «Enviar».'; }
+      S.enviando = false; ev.target.disabled = false; ev.target.textContent = '📤 Enviar reporte';
+    };
+    cargar();
+  }
   // ---------- 📮 Buzón de sugerencias del equipo ----------
   // Lo usa cualquier persona del equipo (menos cocina): categorías marcables, texto libre y opción de enviarla SIN nombre.
   async function abrirBuzonSugerencias(){
