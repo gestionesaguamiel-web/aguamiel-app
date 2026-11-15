@@ -1315,7 +1315,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v390' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v391' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10225,7 +10225,9 @@ setTimeout(function(){
     { v:390, fecha:'14 nov', titulo:'🐞 Buzón de fallas de la app', puntos:[
       '🐞 Inicio → <strong>Fallas de la app</strong> (solo administración): cuenta lo que falló o te confunde, escrito o con <strong>nota de voz</strong>, y si quieres con una captura.',
       '📍 El reporte sale con la pantalla donde estabas; a César le llega el aviso por Telegram.',
-      '✅ Cada reporte muestra cómo va (Nueva, En arreglo, Arreglada) y te avisa cuando cambia.' ] }
+      '✅ Cada reporte muestra cómo va (Nueva, En arreglo, Arreglada) y te avisa cuando cambia.' ] },
+    { v:391, fecha:'15 nov', titulo:'💞 Paquetes de pareja primero', puntos:[
+      '💞 En Vender paso a paso, con 2 adultos se pregunta <strong>qué son</strong> (pareja, amigas, madre e hija u otro) y salen primero los paquetes hechos para eso. Los demás siguen en «Ver todos».' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -13990,6 +13992,18 @@ setTimeout(function(){
   }
   function vgCumpleMes(c){ const pr = String(c && c.fnac || '').split('-').map(Number); return pr.length >= 3 && pr[1] === new Date().getMonth() + 1; }
   // Recomienda paquetes según personas, tiempo, objetivo, presupuesto por persona y lo que quiere.
+  // 💞 v391: con 2 adultos se pregunta qué son (pareja, amigas, madre e hija, otro). Con niños = familia; 3+ adultos = grupo.
+  const VG_REL = [['pareja','💞','Pareja'],['amigas','👯‍♀️','Amigas / amigos'],['madre','👩‍👧','Madre e hija'],['otro','👥','Otro']];
+  function vgRelacion(V){ if(V.ninos) return 'familia'; if(V.adultos===2) return V.relacion || 'pareja'; if(V.adultos >= 3) return 'amigas'; return 'ti'; }
+  function vgPaqDe(p, rel){
+    const c = String(paqCatDe(p) || ''), t = sinAcentos(String(p.nombre || '') + ' ' + String(p.descripcion || ''));
+    const madre = /madre|hij[ao]/.test(c + ' ' + t), amigas = c==='amigas' || /amig|chicas/.test(t);
+    if(rel==='pareja') return !madre && !amigas && (c==='pareja' || /pareja|para dos|\bduo\b|aniversario|romantic|novi[oa]s|enamorad|valentin/.test(t));
+    if(rel==='madre') return madre;
+    if(rel==='amigas') return !madre && amigas;
+    if(rel==='familia') return /famil|nin[oa]s|kids|infantil/.test(c + ' ' + t);
+    return false;
+  }
   function vgRecomendar(V){
     const n = vgPersonas(V) || 1, T = VG_TIEMPO.find(t=>t[0]===V.tiempo), PZ = VG_PRESU.find(t=>t[0]===V.presu && t[0]), rx = VG_OBJ_RX[V.obj];
     const paqs = ((state.agenda&&state.agenda.paquetes)||[]).filter(p=>p.activo && Number(p.precio) > 0 && !(p.dias||[]).length);
@@ -14004,7 +14018,12 @@ setTimeout(function(){
       if(V.quiere==='piscina') s += i.piscina ? 3 : -3;
       if(V.quiere==='grupo' && i.personas >= 3) s += 2;
       if(V.ninos && /nino|kids|infantil/.test(i.texto)) s += 2;
-      return { p, i, cant, total, porPer, s };
+      // 💞 v391: los paquetes hechos para ese tipo de grupo van primero (pareja, amigas, madre e hija, familia); los de otro tipo, al final.
+      const rel = vgRelacion(V), va = vgPaqDe(p, rel) && (n >= 3 || i.personas <= n);
+      if(va) s += 10;
+      else if(rel==='pareja' && (vgPaqDe(p, 'madre') || vgPaqDe(p, 'amigas'))) s -= 4;
+      else if((rel==='madre' && vgPaqDe(p, 'pareja')) || (rel==='amigas' && (vgPaqDe(p, 'pareja') || vgPaqDe(p, 'madre')))) s -= 4;
+      return { p, i, cant, total, porPer, s, va };
     }).sort((a,b)=>b.s - a.s || a.total - b.total);
   }
   function vgItemPaquete(p, cant){
@@ -14112,6 +14131,7 @@ setTimeout(function(){
           <p class="ag-muted" style="font-size:11.5px">La reserva y la ficha serán de quien lo disfruta; el pago, de ${esc(cliNom.split(' ')[0] || 'quien compra')}.</p></div>` + vgPreg('¿Cuántas personas lo van a disfrutar?') : '')
         + vgChips(vgChip('data-vg-tipo="1"', 'Sola / solo', V.adultos===1 && !V.ninos) + vgChip('data-vg-tipo="2"', 'En pareja', V.adultos===2 && !V.ninos) + vgChip('data-vg-tipo="4"', 'Grupo', n >= 3))
         + cont('a', '🧑', 'Adultos', V.adultos) + cont('n', '🧒', 'Niños', V.ninos)
+        + (V.adultos===2 && !V.ninos ? vgPreg('¿Qué son?') + vgChips(VG_REL.map(r=>vgChip(`data-vg-rel="${r[0]}"`, r[1] + ' ' + r[2], vgRelacion(V)===r[0])).join('')) : '')
         + (extras.length ? vgPreg('Nombres <span class="ag-muted" style="font-weight:400;font-size:12px">(opcional, para sus fichas)</span>') + extras.map((x,i)=>`<input data-vg-nom="${i}" placeholder="${x[1]}" value="${esc(V.nombres[i]||'')}" style="margin-top:6px"/>`).join('') : '')
         + (G && G.activo && G.regalo && n >= (Number(G.n)||3) ? vgOjo('🎉 <b>Grupo de ' + n + ':</b> le corresponde el premio por grupo: <b>' + esc(G.regalo) + '</b>. Díselo, ¡ayuda a cerrar!', 'a') : '')
         + vgDecir('quienes');
@@ -14134,7 +14154,9 @@ setTimeout(function(){
           <span style="display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:14.5px"><span>${enC?'✅ ':''}${esc(x.p.nombre)}</span><span style="color:#1d6b35;white-space:nowrap">${dinero(x.total)}</span></span>
           <span class="ag-muted" style="font-size:12px">${esc(x.p.descripcion || desglosePaquete(x.p))}${x.i.min ? ' · ⏱️ ~' + durTxt(x.i.min) : ''}${x.cant > 1 ? ' · ' + x.cant + ' × ' + dinero(x.p.precio) : ''}${n > 1 ? ' · ' + dinero(x.porPer) + ' por persona' : ''}</span>
           <span style="display:flex;gap:4px;flex-wrap:wrap">${[x.i.hidro?'💧 hidro':'', x.i.piscina?'🏊 piscina':'', x.i.masaje?'💆 masajes':'', x.i.comida?'🍽️ comida':'', x.i.bebida?'🥤 bebidas':'', '👥 ' + x.i.personas].filter(Boolean).map(t=>`<i style="font-style:normal;font-size:11px;background:var(--bg,#f3f6f7);border-radius:999px;padding:1px 7px">${t}</i>`).join('')}</span></button>`; }).join('');
+      const relT = { pareja:'💞 Primero los paquetes para parejas', amigas:'👯‍♀️ Primero los paquetes para amigas', madre:'👩‍👧 Primero los paquetes de madre e hija', familia:'👨‍👩‍👧 Primero los paquetes para familias' }[vgRelacion(V)];
       h = vgChips(vgChip('data-vg-modo="paq"', '🎁 Paquetes', !sueltos) + vgChip('data-vg-modo="srv"', '💆 Servicios sueltos', sueltos))
+        + (!sueltos && relT && rec.some(x=>x.va) ? `<p class="ag-muted" style="font-size:12px;margin:8px 0 0">${relT}; abajo, «Ver todos» trae los demás.</p>` : '')
         + (sueltos ? vgServiciosHTML(V, '') : (paqH || '<p class="ag-empty">No hay paquetes activos con precio.</p>') + (rec.length > 3 ? `<button type="button" class="ag-btn sm ghost" id="vg-todos" style="width:100%;margin-top:8px">${V.verTodos ? '⭐ Ver solo las 3 recomendadas' : '🔎 Ver todos los paquetes (' + rec.length + ')'}</button>` : ''))
         + vgCanasta(V) + vgDecir('elegir');
       ok = V.items.length > 0;
@@ -14260,6 +14282,7 @@ setTimeout(function(){
     $$('[data-vg-res]').forEach(b=>b.onclick = ()=>{ const [v, id] = b.dataset.vgRes.split('|'); P.vg = null; state.ag = { vista:v, filtro:'proximas', editId:id }; state.tab = 'agenda'; render(); try{ window.scrollTo(0, 0); }catch(e){} });
     const bn = $('#vg-bnom'); if(bn) bn.oninput = ()=>{ V.ben.nombre = bn.value; const bs = $('#vg-sig'); if(bs) bs.disabled = !(V.ben.nombre.trim() && vgPersonas(V) > 0); };
     const bt = $('#vg-btel'); if(bt) bt.oninput = ()=>{ V.ben.tel = bt.value; };
+    $$('[data-vg-rel]').forEach(b=>b.onclick = ()=>{ V.relacion = b.dataset.vgRel; render(); });
     $$('[data-vg-tipo]').forEach(b=>b.onclick = ()=>{ const k = +b.dataset.vgTipo; V.adultos = k===4 ? Math.max(3, V.adultos) : k; if(k!==4) V.ninos = 0; render(); });
     $$('[data-vg-pers]').forEach(b=>b.onclick = ()=>{ const k = b.dataset.vgPers==='a' ? 'adultos' : 'ninos'; V[k] = Math.max(k==='adultos' ? 1 : 0, Math.min(30, V[k] + (+b.dataset.d))); render(); });
     $$('[data-vg-nom]').forEach(el=>el.oninput = ()=>{ V.nombres[+el.dataset.vgNom] = el.value; });
