@@ -1337,7 +1337,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v394' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v395' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10260,7 +10260,10 @@ setTimeout(function(){
     { v:394, fecha:'19 nov', titulo:'🔎 Buscador de clientes que sí encuentra', puntos:[
       '🔎 El mismo buscador en <strong>Clientes, Nueva ficha y Vender paso a paso</strong>: escribe cualquier pedazo del <strong>nombre o del apellido</strong> (sin importar acentos ni mayúsculas), la <strong>cédula</strong> con o sin la «V», o el <strong>teléfono</strong>.',
       '✅ Se corrigió que no aparecieran los nombres con acento (María, José…) al escribirlos sin acento, ni la cédula escrita con «v» minúscula.',
-      '⚡ Con las primeras letras ya van apareciendo las opciones: primero salen los nombres que <strong>empiezan</strong> con lo que escribiste.' ] }
+      '⚡ Con las primeras letras ya van apareciendo las opciones: primero salen los nombres que <strong>empiezan</strong> con lo que escribiste.' ] },
+    { v:395, fecha:'19 nov', titulo:'🔔 Avisos en la app de pedidos y pagos del catálogo', puntos:[
+      '🔔 Cuando un cliente <strong>arma o cambia su pedido</strong> desde el catálogo enviado, o <strong>reporta un pago</strong> (con o sin capture), la administración recibe ahora también el aviso <strong>dentro de la app</strong> (el numerito del ícono y la notificación del teléfono), no solo por Telegram.',
+      '📲 Funciona para quienes tengan los avisos activados en su teléfono (Inicio → «Activar avisos» o ⚙️ Mi cuenta → Avisos).' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
