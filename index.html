@@ -785,6 +785,28 @@ setTimeout(function(){
   const MESES_DICT = { enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6, julio:7, agosto:8, septiembre:9, setiembre:9, octubre:10, noviembre:11, diciembre:12 };
   // Quita acentos sin cambiar el largo del texto (para buscar palabras clave).
   function sinAcentos(t){ return String(t).toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/ñ/g,'n'); }
+  // 🔎 v394: búsqueda unificada de clientes (nombre o apellido por cualquier pedazo, cédula o teléfono),
+  // sin importar acentos, mayúsculas ni la «V» de la cédula. La usan Clientes, Nueva ficha y Vender paso a paso.
+  function cliNorm(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+  function cliCoincide(c, t){
+    const q = cliNorm(t).trim(), dq = String(t||'').replace(/\D/g,'');
+    if(!q && !dq) return true;
+    if(q){
+      const pal = q.split(/\s+/).filter(Boolean), nom = cliNorm(c.nombre||'');
+      if(nom && pal.every(w=>nom.includes(w))) return true;
+      if(String(c.cedula||'').toLowerCase().includes(q)) return true;
+    }
+    if(dq.length >= 3){
+      const cd = String(c.cedula||'').replace(/\D/g,''), tl = String(c.telefono||'').replace(/\D/g,'');
+      if((cd && cd.includes(dq)) || (tl && tl.includes(dq))) return true;
+    }
+    return false;
+  }
+  // Primero los nombres que empiezan con lo escrito, luego el resto en orden alfabético.
+  function cliOrden(list, t){
+    const w = cliNorm(t).trim().split(/\s+/).filter(Boolean)[0] || '';
+    return list.slice().sort((a, b)=>{ const pa = w && cliNorm(a.nombre||'').indexOf(w) === 0 ? 0 : 1, pb = w && cliNorm(b.nombre||'').indexOf(w) === 0 ? 0 : 1; return pa - pb || String(a.nombre||'').localeCompare(String(b.nombre||'')); });
+  }
   // Números dichos en palabras → cifras ("setenta y siete" → 77, "mil novecientos setenta y siete" → 1977).
   const NUM_PAL = { cero:0, un:1, uno:1, una:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9, diez:10, once:11, doce:12, trece:13, catorce:14, quince:15,
     dieciseis:16, diecisiete:17, dieciocho:18, diecinueve:19, veinte:20, veintiun:21, veintiuno:21, veintidos:22, veintitres:23, veinticuatro:24, veinticinco:25, veintiseis:26, veintisiete:27, veintiocho:28, veintinueve:29,
@@ -1315,7 +1337,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v391' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v394' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1379,7 +1401,7 @@ setTimeout(function(){
       const G = {}; L.forEach(x=>{ const o = G[x.profesionalId] || (G[x.profesionalId] = { nombre:x.profesional, monto:0, n:0 }); o.monto += x.monto; o.n++; });
       const porPers = Object.values(G).sort((a, b)=>b.monto - a.monto), maxP = Math.max(0.01, ...porPers.map(o=>o.monto));
       const mon = x=>x.moneda === 'VES' ? dinero(x.monto) + ' <span class="ag-muted" style="font-size:11px">(Bs ' + esc(fmtInv(x.montoOrig)) + ')</span>' : dinero(x.monto);
-      cont.innerHTML = `<div class="ag-card"><p class="ag-muted" style="font-size:12.5px;margin:0">Las propinas se pagan <strong>directo</strong> a cada profesional. Aquí solo se anotan: <strong>no cuentan</strong> en ventas, egresos ni pagos al personal.${d.admin ? '' : ' Solo tú y la administración ven las tuyas.'}</p>
+      cont.innerHTML = `<div class="ag-card"><p class="ag-muted" style="font-size:12.5px;margin:0">Las propinas se pagan <strong>directo</strong> a cada profesional. Aquí solo se anotan: <strong>no cuentan</strong> en ventas, egresos ni pagos al personal. Se conservan el mes actual y el anterior.</p>
         <div style="display:flex;gap:6px;margin-top:8px">${Object.keys(PER).map(k=>`<button type="button" class="ag-btn sm ${P.per === k ? '' : 'ghost'}" data-pp-per="${k}">${PER[k][0]}</button>`).join('')}</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px;text-align:center"><div style="background:#fdf3f7;border-radius:10px;padding:8px"><strong style="font-size:20px;color:#9a3060">${dinero(tot)}</strong><br/><span style="font-size:11.5px">en propinas</span></div>
           <div style="background:#fdf3f7;border-radius:10px;padding:8px"><strong style="font-size:20px;color:#9a3060">${L.length}</strong><br/><span style="font-size:11.5px">propina${L.length === 1 ? '' : 's'}${L.length ? ' · prom. ' + dinero(tot / L.length) : ''}</span></div></div></div>
@@ -3348,12 +3370,11 @@ setTimeout(function(){
     pintarRecientes();
     // Lista rápida: cuenta las fichas en una sola pasada, muestra de a 60
     // clientes y espera a que termines de escribir antes de filtrar.
-    const sinAcentos = t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
     let limite = 60;
     function drawList(){
-      const q = sinAcentos((state.search||'').trim());
+      const q = cliNorm((state.search||'').trim());
       const conteo = {}; state.fichas.forEach(f=>{ if(puedeVerFicha(f)) conteo[f.clienteId] = (conteo[f.clienteId]||0) + 1; });
-      const list = state.clientes.filter(c=>!q || sinAcentos(c.nombre).includes(q) || String(c.cedula||'').includes(q));
+      const list = cliOrden(state.clientes.filter(c=>!q || cliCoincide(c, state.search)), state.search);
       const listEl = body.querySelector('#ag-clientes-list');
       listEl.innerHTML = list.slice(0, limite).map(c=>`<div class="ag-list-item" data-id="${c.id}"><div><strong>${esc(c.nombre)}</strong><div class="ag-muted">${esc(c.cedula||'sin cédula')} · ${c.tipo==='nino'?'Niño/a':'Adulto'}</div></div><span class="ag-muted">${conteo[c.id]||0} fichas</span></div>`).join('')
         + (list.length > limite ? `<button class="ag-btn ghost sm" id="ag-mas-clientes" style="width:100%;margin-top:8px">Mostrar más (${list.length - limite} restantes)</button>` : '')
@@ -4145,8 +4166,8 @@ setTimeout(function(){
       };
     }
     body.querySelector('#nf-buscar').oninput = (e)=>{
-      const q = e.target.value.toLowerCase();
-      const filtered = state.clientes.filter(c=>!q || (c.nombre||'').toLowerCase().includes(q) || (c.cedula||'').includes(q));
+      const t = e.target.value;
+      const filtered = cliOrden(state.clientes.filter(c=>!String(t).trim() || cliCoincide(c, t)), t);
       body.querySelector('#nf-cliente').innerHTML = clienteOptsHTML(filtered) || '<option value="">— sin coincidencias —</option>';
       drawResumen();
     };
@@ -10002,7 +10023,7 @@ setTimeout(function(){
       '💝 <strong>Propinas opcionales al final de la encuesta de satisfacción:</strong> después de enviarla, el cliente ve un mensaje de agradecimiento («fue un gran privilegio atenderte… tu satisfacción es nuestra mayor recompensa») y, si quiere, «💝 Dejar una propina». Ya viene elegida su terapeuta con sus datos de pago; le paga <strong>directo</strong> y lo reporta (monto en $ o Bs, cómo y un mensaje). Al profesional le llega el aviso por Telegram.',
       '💳 Cada profesional pone en <strong>Inicio → 💝 Mis propinas</strong> los datos que quiere que vea el cliente en la encuesta (pago móvil, Zelle…). Quien no los ponga no aparece.',
       '✍️ También se pueden anotar a mano las propinas recibidas en efectivo.',
-      '👀 Cada quien ve solo las suyas; la administración ve todas por profesional (Admin → Equipo → 💝 Propinas). <strong>Es solo informativo:</strong> no cuenta en ventas, egresos ni pagos al personal.' ] },
+      '👀 Cada quien ve solo las suyas en la app. <strong>Es solo informativo:</strong> no cuenta en ventas, egresos ni pagos al personal.' ] },
     { v:336, fecha:'26 oct', titulo:'Seguridad: tareas automáticas protegidas', puntos:[
       '🔒 Las tareas automáticas (respaldos, envío de avisos, recordatorios, mantenimiento de la noche, tasas, resumen del lunes) ahora <strong>solo las ejecuta Google a su hora</strong>. Antes alguien con la dirección de la app podía dispararlas muchas veces.',
       '🛡️ El registro de accesos tiene un límite para que no lo puedan llenar de anotaciones falsas.',
@@ -10227,7 +10248,19 @@ setTimeout(function(){
       '📍 El reporte sale con la pantalla donde estabas; a César le llega el aviso por Telegram.',
       '✅ Cada reporte muestra cómo va (Nueva, En arreglo, Arreglada) y te avisa cuando cambia.' ] },
     { v:391, fecha:'15 nov', titulo:'💞 Paquetes de pareja primero', puntos:[
-      '💞 En Vender paso a paso, con 2 adultos se pregunta <strong>qué son</strong> (pareja, amigas, madre e hija u otro) y salen primero los paquetes hechos para eso. Los demás siguen en «Ver todos».' ] }
+      '💞 En Vender paso a paso, con 2 adultos se pregunta <strong>qué son</strong> (pareja, amigas, madre e hija u otro) y salen primero los paquetes hechos para eso. Los demás siguen en «Ver todos».' ] },
+    { v:392, fecha:'19 nov', titulo:'🕒 Disponibilidad: recordatorio todos los días', puntos:[
+      '🕒 Quien no haya indicado su disponibilidad de la semana recibe un <strong>recordatorio diario</strong> (además de los dos del domingo) hasta que marque sus días y horas, o <strong>«No tengo disponibilidad esta semana»</strong>.',
+      '📋 El resumen del lunes para la administración sigue llegando igual, ahora avisando a quién se le recuerda a diario.' ] },
+    { v:393, fecha:'19 nov', titulo:'💝 Propinas: monto primero, «Abonar propina» y voucher', puntos:[
+      '💵 En la encuesta, el cliente primero indica <strong>cuánto deja de propina</strong> (en dólares) y ve el equivalente en <strong>bolívares a la tasa BCV del día</strong>.',
+      '💸 Al tocar <strong>«Abonar propina»</strong> recién aparecen los datos de pago del profesional, con el <strong>monto en Bs listo para copiar</strong> y un botón para <strong>copiar todos los datos</strong> (banco, cédula, teléfono y monto).',
+      '📎 El cliente puede <strong>adjuntar el voucher</strong> de su pago: al profesional le llega el aviso avisando que trae voucher y lo ve tocando el 📎 en Inicio → 💝 Mis propinas.',
+      '🧹 Las propinas se conservan <strong>el mes actual y el anterior</strong> (para el cierre del mes); las más viejas se borran solas en el mantenimiento de la noche.' ] },
+    { v:394, fecha:'19 nov', titulo:'🔎 Buscador de clientes que sí encuentra', puntos:[
+      '🔎 El mismo buscador en <strong>Clientes, Nueva ficha y Vender paso a paso</strong>: escribe cualquier pedazo del <strong>nombre o del apellido</strong> (sin importar acentos ni mayúsculas), la <strong>cédula</strong> con o sin la «V», o el <strong>teléfono</strong>.',
+      '✅ Se corrigió que no aparecieran los nombres con acento (María, José…) al escribirlos sin acento, ni la cédula escrita con «v» minúscula.',
+      '⚡ Con las primeras letras ya van apareciendo las opciones: primero salen los nombres que <strong>empiezan</strong> con lo que escribiste.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -13959,11 +13992,10 @@ setTimeout(function(){
   const VG_DIAS_FISIO = [1,2,3,5,10];
   const VG_FISIO_BASE = ['Electroterapia','Termoterapia','Movilizaciones Esp.','Ejercicios terap.','Masoterapia'];
 
-  // 🛒 v389: busca clientes registrados (nombre sin acentos, o 3+ dígitos de cédula o teléfono).
-  function vgBuscarClientes(t){ const q = sinAcentos(String(t||'').trim()), dq = String(t||'').replace(/\D/g, '');
+  // 🛒 v389: busca clientes registrados (2+ letras del nombre o apellido, o 3+ dígitos de cédula o teléfono). v394: usa el buscador unificado.
+  function vgBuscarClientes(t){ const q = cliNorm(String(t||'').trim()), dq = String(t||'').replace(/\D/g, '');
     if(q.length < 2 && dq.length < 3) return [];
-    const soloNum = /^[\d\s.-]+$/.test(q);
-    return (state.clientes||[]).filter(c=>(q.length >= 2 && !soloNum && sinAcentos(c.nombre||'').includes(q)) || (dq.length >= 3 && (String(c.cedula||'').replace(/\D/g,'').includes(dq) || String(c.telefono||'').replace(/\D/g,'').includes(dq)))).slice(0, 8); }
+    return cliOrden((state.clientes||[]).filter(c=>cliCoincide(c, t)), t).slice(0, 8); }
   function vgResClientes(t){
     if(!String(t||'').trim()) return '<p class="ag-muted" style="font-size:12.5px;margin:0">Escribe al menos 2 letras o 3 números.</p>';
     const res = vgBuscarClientes(t);
