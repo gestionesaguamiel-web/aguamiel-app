@@ -1163,13 +1163,12 @@ setTimeout(function(){
   }
   // El número de teléfono se puede REGISTRAR por cualquier fisioterapeuta,
   // pero solo los administradores pueden VERLO después de guardado (para
-  // proteger la privacidad del cliente). Las acciones que lo usan (enviar
-  // WhatsApp, etc.) siguen funcionando igual — solo se oculta el texto.
-  // Excepción: el día de la atención, la profesional asignada lo ve hasta que cierra la ficha de esa persona.
-  function telVisible(c){ return !!(state.user && state.user.admin) || !!(c && c.id && state.telHoy && state.telHoy[String(c.id)]); }
+  // proteger la privacidad del cliente). v396: el número ya ni siquiera viaja
+  // a las sesiones que no son de administración — no hay excepción del día de la cita.
+  function telVisible(c){ return !!(state.user && state.user.admin); }
   function telDisplay(c){
-    if(!c.telefono) return 'sin teléfono';
-    return telVisible(c) ? c.telefono + (state.user && !state.user.admin ? ' (visible solo hoy, hasta cerrar la ficha)' : '') : '•••• (oculto)';
+    if(!c.telefono) return telVisible(c) ? 'sin teléfono' : '•••• (oculto)';
+    return telVisible(c) ? c.telefono : '•••• (oculto)';
   }
   // Solo números, espacios, "+", "-" y paréntesis, con al menos 7 dígitos
   // en total — evita que se guarde texto sin sentido (o algo que Sheets
@@ -1202,7 +1201,7 @@ setTimeout(function(){
   // Por defecto, solo un administrador puede enviar cosas por WhatsApp
   // (encuestas, informes). Un admin puede darle ese permiso a un
   // fisioterapeuta específico desde el panel de Staff.
-  function puedeEnviarWhatsapp(){ return !!(state.user && (state.user.admin || state.user.puedeWhatsapp)); }
+  function puedeEnviarWhatsapp(){ return !!(state.user && state.user.admin); }   // v396: los envíos a clientes (encuestas, informes, menú, postventa) los hace la administración — el número no viaja a las demás sesiones
   // Resumen corto en una sola línea (para las listas de fichas).
   function resumenTerapias(f){
     if(f.datos && f.datos['Terapias'] && f.datos['Terapias'].length) return f.datos['Terapias'].join(', ');
@@ -1337,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v395' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v396' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -1412,7 +1411,7 @@ setTimeout(function(){
           <div class="ag-row"><div><label class="f">¿Cómo?</label><select data-pp-met>${['Efectivo','Pago móvil','Zelle','Binance','Otro'].map(m=>`<option>${m}</option>`).join('')}</select></div><div><label class="f">Fecha</label><input type="date" data-pp-fecha value="${hoy}"/></div></div>
           <label class="f">Cliente <span class="ag-muted" style="font-weight:400">(opcional)</span></label><input data-pp-cli placeholder="Ej: Ana Pérez"/>
           <button type="button" class="ag-btn sm" data-pp-ok style="width:100%;margin-top:8px">💝 Guardar propina</button></div>
-        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">🕒 Propinas (${L.length})</h3>${L.length ? L.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="flex:1;min-width:0">${esc(isoToDMY(x.fecha))} · ${x.origen === 'cliente' ? '💌' : '✍️'} <strong>${esc(x.cliente || 'Sin nombre')}</strong>${d.admin ? ' → ' + esc(x.profesional.split(' ')[0]) : ''}${x.metodo ? ' · ' + esc(x.metodo) : ''}${x.conCapture ? ' 📎' : ''}${x.nota ? '<br/><span class="ag-muted">«' + esc(x.nota) + '»</span>' : ''}</span><span style="white-space:nowrap;text-align:right">${mon(x)}<br/><button type="button" data-pp-del="${esc(x.id)}" style="border:0;background:none;color:var(--sub);cursor:pointer;font-size:12px">🗑️</button></span></div>`).join('') : '<p class="ag-muted" style="font-size:13px">Sin propinas en este período.</p>'}
+        <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 6px">🕒 Propinas (${L.length})</h3>${L.length ? L.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px"><span style="flex:1;min-width:0">${esc(isoToDMY(x.fecha))} · ${x.origen === 'cliente' ? '💌' : '✍️'} <strong>${esc(x.cliente || 'Sin nombre')}</strong>${d.admin ? ' → ' + esc(x.profesional.split(' ')[0]) : ''}${x.metodo ? ' · ' + esc(x.metodo) : ''}${x.conCapture ? ' <button type="button" data-pp-cap="' + esc(x.id) + '" title="Ver voucher" style="border:0;background:none;cursor:pointer;font-size:13px;padding:0">📎</button>' : ''}${x.nota ? '<br/><span class="ag-muted">«' + esc(x.nota) + '»</span>' : ''}</span><span style="white-space:nowrap;text-align:right">${mon(x)}<br/><button type="button" data-pp-del="${esc(x.id)}" style="border:0;background:none;color:var(--sub);cursor:pointer;font-size:12px">🗑️</button></span></div>`).join('') : '<p class="ag-muted" style="font-size:13px">Sin propinas en este período.</p>'}
           <div class="ag-muted" style="font-size:11px;margin-top:6px">💌 la reportó el cliente desde su enlace · ✍️ anotada en la app</div></div>
         <div class="ag-card" style="margin-top:10px"><h3 style="font-size:15px;margin:0 0 4px">💳 Mis datos para recibir propinas</h3>
           ${md.pagoMovil || md.otros ? '<p style="font-size:12.5px;margin:0 0 6px;color:#1d6b35;font-weight:600">✅ Activo: tus clientes ya pueden dejarte propina al final de su encuesta.</p>' : '<p style="font-size:12.5px;margin:0 0 6px;color:#8a5a00;font-weight:600">⚠️ Aún no recibes propinas: completa tu pago móvil y guarda.</p>'}
@@ -1434,6 +1433,10 @@ setTimeout(function(){
         catch(e){ ev.target.disabled = false; alert('No se pudo guardar: ' + (e && e.message ? e.message : e)); } };
       cont.querySelectorAll('[data-pp-del]').forEach(b=>b.onclick = async ()=>{ if(!confirm('¿Borrar esta propina? (por si se anotó mal)')) return; b.disabled = true;
         try{ d = P.d = await gs('borrarPropina', b.dataset.ppDel, auth()); pintar(); }catch(e){ b.disabled = false; alert('No se pudo borrar: ' + (e && e.message ? e.message : e)); } });
+      cont.querySelectorAll('[data-pp-cap]').forEach(b=>b.onclick = async ()=>{ b.disabled = true;
+        try{ const url = await gs('getComprobantePropina', b.dataset.ppCap, auth()); openFullscreen('📎 Voucher de la propina', '<div style="text-align:center"><img src="' + url + '" alt="Voucher" style="max-width:100%;border-radius:12px;border:1px solid var(--line)"/></div>'); }
+        catch(e){ alert('No se pudo abrir el voucher: ' + (e && e.message ? e.message : e)); }
+        b.disabled = false; });
     };
     pintar();
   }
@@ -3800,6 +3803,7 @@ setTimeout(function(){
       if(backBtn) backBtn.onclick = ()=>{ state.selFichaId=null; renderClienteDetalle(body); };
       return;
     }
+    if(state.informeMode==='referencia'){ renderReferenciaForm(body, f, c); return; }
     if(state.informeMode){ renderInformeForm(body, f, c); return; }
     if(state.editFichaMeta){ renderFichaEdit(body, f, c); return; }
     const dias = fichaDiasHTML(f);
@@ -3829,10 +3833,10 @@ setTimeout(function(){
         <button class="ag-btn ghost sm" id="fd-encuesta">⭐ Enviar encuesta</button>
         ${state.user.admin?`<button class="ag-btn ghost sm" id="fd-encuesta-anular">🚫 Anular enlaces</button>`:''}
       </div>`:''}
-      ${f.tipo==='fisiatria'&&!accesoPrestado(f)?`<div class="ag-row" style="margin-top:8px"><button class="ag-btn sm" id="fd-informe">📄 Emitir informe</button></div>`:''}
-      ${informesFicha.length?`<div class="ag-sec-h" style="margin-top:14px">Informes emitidos</div>${informesFicha.map(i=>`
+      ${f.tipo==='fisiatria'&&!accesoPrestado(f)?`<div class="ag-row" style="margin-top:8px"><button class="ag-btn sm" id="fd-informe">📄 Emitir informe</button><button class="ag-btn sm" id="fd-referencia" style="background:#6b4fa3;border-color:#6b4fa3">📨 Referencia a especialista</button></div>`:''}
+      ${informesFicha.length?`<div class="ag-sec-h" style="margin-top:14px">Informes y referencias emitidos</div>${informesFicha.map(i=>`
         <div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:6px">
-          <div><strong>Informe</strong><div class="ag-muted">${esc(formatDT(i.createdAt))} · por ${esc(i.creadoPor)}</div></div>
+          <div><strong>${i.tipoDoc==='referencia'?'📨 Referencia a especialista':'Informe'}</strong><div class="ag-muted">${esc(formatDT(i.createdAt))} · por ${esc(i.creadoPor)}</div></div>
           <div class="ag-row">
             <button class="ag-btn ghost sm" data-informe-print="${i.id}">📤 Enviar / guardar</button>
             ${puedeEnviarWhatsapp()?`<button class="ag-btn ghost sm" data-informe-wa="${i.id}">📱 Enviar por WhatsApp</button>`:''}
@@ -3846,8 +3850,9 @@ setTimeout(function(){
     body.querySelectorAll('[data-informe-print]').forEach(btn=>{
       btn.onclick = ()=>{
         const inf = state.informes.find(i=>i.id===btn.dataset.informePrint);
-        compartirDocumento(buildInformePrintable(inf, f, c), { titulo:'🩺 Informe de ' + c.nombre, archivo:'Informe ' + c.nombre, telefono: c.telefonoAdicional || c.telefono,
-          mensaje:'🩺🌿 ¡Hola ' + String(c.nombre||'').split(' ')[0] + '! Te compartimos tu informe de *Aguamiel · Centro de Bienestar* 💙\nSeguimos acompañándote en tu camino de bienestar ✨' });
+        const esRef = inf.tipoDoc==='referencia';
+        compartirDocumento(esRef ? buildReferenciaPrintable(inf, f, c) : buildInformePrintable(inf, f, c), { titulo:(esRef?'📨 Referencia de ':'🩺 Informe de ') + c.nombre, archivo:(esRef?'Referencia ':'Informe ') + c.nombre, telefono: c.telefonoAdicional || c.telefono,
+          mensaje:(esRef?'📨':'🩺') + '🌿 ¡Hola ' + String(c.nombre||'').split(' ')[0] + '! Te compartimos tu ' + (esRef?'referencia al especialista':'informe') + ' de *Aguamiel · Centro de Bienestar* 💙\nSeguimos acompañándote en tu camino de bienestar ✨' });
       };
     });
     body.querySelectorAll('[data-informe-del]').forEach(btn=>{
@@ -3865,8 +3870,12 @@ setTimeout(function(){
       btn.onclick = async ()=>{
         btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Generando…';
         try{
+          const infW = state.informes.find(i=>i.id===btn.dataset.informeWa);
+          const esRefW = infW && infW.tipoDoc==='referencia';
           const link = await gs('getInformeLink', btn.dataset.informeWa, auth());
-          const msg = `🩺🌿 ¡Hola! Te compartimos el informe de rehabilitación de *${c.nombre.split(' ')[0]}* de parte de *Aguamiel · Centro de Bienestar* 💙\n\n👉 ${link}\n\nSeguimos acompañándote en cada paso de tu bienestar ✨`;
+          const msg = esRefW
+            ? `📨🌿 ¡Hola! Te compartimos la referencia al especialista de *${c.nombre.split(' ')[0]}* de parte de *Aguamiel · Centro de Bienestar* 💙\n\n👉 ${link}\n\nSeguimos acompañándote en cada paso de tu bienestar ✨`
+            : `🩺🌿 ¡Hola! Te compartimos el informe de rehabilitación de *${c.nombre.split(' ')[0]}* de parte de *Aguamiel · Centro de Bienestar* 💙\n\n👉 ${link}\n\nSeguimos acompañándote en cada paso de tu bienestar ✨`;
           const telLimpio = formatTelWhatsApp(pickTelefono(c));
           if(!telLimpio){ alert('Este cliente no tiene teléfono registrado.'); }
           else window.open('https:' + '/' + '/wa.me/' + telLimpio + '?text=' + encodeURIComponent(msg), '_blank');
@@ -3889,6 +3898,8 @@ setTimeout(function(){
     if(anularEncBtn) anularEncBtn.onclick = ()=>anularEnlaces(anularEncBtn, 'encuesta', f.id, 'la encuesta');
     const informeBtn = body.querySelector('#fd-informe');
     if(informeBtn) informeBtn.onclick = ()=>{ state.informeMode = true; renderFichaDetalle(body); };
+    const refBtn = body.querySelector('#fd-referencia');
+    if(refBtn) refBtn.onclick = ()=>{ state.informeMode = 'referencia'; renderFichaDetalle(body); };
     body.querySelector('#fd-full').onclick=()=>{
       try{
         openFullscreen(TIPOS[f.tipo] + ' — ' + esc(c.nombre), `<p class="ag-muted">${esc(formatDT(f.createdAt)||f.fecha)} · atendido por ${esc(f.creadoPor)}</p>${fichaTablaHTML(f)}${dias?`<div class="ag-sec-h" style="margin-top:14px">Seguimiento diario</div>${dias}`:''}`);
@@ -4046,6 +4057,52 @@ setTimeout(function(){
       }catch(e){
         alert('No se pudo guardar el informe: ' + e);
         btn.disabled = false; btn.textContent = 'Guardar e imprimir informe';
+      }
+    };
+  }
+
+  // 📨 v396: referencia a especialista — la hace la fisioterapeuta desde su usuario;
+  // se guarda en la hoja Informes con tipoDoc='referencia' (sus campos viajan en referenciaJSON).
+  const REF_ESP = ['Traumatología','Fisiatría (medicina física y rehabilitación)','Ortopedia','Neurología','Reumatología','Medicina interna','Medicina general','Otra'];
+  function renderReferenciaForm(body, f, c){
+    const d = f.datos || {};
+    body.innerHTML = `
+      <button class="ag-btn ghost sm" id="rf-back">← Volver a la ficha</button>
+      <div class="ag-card" style="margin-top:10px">
+        <h3>📨 Referencia a especialista</h3>
+        <p class="ag-muted">${esc(c.nombre)} · ${esc(TIPOS[f.tipo])}</p>
+      </div>
+      <label class="f">Especialidad a la que se refiere <span style="color:var(--danger)">*</span></label>
+      <select id="rf-esp">${REF_ESP.map(e=>`<option>${e}</option>`).join('')}</select>
+      <label class="f">Dirigido a <span class="ag-muted" style="font-weight:400">(opcional: nombre del especialista, ej: Dr. Pérez)</span></label>
+      <input id="rf-para" placeholder="Ej: Dr. Ramón Pérez"/>
+      <label class="f">1. Motivo de la referencia <span style="color:var(--danger)">*</span></label>
+      <textarea id="rf-motivo" placeholder="Por qué se refiere al paciente al especialista…">${esc(d['Impresión diagnóstica']||'')}</textarea>
+      <label class="f">2. Resumen clínico y hallazgos relevantes</label>
+      <textarea id="rf-resumen" placeholder="Lo más importante del caso para el especialista…">${esc(d['Examen físico']||'')}</textarea>
+      <label class="f">3. Qué se solicita al especialista <span class="ag-muted" style="font-weight:400">(opcional)</span></label>
+      <textarea id="rf-solicita" placeholder="Evaluación, estudios, conducta sugerida…"></textarea>
+      <button class="ag-btn" id="rf-save" style="margin-top:16px;width:100%">Guardar e imprimir referencia</button>
+    `;
+    body.querySelector('#rf-back').onclick = ()=>{ state.informeMode=false; renderFichaDetalle(body); };
+    body.querySelector('#rf-save').onclick = async ()=>{
+      const btn = body.querySelector('#rf-save');
+      const motivo = val('rf-motivo').trim();
+      if(!motivo){ alert('Escribe el motivo de la referencia.'); return; }
+      btn.disabled = true; btn.textContent = 'Guardando…';
+      const ref = { especialidad: val('rf-esp'), dirigidoA: val('rf-para').trim(), motivo: motivo, resumen: val('rf-resumen').trim(), solicita: val('rf-solicita').trim() };
+      const payload = { fichaId: f.id, clienteId: c.id, tipoDoc:'referencia', referenciaJSON: JSON.stringify(ref),
+        impresionDiagnostica: motivo, contexto:'', examenFisico:'', abordajeFisioterapeutico:'', recomendaciones:'' };
+      try{
+        const informe = await gs('saveInforme', payload, auth());
+        state.informes.push(informe);
+        state.informeMode = false;
+        renderFichaDetalle(body);
+        compartirDocumento(buildReferenciaPrintable(informe, f, c), { titulo:'📨 Referencia de ' + c.nombre, archivo:'Referencia ' + c.nombre, telefono: c.telefonoAdicional || c.telefono,
+          mensaje:'📨🌿 ¡Hola ' + String(c.nombre||'').split(' ')[0] + '! Te compartimos tu referencia al especialista de *Aguamiel · Centro de Bienestar* 💙' });
+      }catch(e){
+        alert('No se pudo guardar la referencia: ' + e);
+        btn.disabled = false; btn.textContent = 'Guardar e imprimir referencia';
       }
     };
   }
@@ -4265,7 +4322,6 @@ setTimeout(function(){
       const btn = body.querySelector('#nf-save'); btn.disabled = true; btn.textContent = 'Guardando…';
       try{
         const saved = await gs('saveFicha', ficha, auth());
-        if(state.telHoy && ficha.clienteId) delete state.telHoy[String(ficha.clienteId)];   // ficha cerrada: el teléfono vuelve a ocultarse
         state.fichas.push(saved);
         // Si se usó "Registrar antecedente nuevo del cliente", esos datos se
         // guardan en el CLIENTE (no en la ficha) — se actualizan aparte.
@@ -4871,6 +4927,40 @@ setTimeout(function(){
         <div class="pf-sec-h">Terapias realizadas por día</div>
         ${terapiasPorDiaHTML(f)}
         ${textBlock('4. Conclusión y recomendaciones', informe.recomendaciones)}
+        <div class="pf-sign">
+          <div>${profesionalFirmaHTML(informe.creadoPorId, informe.creadoPor, [])}</div>
+          <div>${MEDICO_TURNO_HTML}</div>
+          <div>${c.tipo==='nino' ? 'Firma del representante' : 'Firma del paciente'}</div>
+        </div>
+        <div class="pf-meta">Creado por ${esc(informe.creadoPor)} · ${esc(formatDT(informe.createdAt))}</div>
+      </div>`;
+  }
+
+  // 📨 v396: documento imprimible de la referencia a especialista (mismo membrete que el informe).
+  function buildReferenciaPrintable(informe, f, c){
+    let ref = {}; try{ ref = JSON.parse(informe.referenciaJSON || '{}'); }catch(e){}
+    const tB = (label, value)=>`<div class="pf-sec-h">${esc(label)}</div><div class="pf-text">${esc(value)||'—'}</div>`;
+    return `
+      <div class="pf-page">
+        <div class="pf-head">
+          <div><h1>Referencia a especialista</h1><div class="pf-sub">Centro de Bienestar Aguamiel</div></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <img src="data:image/png;base64,${b64urlToB64(LOGO_ICON_B64URL)}" style="height:34px;width:auto"/>
+            <img src="data:image/png;base64,${b64urlToB64(LOGO_TEXTO_B64URL)}" style="height:26px;width:auto"/>
+          </div>
+        </div>
+        <div class="pf-row"><div><strong>Fecha:</strong> ${esc(isoToDMY(String(informe.createdAt||'').slice(0,10)))}</div></div>
+        <div class="pf-sec-h">Dirigido a</div>
+        <div class="pf-row"><div><strong>${ref.dirigidoA ? esc(ref.dirigidoA) : 'A quien corresponda'}</strong> · ${esc(ref.especialidad||'')}</div></div>
+        <div class="pf-sec-h">Datos del paciente</div>
+        <div class="pf-row">
+          <div><strong>Nombre:</strong> ${esc(c.nombre)}</div>
+          <div><strong>Cédula:</strong> ${esc(c.cedula||'—')}</div>
+          <div><strong>F. nacimiento:</strong> ${esc(c.fnac?isoToDMY(c.fnac):'—')} · <strong>Edad:</strong> ${esc((c.fnac&&calcEdad(c.fnac)!=='')?calcEdad(c.fnac):(c.edad||'—'))}</div>
+        </div>
+        ${tB('1. Motivo de la referencia', ref.motivo)}
+        ${tB('2. Resumen clínico y hallazgos relevantes', ref.resumen)}
+        ${ref.solicita ? tB('3. Qué se solicita al especialista', ref.solicita) : ''}
         <div class="pf-sign">
           <div>${profesionalFirmaHTML(informe.creadoPorId, informe.creadoPor, [])}</div>
           <div>${MEDICO_TURNO_HTML}</div>
@@ -10263,7 +10353,18 @@ setTimeout(function(){
       '⚡ Con las primeras letras ya van apareciendo las opciones: primero salen los nombres que <strong>empiezan</strong> con lo que escribiste.' ] },
     { v:395, fecha:'19 nov', titulo:'🔔 Avisos en la app de pedidos y pagos del catálogo', puntos:[
       '🔔 Cuando un cliente <strong>arma o cambia su pedido</strong> desde el catálogo enviado, o <strong>reporta un pago</strong> (con o sin capture), la administración recibe ahora también el aviso <strong>dentro de la app</strong> (el numerito del ícono y la notificación del teléfono), no solo por Telegram.',
-      '📲 Funciona para quienes tengan los avisos activados en su teléfono (Inicio → «Activar avisos» o ⚙️ Mi cuenta → Avisos).' ] }
+      '📲 Funciona para quienes tengan los avisos activados en su teléfono (Inicio → «Activar avisos» o ⚙️ Mi cuenta → Avisos).' ] },
+    { v:396, fecha:'21 nov', titulo:'📨 Referencias a especialistas', puntos:[
+      '📨 En la ficha del cliente, junto a «Emitir informe», está <strong>«Referencia a especialista»</strong>: la hace la fisioterapeuta desde su usuario — especialidad, a quién va dirigida, motivo, resumen clínico (viene prellenado de la ficha) y qué se solicita.',
+      '📄 Sale un documento con el <strong>membrete de Aguamiel</strong>, firmado por quien la emite, para imprimir o enviar por WhatsApp (también con enlace, igual que los informes).',
+      '🗂️ Quedan en el historial de la ficha, con la misma privacidad de siempre: cada quien ve las de las fichas que puede ver.' ] },
+    { v:396, fecha:'21 nov', titulo:'✅ El aviso de «Pagos por verificar» se apaga de verdad', puntos:[
+      '💳 Antes, al verificar una solicitud con «Verificar solicitud y pago», los pagos reportados por cada persona (enlaces de grupo o abonos desde el enlace) <strong>seguían apareciendo como pendientes</strong> aunque ya estaban verificados y su abono registrado.',
+      '🔕 Ahora verificar la solicitud marca también esos pagos y el aviso se apaga; en el panel de solicitudes ya no cuentan como pendientes.' ] },
+    { v:396, fecha:'21 nov', titulo:'🛡️ Los abonos ya no se duplican', puntos:[
+      '💵 Antes, si al registrar un abono se tocaba dos veces el botón, la pantalla tardaba o se reintentaba tras un error, <strong>el mismo abono quedaba cargado varias veces</strong> y la cuenta salía sobregirada.',
+      '🛡️ Ahora el servidor reconoce el mismo abono repetido en menos de 3 minutos y no lo carga otra vez; el botón de la reserva además se bloquea mientras guarda.',
+      '🗑️ Si un presupuesto quedó con abonos repetidos de antes, se borran los que sobran con el 🗑️ de cada abono.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -11656,8 +11757,9 @@ setTimeout(function(){
     body.querySelector('#pg-agregar').onclick = async ()=>{
       const mon = leerMonPg(), pago = { fecha: val('pg-fecha'), monto: val('pg-monto'), metodo: val('pg-metodo'), nota: val('pg-nota').trim(), moneda: mon.moneda, tasa: mon.tasa };
       if(!abonoValido(pago.monto, mon, Number(sp.total) || 0, sp.saldo, r.pagoPct, pago.metodo)) return;
+      const btnPg = body.querySelector('#pg-agregar'); btnPg.disabled = true; btnPg.textContent = 'Registrando…';   // 🛡️ v396: sin esto, un doble toque cargaba el abono dos veces
       try{ Object.assign(r, await gs('registrarPagoReserva', r.id, pago, auth())); render(); toast('Abono registrado.'); }
-      catch(e){ alert('No se pudo registrar: ' + e); }
+      catch(e){ alert('No se pudo registrar: ' + e); btnPg.disabled = false; btnPg.textContent = 'Registrar abono'; }
     };
     body.querySelectorAll('[data-pg-borrar]').forEach(b=>b.onclick=async ()=>{
       if(!confirm('¿Eliminar este abono?')) return;
@@ -20024,7 +20126,7 @@ setTimeout(function(){
   function aplicarDatos(data){
     state.staff = data.staff; state.clientes = data.clientes; state.fichas = data.fichas; state.informes = data.informes || []; state.menu = data.menu || []; state.menuCategorias = data.menuCategorias || {};
     state.opcAgotadas = data.opcAgotadas || []; state.opcComunes = data.opcComunes || []; state.opcUnifAt = data.opcUnifAt || ''; state.pedidos = data.pedidos || []; state.paginasImagen = data.paginasImagen || []; state.accesos = data.accesos || [];
-    state.tasas = data.tasas || state.tasas || null; if(data.telHoy) state.telHoy = data.telHoy; if(data.atiendeHoy) state.atiendeHoy = data.atiendeHoy; state.metodosPago = data.metodosPago || []; state.menuNoDisp = data.menuNoDisponible || [];
+    state.tasas = data.tasas || state.tasas || null; if(data.atiendeHoy) state.atiendeHoy = data.atiendeHoy; state.metodosPago = data.metodosPago || []; state.menuNoDisp = data.menuNoDisponible || [];
     state.cumplesEnv = data.cumplesEnviados || {}; state.cumpleEq = data.cumpleEquipo || [];
     colaReaplicar();   // 📴 lo hecho sin señal y aún no enviado se sigue viendo
     setTimeout(pedirPinLargo, 400);
