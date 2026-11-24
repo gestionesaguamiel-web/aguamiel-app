@@ -1336,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v396' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v397' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10364,7 +10364,16 @@ setTimeout(function(){
     { v:396, fecha:'21 nov', titulo:'🛡️ Los abonos ya no se duplican', puntos:[
       '💵 Antes, si al registrar un abono se tocaba dos veces el botón, la pantalla tardaba o se reintentaba tras un error, <strong>el mismo abono quedaba cargado varias veces</strong> y la cuenta salía sobregirada.',
       '🛡️ Ahora el servidor reconoce el mismo abono repetido en menos de 3 minutos y no lo carga otra vez; el botón de la reserva además se bloquea mientras guarda.',
-      '🗑️ Si un presupuesto quedó con abonos repetidos de antes, se borran los que sobran con el 🗑️ de cada abono.' ] }
+      '🗑️ Si un presupuesto quedó con abonos repetidos de antes, se borran los que sobran con el 🗑️ de cada abono.' ] },
+    { v:396, fecha:'21 nov', titulo:'🔒 El teléfono de los clientes queda solo para la administración', puntos:[
+      '📵 Por privacidad, el teléfono del cliente <strong>ya no llega a las sesiones de las fisioterapeutas</strong>: ni en pantalla ni escondido en los datos de su teléfono. También se quitó la visibilidad que tenían el día de la cita.',
+      '🍽️ Las órdenes de Rosita tampoco muestran ya cédula, teléfono ni dirección del cliente al equipo (solo a la administración).',
+      '📱 Los envíos por WhatsApp a clientes (encuestas, informes, referencias, menú y postventa) ahora los hace <strong>solo la administración</strong>. Si una profesional necesita contactar a un cliente, lo pide a la administración.',
+      '✍️ Registrar el teléfono al crear un cliente nuevo sigue igual: se escribe una vez y queda guardado; después nadie fuera de administración lo ve.' ] },
+    { v:397, fecha:'24 nov', titulo:'🔔 Aviso dentro de la app en TODOS los formularios de clientes', puntos:[
+      '🔔 Antes el numerito del ícono y la notificación del teléfono de la administración solo se activaban al armar un pedido del catálogo individual o al reportar un pago; los demás formularios avisaban <strong>solo por Telegram</strong>.',
+      '📲 Ahora también se activa cuando un cliente arma o cambia su <strong>presupuesto de grupo</strong>, cuando alguien elige en un <strong>enlace de grupo</strong>, cuando un <strong>regalo elige su fecha</strong>, cuando se pide o cambia comida desde el <strong>enlace del menú</strong>, cuando llega una <strong>solicitud de reserva</strong>, cuando eligen sus <strong>contornos</strong>, y cuando responden la <strong>encuesta</strong> o la <strong>postventa</strong>.',
+      '📱 Funciona para quienes tengan los avisos activados en su teléfono (Inicio → «Activar avisos» o ⚙️ Mi cuenta → Avisos).' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
