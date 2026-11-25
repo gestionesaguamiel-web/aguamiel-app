@@ -1336,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v397' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v398' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -3971,7 +3971,7 @@ setTimeout(function(){
     `;
     const fieldsEl = body.querySelector('#fem-fields');
     fieldsEl.innerHTML = fieldsFor(f.tipo);
-    wireDynamic(fieldsEl, f.tipo, f.dias || []);
+    wireDynamic(fieldsEl, f.tipo, f.dias || [], f.programaId);
     wireIMCCalc(fieldsEl, 'fx-peso', 'fx-talla', 'fx-imc');
     wireIMCCalc(fieldsEl, 'fx-peso-final', 'fx-talla-final', 'fx-imc-final');
     wireTensionFields(fieldsEl);
@@ -4428,21 +4428,25 @@ setTimeout(function(){
 
   // diasExistentes: al editar una ficha, se recrean todos sus días ya
   // guardados (fecha, TA, terapias y comentario) para poder modificarlos.
-  function wireDynamic(container, t, diasExistentes){
+  function wireDynamic(container, t, diasExistentes, programaId){
     if(t==='reductivo' || t==='fisiatria'){
       const list = t==='reductivo' ? DIA_REDUCTIVO : DIA_FISIO;
       const diasWrap = container.querySelector('#fx-dias');
       let count = 0;
+      let ultimoDiaPrograma = programaId ? (diasExistentes||[]).reduce((max, d)=>Math.max(max, Number(d.dia)||0), 0) : 0;
       function addDia(pre){
         pre = pre || {};
         count++; const n = count;
+        const diaFicha = programaId ? (Number(pre.dia) || ++ultimoDiaPrograma) : n;
         const selTerapias = Array.isArray(pre.terapias) ? pre.terapias : [];
         const opciones = list.concat(selTerapias.filter(x=>!list.includes(x)));
         const taPartes = String(pre.ta||'').split('/');
         const fechaISO = toISODate(pre.fecha);
         const div = document.createElement('div'); div.className='ag-day'; div.dataset.dia=n;
+        // El orden cronológico puede ser distinto al de Agenda. Conserva el número y la fuente del día.
+        if(programaId) div._agDiaPrograma = Object.assign({}, pre, { dia:diaFicha });
         if(pre.fecha && !fechaISO) div.dataset.fechaOrig = pre.fecha;
-        div.innerHTML = `<div class="ag-day-h" style="display:flex;justify-content:space-between;align-items:center"><strong>Día ${n}</strong><button type="button" class="ag-btn ghost sm" data-dia-quitar style="padding:2px 8px">✕ Quitar</button></div>
+        div.innerHTML = `<div class="ag-day-h" style="display:flex;justify-content:space-between;align-items:center"><strong>Día ${diaFicha}</strong><button type="button" class="ag-btn ghost sm" data-dia-quitar style="padding:2px 8px">✕ Quitar</button></div>
           <label class="f" style="margin-top:0">Fecha</label>
           <input type="date" data-dia-fecha value="${esc(fechaISO)}"/>
           <label class="f">Tensión arterial</label>
@@ -4455,7 +4459,7 @@ setTimeout(function(){
         wireTensionDigitInput(diaSis); wireTensionDigitInput(diaDia); wireTensionPair(diaSis, diaDia);
         div.querySelector('[data-dia-quitar]').onclick = ()=>{
           if(container.querySelectorAll('.ag-day').length <= 1){ alert('La ficha debe tener al menos un día.'); return; }
-          if(confirm('¿Quitar el Día ' + n + ' de esta ficha?')) div.remove();
+          if(confirm('¿Quitar el Día ' + diaFicha + ' de esta ficha?')) div.remove();
         };
       }
       container.querySelector('#fx-add-dia').onclick = ()=>addDia();
@@ -4599,7 +4603,8 @@ setTimeout(function(){
     return Array.from(container.querySelectorAll('.ag-day')).map((div, idx)=>{
       const n = div.dataset.dia;
       const diaSis = (div.querySelector('[data-dia-ta-sis]')||{}).value||''; const diaDia = (div.querySelector('[data-dia-ta-dia]')||{}).value||'';
-      return { dia:idx+1, fecha: (div.querySelector('[data-dia-fecha]')||{}).value||div.dataset.fechaOrig||'', ta: (diaSis||diaDia) ? (diaSis+'/'+diaDia) : '', terapias: getChecked('dia'+n), comentario: (div.querySelector('[data-dia-comentario]')||{}).value||'' };
+      const previo = div._agDiaPrograma;
+      return Object.assign({}, previo || {}, { dia:previo ? previo.dia : idx+1, fecha: (div.querySelector('[data-dia-fecha]')||{}).value||div.dataset.fechaOrig||'', ta: (diaSis||diaDia) ? (diaSis+'/'+diaDia) : '', terapias: getChecked('dia'+n), comentario: (div.querySelector('[data-dia-comentario]')||{}).value||'' });
     });
   }
 
@@ -10373,7 +10378,11 @@ setTimeout(function(){
     { v:397, fecha:'24 nov', titulo:'🔔 Aviso dentro de la app en TODOS los formularios de clientes', puntos:[
       '🔔 Antes el numerito del ícono y la notificación del teléfono de la administración solo se activaban al armar un pedido del catálogo individual o al reportar un pago; los demás formularios avisaban <strong>solo por Telegram</strong>.',
       '📲 Ahora también se activa cuando un cliente arma o cambia su <strong>presupuesto de grupo</strong>, cuando alguien elige en un <strong>enlace de grupo</strong>, cuando un <strong>regalo elige su fecha</strong>, cuando se pide o cambia comida desde el <strong>enlace del menú</strong>, cuando llega una <strong>solicitud de reserva</strong>, cuando eligen sus <strong>contornos</strong>, y cuando responden la <strong>encuesta</strong> o la <strong>postventa</strong>.',
-      '📱 Funciona para quienes tengan los avisos activados en su teléfono (Inicio → «Activar avisos» o ⚙️ Mi cuenta → Avisos).' ] }
+      '📱 Funciona para quienes tengan los avisos activados en su teléfono (Inicio → «Activar avisos» o ⚙️ Mi cuenta → Avisos).' ] },
+    { v:398, fecha:'25 nov', titulo:'🔔 Un solo aviso por solicitud de reserva', puntos:[
+      '📝 La solicitud llega a administración con su fecha y presupuesto. Si el cliente también reporta un pago, el aviso de pago sigue llegando por separado.',
+      '📅 En el catálogo individual, después de elegir tu experiencia puedes ir directo a elegir fecha y añadir extras desde el resumen.',
+      '🩺 Agenda cuenta las visitas marcadas como realizadas en la ficha del programa sin cerrar sus citas ni órdenes.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -12382,6 +12391,11 @@ setTimeout(function(){
   function serviciosDeDias(dias){ return [].concat(...(dias||[]).map(d=>JSON.parse(JSON.stringify(d.servicios||[])))); }
   // Cita de un día del programa (la vigente; si solo hay canceladas, la última).
   function citaDeDia(a, n){ const l = (state.agenda.reservas||[]).filter(x=>x.programaId===a.id && x.diaN===n); return l.find(x=>x.estado!=='Cancelada') || l[0] || null; }
+  // La ficha confirma la visita; el estado de la cita sigue controlando la operación.
+  function diaRealizadoEnFicha(ficha, cita, n){
+    return !!(ficha && cita && cita.estado !== 'Cancelada' && cita.fecha && (ficha.dias||[]).some(d=>
+      Number(d.dia) === Number(n) && d.estado === 'realizada' && String(d.fecha) === String(cita.fecha)));
+  }
   function infoPrograma(r){
     if(!r.programaId) return null;
     const a = (state.agenda.reservas||[]).find(x=>x.id===r.programaId); const def = a && a.programa;
@@ -12395,8 +12409,8 @@ setTimeout(function(){
     const activos = state.staff.filter(s=>s.activo);
     const paqsDias = (state.agenda.paquetes||[]).filter(p=>p.activo && (p.dias||[]).length);
     const ab = A.pgAbierto || '';
-    const filaDia = (a, d)=>{
-      const c = citaDeDia(a, d.n); const act = c && c.estado!=='Cancelada';
+    const filaDia = (a, d, c, realizadaEnFicha)=>{
+      const act = c && c.estado!=='Cancelada';
       const clave = a.id + '|' + d.n;
       const abierto = ab.indexOf(clave + '|')===0 ? ab.split('|')[2] : '';
       const profs = c ? (c.profesionales||[]).map(id=>nombreStaff(id)).join(', ') : '';
@@ -12420,19 +12434,21 @@ setTimeout(function(){
       return `<div style="border-top:1px solid var(--line);padding:8px 0">
         <div style="font-weight:600;font-size:14px">Día ${d.n}${d.titulo && d.titulo!=='Día '+d.n ? ' · ' + esc(d.titulo) : ''}</div>
         <div class="ag-muted" style="font-size:12.5px">${esc(((d.servicios||[]).map(s=>(s.cantidad>1?s.cantidad+'× ':'')+(s.mostrar||s.servicio)+(s.varianteNombre?' ('+s.varianteNombre+')':'')).join(', ')) || 'Sin servicios')}${(d.comidas||[]).length?' · 🍽️ '+esc(d.comidas.map(c=>c.cantidad+'× '+c.nombre).join(', ')):''}${d.notas?' · 📝 '+esc(d.notas):''}</div>
-        <div style="font-size:12.5px;margin-top:3px">${estado}</div>
+        <div style="font-size:12.5px;margin-top:3px">${estado}${realizadaEnFicha && c.estado!=='Completada' ? ' <span class="ag-badge" style="background:#e2f4e6;color:#1d6b35">✓ Realizada según ficha</span>' : ''}</div>
         <div class="ag-row" style="gap:6px;flex-wrap:wrap;margin-top:5px">${botones}</div>${panel}</div>`;
     };
     const tarjeta = a=>{
       const def = a.programa; const sp = saldoReserva(a);
-      const hechos = def.dias.filter(d=>{ const c = citaDeDia(a, d.n); return c && c.estado==='Completada'; }).length;
+      const ficha = a.fichaId && (state.fichas||[]).find(f=>f.id===a.fichaId && f.clienteId===a.clienteId && f.programaId===a.id);
+      const dias = def.dias.map(d=>{ const cita = citaDeDia(a, d.n); return { d, cita, realizadaEnFicha:diaRealizadoEnFicha(ficha, cita, d.n) }; });
+      const hechos = new Set(dias.filter(x=>x.realizadaEnFicha || (x.cita && x.cita.estado==='Completada')).map(x=>Number(x.d.n))).size;
       return `<div class="ag-card" style="margin-top:10px">
         <div style="display:flex;justify-content:space-between;gap:8px"><div><strong>📅 ${esc(def.nombre)}</strong><div class="ag-muted" style="font-size:12.5px">👤 ${esc(a.clienteNombre)} · ${def.dias.length} días · ${hechos} realizado${hechos===1?'':'s'}</div></div>
           <div style="text-align:right">${a.montoTotal ? `<span class="ag-badge" style="${sp.saldo<=0.009?'background:#e2f4e6;color:#1d6b35':'background:var(--danger-l);color:var(--danger)'}">${sp.saldo<=0.009?'Pagado':'Debe '+dinero(sp.saldo)}</span><br/><span class="ag-muted" style="font-size:11.5px">Total ${dinero(a.montoTotal)}</span>` : ''}</div></div>
         <div class="ag-row" style="gap:6px;flex-wrap:wrap;margin-top:6px"><button type="button" class="ag-btn sm ghost" data-pg-pagos="${esc(a.id)}">💵 Pagos del programa</button>
           ${a.fichaId ? `<button type="button" class="ag-btn sm" data-pg-ficha="${esc(a.fichaId)}|${esc(a.clienteId)}">📄 Abrir la ficha del programa</button>` : ''}</div>
         <div class="ag-muted" style="font-size:11.5px;margin-top:2px">${esc(TIPOS_PROGRAMA[def.tipo]||TIPOS_PROGRAMA.reductivo)}</div>
-        ${def.dias.map(d=>filaDia(a, d)).join('')}
+        ${dias.map(x=>filaDia(a, x.d, x.cita, x.realizadaEnFicha)).join('')}
       </div>`;
     };
     body.innerHTML = `
