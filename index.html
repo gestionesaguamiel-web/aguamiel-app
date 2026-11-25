@@ -1336,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v399' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v400' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10395,7 +10395,9 @@ setTimeout(function(){
       '📅 En el catálogo individual, después de elegir tu experiencia puedes ir directo a elegir fecha y añadir extras desde el resumen.',
       '🩺 Agenda cuenta las visitas marcadas como realizadas en la ficha del programa sin cerrar sus citas ni órdenes.' ] },
     { v:399, fecha:'25 nov', titulo:'🩺 Procedimientos de fisioterapia por visita', puntos:[
-      'En el seguimiento diario de rehabilitación puedes elegir los procedimientos realizados, incluidas las técnicas del plan de ese día. Marca solo lo que se hizo durante la visita.' ] }
+      'En el seguimiento diario de rehabilitación puedes elegir los procedimientos realizados, incluidas las técnicas del plan de ese día. Marca solo lo que se hizo durante la visita.' ] },
+    { v:400, fecha:'25 nov', titulo:'Reservas desde el catálogo', puntos:[
+      'Consulta los servicios y precios antes de escribir tus datos. Revisa el total y deja tu nombre y teléfono al enviar la solicitud.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
