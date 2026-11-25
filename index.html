@@ -1336,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v398' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v399' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -4426,11 +4426,21 @@ setTimeout(function(){
     return '';
   }
 
+  function procedimientosFisioDia(programa, dia, previo){
+    const def = programa && (programa.dias||[]).find(d=>Number(d.n)===Number(dia));
+    const previstos = def ? (def.servicios||[]).filter(s=>s.tipoFicha==='fisiatria' || s.categoria==='Fisioterapia y rehabilitación' || (programa.tipo==='fisiatria' && s.nuevo))
+      .map(terapiaDeServicio) : [];
+    const plan = (previo.planOriginal && previo.planOriginal.terapias) || [];
+    const guardados = Array.isArray(previo.terapias) ? previo.terapias : [];
+    return [...new Set(DIA_FISIO.concat(OTRAS_FISIO, previstos, Array.isArray(plan) ? plan : [], guardados).filter(Boolean))];
+  }
+
   // diasExistentes: al editar una ficha, se recrean todos sus días ya
   // guardados (fecha, TA, terapias y comentario) para poder modificarlos.
   function wireDynamic(container, t, diasExistentes, programaId){
     if(t==='reductivo' || t==='fisiatria'){
-      const list = t==='reductivo' ? DIA_REDUCTIVO : DIA_FISIO;
+      const a = programaId && state.agenda && (state.agenda.reservas||[]).find(r=>r.id===programaId);
+      const programa = a && a.programa;
       const diasWrap = container.querySelector('#fx-dias');
       let count = 0;
       let ultimoDiaPrograma = programaId ? (diasExistentes||[]).reduce((max, d)=>Math.max(max, Number(d.dia)||0), 0) : 0;
@@ -4439,7 +4449,8 @@ setTimeout(function(){
         count++; const n = count;
         const diaFicha = programaId ? (Number(pre.dia) || ++ultimoDiaPrograma) : n;
         const selTerapias = Array.isArray(pre.terapias) ? pre.terapias : [];
-        const opciones = list.concat(selTerapias.filter(x=>!list.includes(x)));
+        const opciones = t==='fisiatria' ? procedimientosFisioDia(programa, diaFicha, pre)
+          : DIA_REDUCTIVO.concat(selTerapias.filter(x=>!DIA_REDUCTIVO.includes(x)));
         const taPartes = String(pre.ta||'').split('/');
         const fechaISO = toISODate(pre.fecha);
         const div = document.createElement('div'); div.className='ag-day'; div.dataset.dia=n;
@@ -4451,7 +4462,7 @@ setTimeout(function(){
           <input type="date" data-dia-fecha value="${esc(fechaISO)}"/>
           <label class="f">Tensión arterial</label>
           <div class="ag-ta-wrap ag-ta-split" style="width:120px"><input placeholder="120" inputmode="numeric" maxlength="3" data-dia-ta-sis value="${esc(pre.ta?(taPartes[0]||''):'')}"/><span class="ag-ta-slash">/</span><input placeholder="80" inputmode="numeric" maxlength="3" data-dia-ta-dia value="${esc(pre.ta?(taPartes[1]||''):'')}"/></div>
-          <div style="margin-top:8px">${checklist('dia'+n, opciones, selTerapias)}</div>
+          <div style="margin-top:8px">${t==='fisiatria' ? '<label class="f">Procedimientos de fisioterapia realizados</label><p class="ag-muted" style="font-size:12px;margin:2px 0 6px">Marca solo lo que hiciste en esta visita.</p>' : ''}${checklist('dia'+n, opciones, selTerapias)}</div>
           <label class="f">Comentario del día (opcional)</label>
           <textarea data-dia-comentario placeholder="Observaciones de esta sesión…">${esc(pre.comentario||'')}</textarea>`;
         diasWrap.appendChild(div);
@@ -4808,7 +4819,7 @@ setTimeout(function(){
       if(!dias || !dias.length) return '<p style="font-size:12px;color:#666">Sin seguimiento diario registrado.</p>';
       let head = '<tr><th>Terapia</th>' + dias.map(dd=>`<th>D${esc(dd.dia)}<br>${esc(dd.fecha||'')}</th>`).join('') + '</tr>';
       let taRow = '<tr><td class="pf-tname"><em>TA (mm/hg)</em></td>' + dias.map(dd=>`<td>${esc(dd.ta||'—')}</td>`).join('') + '</tr>';
-      let rows = list.map(t=>'<tr><td class="pf-tname">'+esc(t)+'</td>' + dias.map(dd=>`<td>${(dd.terapias||[]).includes(t)?'✓':''}</td>`).join('') + '</tr>').join('');
+      let rows = [...new Set(list.concat(...dias.map(dd=>dd.terapias||[])))].map(t=>'<tr><td class="pf-tname">'+esc(t)+'</td>' + dias.map(dd=>`<td>${(dd.terapias||[]).includes(t)?'✓':''}</td>`).join('') + '</tr>').join('');
       return `<table class="pf-table">${head}${taRow}${rows}</table>`;
     }
     let header = `
@@ -9681,7 +9692,7 @@ setTimeout(function(){
         // El servidor enlaza el presupuesto (queda Aceptado y sus abonos pasan a la reserva).
         if(pre && pre.presupuestoId) state.presupuestos = null;
         A.prefill = null;
-        // Programa por días: se creó la ficha del cliente con los procedimientos de cada día marcados.
+        // Programa por días: se creó la ficha del cliente para el seguimiento de cada visita.
         if(saved.fichaNueva){ actualizarFichaLocal(saved.fichaNueva); A.fichaProg = saved.fichaNueva; } else A.fichaProg = null;
         A.avisosAuto = saved.avisosAuto || [];
         // Al editar, a las profesionales solo se les avisa si cambió el día o la hora (o si se asignó o quitó a alguien).
@@ -10382,7 +10393,9 @@ setTimeout(function(){
     { v:398, fecha:'25 nov', titulo:'🔔 Un solo aviso por solicitud de reserva', puntos:[
       '📝 La solicitud llega a administración con su fecha y presupuesto. Si el cliente también reporta un pago, el aviso de pago sigue llegando por separado.',
       '📅 En el catálogo individual, después de elegir tu experiencia puedes ir directo a elegir fecha y añadir extras desde el resumen.',
-      '🩺 Agenda cuenta las visitas marcadas como realizadas en la ficha del programa sin cerrar sus citas ni órdenes.' ] }
+      '🩺 Agenda cuenta las visitas marcadas como realizadas en la ficha del programa sin cerrar sus citas ni órdenes.' ] },
+    { v:399, fecha:'25 nov', titulo:'🩺 Procedimientos de fisioterapia por visita', puntos:[
+      'En el seguimiento diario de rehabilitación puedes elegir los procedimientos realizados, incluidas las técnicas del plan de ese día. Marca solo lo que se hizo durante la visita.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -11486,7 +11499,7 @@ setTimeout(function(){
           return `<div class="ag-list-item" style="justify-content:space-between;gap:8px"><div><strong>${esc(s.nombre)}</strong><div class="ag-muted" style="font-size:12px">${esc(s.cargo||'')}</div>${au ? (au.enviado ? '<div style="font-size:12px;color:#1d6b35">✅ Enviado automáticamente' + (s.conTelegram ? ' por Telegram' : '') + '</div>' : '<div style="font-size:12px;color:var(--danger)">No se pudo enviar automático' + ((s.waAuto || s.conTelegram || s.conCorreo) ? '' : ' (no tiene Telegram ni WhatsApp automático activado)') + ': envíalo tú</div>') : ''}</div>
             ${link ? `<a class="ag-btn sm" href="${esc(link)}" target="_blank" rel="noopener" style="text-decoration:none">📱 Enviar WhatsApp</a>` : '<span class="ag-muted" style="font-size:12px">Sin teléfono: agrégalo en Staff → 📞</span>'}</div>`; }).join('')}
         <details style="margin-top:8px"><summary class="ag-muted" style="font-size:12px">Ver el mensaje${esIndividual(r)||r.profesionales.length>1?' (cada una recibe el suyo)':''}</summary>${r.profesionales.map(id=>{ const s = state.staff.find(x=>String(x.id)===String(id)); return s ? `<div class="ag-sec-h" style="margin-top:6px">${esc(s.nombre)}</div><pre style="white-space:pre-wrap;font-size:12px">${esc(mensajeProfesional(r, tipo, s))}</pre>` : ''; }).join('')}</details>
-        ${A.fichaProg && A.fichaProg.programaId===r.id ? `<div style="background:var(--teal-l);border-radius:10px;padding:10px;margin-top:10px"><strong>📄 Se creó la ficha del programa</strong><div style="font-size:12.5px;margin:2px 0 6px">Ya trae los procedimientos de cada día marcados. Ábrela para completar los datos de ${esc(r.clienteNombre)}.</div><button class="ag-btn" id="av-ficha" style="width:100%">📄 Abrir la ficha del programa</button></div>` : ''}
+        ${A.fichaProg && A.fichaProg.programaId===r.id ? `<div style="background:var(--teal-l);border-radius:10px;padding:10px;margin-top:10px"><strong>📄 Se creó la ficha del programa</strong><div style="font-size:12.5px;margin:2px 0 6px">${A.fichaProg.tipo==='fisiatria' ? 'Ábrela para registrar los procedimientos realizados en cada visita de ' : 'Ábrela para completar los datos de '}${esc(r.clienteNombre)}.</div><button class="ag-btn" id="av-ficha" style="width:100%">📄 Abrir la ficha del programa</button></div>` : ''}
         ${tipo==='nueva'||tipo==='cambio'||tipo==='pospuesta' ? '<button class="ag-btn ghost" id="av-cliente" style="width:100%;margin-top:10px">💌 Enviar también el mensaje al cliente</button>' : ''}
         <button class="ag-btn ghost" id="av-listo" style="width:100%;margin-top:10px">Listo, volver a la agenda</button>
       </div>`;
@@ -12377,12 +12390,12 @@ setTimeout(function(){
     state.tab = 'clientes'; state.selClienteId = clienteId; state.selFichaId = fichaId || null; state.editing = false; state.informeMode = false; state.editFichaMeta = false; render();
   }
   function actualizarFichaLocal(f){ if(!f || !f.id) return; const i = state.fichas.findIndex(x=>x.id===f.id); if(i > -1) state.fichas[i] = f; else state.fichas.push(f); }
-  // Una cita de un programa por días: en lugar de crear otra ficha, se abre la del programa (ya trae los procedimientos de cada día).
+  // Una cita de un programa por días abre la ficha compartida para registrar lo realizado.
   function atenderPrograma(r){
     if(!(r && r.programaId && r.fichaId)) return false;
     avisarInicioAtencion(r, null);
     abrirFichaCliente(r.clienteId, r.fichaId);
-    toast('Ficha del programa: usa ✏️ Editar ficha y anota lo realizado hoy (Día ' + r.diaN + ').');
+    toast('Usa ✏️ Editar ficha y marca los procedimientos realizados en el Día ' + r.diaN + '.');
     return true;
   }
   function resumenDias(dias){ return (dias||[]).map(d=>d.titulo + ': ' + (((d.servicios||[]).map(s=>s.mostrar||s.servicio)).concat((d.comidas||[]).map(c=>'🍽️ '+c.nombre)).join(', ') || '—')).join(' · '); }
