@@ -1336,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v400' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v401' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -9069,6 +9069,7 @@ setTimeout(function(){
         const asignada = admin || r.profesionales.map(String).includes(String(state.user.id));
         const esDia = r.fecha <= hoy;
         const sp = admin ? saldoReserva(r) : null;
+        const visitaIncluida = !!(r.programaId && r.programaId !== r.id);
         return cab + `
         <div class="ag-list-item" style="flex-direction:column;align-items:stretch;gap:6px">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
@@ -9113,7 +9114,8 @@ setTimeout(function(){
               <button class="ag-btn sm ghost" data-ag-recom="${r.id}">🌿 Recomendaciones</button>
               <button class="ag-btn sm ghost" data-ag-regalo="${r.id}">🎁 Mensaje de regalo</button>` : ''}
             ${admin && r.estado==='Completada' ? `<button class="ag-btn sm ghost" data-ag-reabrir="${r.id}" title="Para editarla o completar fichas (p. ej. la del acompañante)">🔓 Reabrir</button>` : ''}
-            ${admin ? `<button class="ag-btn sm ghost" data-ag-pagos="${r.id}">💵 Pagos</button>` : ''}
+            ${admin ? `<button class="ag-btn sm ghost" data-ag-pagos="${visitaIncluida ? esc(r.programaId) : esc(r.id)}">💵 ${r.programaId ? 'Pagos del programa' : 'Pagos'}</button>` : ''}
+            ${admin && visitaIncluida && sp.extra > 0 ? `<button class="ag-btn sm ghost" data-ag-pagos="${esc(r.id)}">💵 Extras de esta visita</button>` : ''}
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ${r.fecha<=hoy?'':'ghost'}" data-ag-saldo="${r.id}">💬 Recordar saldo</button>` : ''}
             ${admin && sp && r.montoTotal && sp.saldo>0.009 && r.estado!=='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-datospago="${r.id}">💳 Enviar datos de pago</button>` : ''}
             ${admin && r.estado==='Cancelada' ? `<button class="ag-btn sm ghost" data-ag-avisar="${r.id}">📱 Avisar cancelación</button>` : ''}
@@ -10397,7 +10399,10 @@ setTimeout(function(){
     { v:399, fecha:'25 nov', titulo:'🩺 Procedimientos de fisioterapia por visita', puntos:[
       'En el seguimiento diario de rehabilitación puedes elegir los procedimientos realizados, incluidas las técnicas del plan de ese día. Marca solo lo que se hizo durante la visita.' ] },
     { v:400, fecha:'25 nov', titulo:'Reservas desde el catálogo', puntos:[
-      'Consulta los servicios y precios antes de escribir tus datos. Revisa el total y deja tu nombre y teléfono al enviar la solicitud.' ] }
+      'Consulta los servicios y precios antes de escribir tus datos. Revisa el total y deja tu nombre y teléfono al enviar la solicitud.' ] },
+    { v:401, fecha:'26 nov', titulo:'Pagos de programas y visitas del catálogo', puntos:[
+      'Aguamiel avisa cuando un pago coincide con otro ya registrado. Los abonos del paquete se registran en Pagos del programa.',
+      'En Enlace público puedes ver las visitas y las solicitudes del día. Las visitas se cuentan sin pedir datos de contacto.' ] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -11723,22 +11728,41 @@ setTimeout(function(){
     };
   }
 
+  async function confirmarPagoCoincidente(enviar){
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const control = { intento:Array.from(bytes, x=>x.toString(16).padStart(2,'0')).join('') };
+    while(true){
+      try{ return await enviar(control); }
+      catch(e){
+        const m = String(e && e.message || e).match(/PAGO_COINCIDENTE=(\d+)/);
+        if(!m) throw e;
+        if(!confirm('Posible movimiento duplicado. Ya hay un pago por el mismo importe y con la misma forma de pago en una fecha igual o cercana.\n\n¿Confirmas que recibiste otro pago distinto?')) return null;
+        control.confirmarCoincidencias = Number(m[1]);
+      }
+    }
+  }
   function renderPagosReserva(body){
     const A = state.ag;
     const r = state.agenda.reservas.find(x=>x.id===A.editId);
     if(!r || !state.user.admin){ A.vista='lista'; return renderAgenda(body); }
     const sp = saldoReserva(r);
+    const visitaIncluida = !!(r.programaId && r.programaId !== r.id);
+    if(visitaIncluida && !(sp.extra > 0)){
+      const cuenta = state.agenda.reservas.find(x=>x.id===r.programaId);
+      if(cuenta){ A.editId = cuenta.id; return renderPagosReserva(body); }
+      A.vista = 'lista'; return renderAgenda(body);
+    }
     body.innerHTML = `
       <button class="ag-btn ghost sm" id="pg-volver">← Volver a la agenda</button>
       <div class="ag-card" style="margin-top:10px">
-        <h3>💵 Pagos de la reserva</h3>
+        <h3>💵 ${visitaIncluida ? 'Extras de esta visita' : (r.programaId ? 'Pagos del programa' : 'Pagos de la reserva')}</h3>
         <p class="ag-muted">${esc(r.clienteNombre)} · ${esc(isoToDMY(r.fecha))} ${esc(r.hora)}${r.paqueteNombre?' · '+esc(r.paqueteNombre):''}</p>
         <div class="ag-row" style="margin-top:8px;text-align:center">
           <div><span class="ag-muted">Total</span><br/><strong>${dinero(sp.total)}</strong>${sp.extra?`<br/><span class="ag-muted" style="font-size:11px">reserva ${dinero(r.montoTotal)} + Rosita ${dinero(sp.extra)}</span>`:''}</div>
           <div><span class="ag-muted">Abonado</span><br/><strong style="color:#1d6b35">${dinero(sp.pagado)}</strong></div>
           <div><span class="ag-muted">Saldo</span><br/><strong style="color:${sp.saldo>0?'var(--danger)':'#1d6b35'}">${dinero(Math.max(sp.saldo,0))}</strong></div>
         </div>
-        ${!r.montoTotal?'<p class="ag-muted" style="font-size:12px">Esta reserva no tiene monto total. Puedes ponerlo con ✏️ Editar.</p>':''}
+        ${visitaIncluida ? '<p class="ag-muted" style="font-size:12px">La sesión se cobra en la cuenta del programa. Aquí se registran solamente los extras de esta visita.</p>' : (!r.montoTotal ? '<p class="ag-muted" style="font-size:12px">Esta reserva no tiene monto total. Puedes ponerlo con ✏️ Editar.</p>' : '')}
         ${(r.cargos||[]).length ? `<div class="ag-sec-h" style="margin-top:12px">🍽️ Consumos de Rosita en esta cuenta</div>
           ${r.cargos.map(c=>`<div class="ag-list-item" style="justify-content:space-between;gap:8px"><div>Recibo ${esc(c.numeroRecibo)}<div class="ag-muted" style="font-size:12px">${c.monto?'extras fuera del paquete':'todo incluido en el paquete'}</div></div><strong>${dinero(c.monto)}</strong></div>`).join('')}` : ''}
         ${r.presupuestoId ? `<div class="ag-sec-h" style="margin-top:12px">🧾 Pago reportado por el cliente</div>
@@ -11774,7 +11798,7 @@ setTimeout(function(){
             const rr = prompt('¿Qué monto confirmas que recibiste de esta persona ($)?\n\nDéjalo en 0 si todavía no lo ves en tu banco.', String(b.dataset.monto || '0')); if(rr === null) return;
             const monto = numPrecio(rr); if(!montoRazonable(monto, b.dataset.monto)) return;
             b.disabled = true; b.textContent = 'Verificando…';
-            try{ await gs('verificarPagoPersona', d.presupuestoId, b.dataset.gpOk, monto, auth()); state.pagosPend = (state.pagosPend||[]).filter(x=>!(x.id===d.presupuestoId && x.key===b.dataset.gpOk)); toast('Pago verificado' + (monto > 0 ? ' y abono de ' + dinero(monto) + ' registrado.' : '.')); await cargarAgenda(); render(); }
+            try{ const res = await confirmarPagoCoincidente(c=>gs('verificarPagoPersona', d.presupuestoId, b.dataset.gpOk, monto, auth(), c)); if(!res){ b.disabled = false; b.textContent = '✅ Verificar y registrar abono'; return; } state.pagosPend = (state.pagosPend||[]).filter(x=>!(x.id===d.presupuestoId && x.key===b.dataset.gpOk)); toast('Pago verificado' + (monto > 0 ? ' y abono de ' + dinero(monto) + ' registrado.' : '.')); await cargarAgenda(); render(); }
             catch(e2){ alert('No se pudo verificar: ' + (e2 && e2.message ? e2.message : e2)); b.disabled = false; b.textContent = '✅ Verificar y registrar abono'; }
           });
           return;
@@ -11791,7 +11815,7 @@ setTimeout(function(){
       const mon = leerMonPg(), pago = { fecha: val('pg-fecha'), monto: val('pg-monto'), metodo: val('pg-metodo'), nota: val('pg-nota').trim(), moneda: mon.moneda, tasa: mon.tasa };
       if(!abonoValido(pago.monto, mon, Number(sp.total) || 0, sp.saldo, r.pagoPct, pago.metodo)) return;
       const btnPg = body.querySelector('#pg-agregar'); btnPg.disabled = true; btnPg.textContent = 'Registrando…';   // 🛡️ v396: sin esto, un doble toque cargaba el abono dos veces
-      try{ Object.assign(r, await gs('registrarPagoReserva', r.id, pago, auth())); render(); toast('Abono registrado.'); }
+      try{ const res = await confirmarPagoCoincidente(c=>gs('registrarPagoReserva', r.id, Object.assign({}, pago, c), auth())); if(!res){ btnPg.disabled = false; btnPg.textContent = 'Registrar abono'; return; } Object.assign(r, res); render(); toast('Abono registrado.'); }
       catch(e){ alert('No se pudo registrar: ' + e); btnPg.disabled = false; btnPg.textContent = 'Registrar abono'; }
     };
     body.querySelectorAll('[data-pg-borrar]').forEach(b=>b.onclick=async ()=>{
@@ -13606,7 +13630,8 @@ setTimeout(function(){
     const qr = 'https:' + String.fromCharCode(47, 47) + 'api.qrserver.com/v1/create-qr-code/?size=700x700&margin=16&color=0a5a68&data=' + encodeURIComponent(L.url);
     const R = L.resumen || { servicios:0, paquetes:0, menu:0 };
     const telVer = String(L.waDudas || '').replace(/^58/, '0');
-    body.innerHTML = `${mnVolver('id="ep-volver"', 'Presupuestos')}${mnHero('🌐 Enlace público', 'Para tu página web, Instagram y estados de WhatsApp', [[L.hoy, 'entraron hoy', ['#0a5a68','#e2f4f6']], [L.enviados, 'armaron pedido', ['#1d6b35','#e2f4e6']]])}
+    body.innerHTML = `${mnVolver('id="ep-volver"', 'Presupuestos')}${mnHero('🌐 Enlace público', 'Para tu página web, Instagram y estados de WhatsApp', [[L.visitasHoy || 0, 'visitas de hoy', ['#0a5a68','#e2f4f6']], [L.enviadosHoy || 0, 'solicitudes de hoy', ['#1d6b35','#e2f4e6']]])}
+      <div class="ag-row" style="justify-content:space-between;align-items:center;gap:6px;margin-top:6px"><span class="ag-muted" style="font-size:12px">Las visitas se cuentan sin pedir nombre ni teléfono.</span><button type="button" class="ag-btn sm ghost" id="ep-actualizar">↻ Actualizar</button></div>
       ${!L.guardado ? `<div class="ag-card" style="background:#fff7e6;border-color:#f0d9a8;font-size:14px">👉 <strong>Primer paso:</strong> toca «✏️ Elegir qué ofrece» y guarda. Hasta entonces, quien abra el enlace verá que no está disponible.</div>` : ''}
       <div class="ag-card" style="margin-top:10px">
         <div style="font-weight:700;font-size:15px">🔗 Tu enlace (no vence nunca)</div>
@@ -13633,14 +13658,13 @@ setTimeout(function(){
       </div>
       <details class="ag-card" style="margin-top:10px"><summary style="font-weight:700;cursor:pointer">ℹ️ Cómo funciona</summary>
         <ol style="margin:6px 0 0;padding-left:20px;font-size:13.5px">
-          <li>La persona abre el enlace: «🌿 ¡Bienvenido a Aguamiel!» y escribe su nombre, teléfono y cédula, y si prefiere WhatsApp o llamada.</li>
-          <li>Desde ahí la app la llama por su nombre y sigue el catálogo de siempre: elige, indica el día y envía.</li>
-          <li>Te llega el aviso: «✅ Ya es cliente: …» o «🆕 Cliente nuevo». Su presupuesto aparece aquí, en Presupuestos, con la cédula.</li>
-          <li>La ficha nueva se crea al convertir el presupuesto en reserva, con el mismo chequeo de cédula de siempre (sin duplicados).</li>
-          <li>🔒 El enlace nunca muestra datos de nadie, ni gotas ni sellos. Un mismo teléfono puede enviar hasta 3 solicitudes al día.</li>
+          <li>Al abrir el catálogo se cuenta una visita por navegador y día. La persona puede ver servicios y precios sin identificarse.</li>
+          <li>Si quiere solicitar una reserva, elige qué quiere, revisa el total y deja su nombre y teléfono al final.</li>
+          <li>Al enviar la solicitud te llega el aviso y se crea el presupuesto. La ficha nueva se crea al convertirlo en reserva.</li>
         </ol></details>`;
     const q = s=>body.querySelector(s);
     q('#ep-volver').onclick = volver;
+    q('#ep-actualizar').onclick = ()=>{ P.pub = null; render(); };
     q('#ep-copiar').onclick = ()=>{ try{ navigator.clipboard.writeText(L.url).then(()=>toast('📋 Enlace copiado'), ()=>prompt('Copia el enlace:', L.url)); }catch(e){ prompt('Copia el enlace:', L.url); } };
     q('#ep-compartir').onclick = ()=>{ const t = '🌿 ¡Reserva tu experiencia en Aguamiel · Centro de Bienestar! 💆‍♀️🍽️'; if(navigator.share) navigator.share({ title:'Aguamiel', text:t, url:L.url }).catch(()=>{}); else window.open('https:' + String.fromCharCode(47, 47) + 'wa.me/?text=' + encodeURIComponent(t + '\n' + L.url), '_blank', 'noopener'); };
     q('#ep-probar').onclick = ()=>window.open(L.url, '_blank', 'noopener');
@@ -15007,7 +15031,7 @@ setTimeout(function(){
       const mon = leerMonPv(), pago = { fecha: val('pv-pfecha'), monto: val('pv-pmonto'), metodo: val('pv-pmetodo'), nota: val('pv-pnota').trim(), moneda: mon.moneda, tasa: mon.tasa };
       if(!abonoValido(pago.monto, mon, Number(p.montoCobrar !== undefined ? p.montoCobrar : p.total) || 0, p.saldo, p.pagoPct, pago.metodo)) return;
       const btn = body.querySelector('#pv-pagregar'); btn.disabled = true; btn.textContent = 'Registrando…';
-      try{ aplicarPresupuesto(p, await gs('registrarPagoPresupuesto', p.id, pago, auth())); state.agenda = null; render(); toast('Abono registrado.'); }
+      try{ const res = await confirmarPagoCoincidente(c=>gs('registrarPagoPresupuesto', p.id, Object.assign({}, pago, c), auth())); if(!res){ btn.disabled = false; btn.textContent = 'Registrar abono'; return; } aplicarPresupuesto(p, res); state.agenda = null; render(); toast('Abono registrado.'); }
       catch(e){ alert('No se pudo registrar: ' + e); btn.disabled=false; btn.textContent='Registrar abono'; }
     };
     body.querySelectorAll('[data-pv-borrarpago]').forEach(b=>b.onclick=async ()=>{
@@ -15029,7 +15053,9 @@ setTimeout(function(){
       const monto = numPrecio(rr); if(!montoRazonable(monto, b.dataset.monto)) return;
       b.disabled = true; b.textContent = 'Verificando…';
       try{
-        aplicarPresupuesto(p, await gs('verificarPagoPersona', p.id, b.dataset.pgOk, monto, auth())); state.agenda = null;
+        const res = await confirmarPagoCoincidente(c=>gs('verificarPagoPersona', p.id, b.dataset.pgOk, monto, auth(), c));
+        if(!res){ b.disabled = false; b.textContent = '✅ Verificar y registrar abono'; return; }
+        aplicarPresupuesto(p, res); state.agenda = null;
         state.pagosPend = (state.pagosPend||[]).filter(x=>!(x.id === p.id && x.key === b.dataset.pgOk));
         toast('Pago de ' + (pe.nombre || 'la persona') + ' verificado' + (monto > 0 ? ' y abono de ' + dinero(monto) + ' registrado.' : '.'));
         render();
@@ -15050,7 +15076,9 @@ setTimeout(function(){
       if(!montoRazonable(monto, sug)) return;
       bve.disabled = true; bve.textContent = 'Verificando…';
       try{
-        aplicarPresupuesto(p, await gs('verificarSolicitudPago', p.id, monto, auth())); state.agenda = null;
+        const res = await confirmarPagoCoincidente(c=>gs('verificarSolicitudPago', p.id, monto, auth(), c));
+        if(!res){ bve.disabled = false; bve.textContent = '✅ Verificar solicitud y pago, y agendar la reserva'; return; }
+        aplicarPresupuesto(p, res); state.agenda = null;
         state.pagosPend = (state.pagosPend||[]).filter(x=>x.id!==p.id);
         toast('Solicitud verificada' + (monto > 0 ? ' y abono de ' + dinero(monto) + ' registrado.' : '.') + ' Ahora asigna a los fisioterapeutas.');
         render();
