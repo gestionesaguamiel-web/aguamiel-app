@@ -1336,7 +1336,7 @@ setTimeout(function(){
   // ---------- Registro silencioso de fallos ----------
   // Cuando algo falla, se congela la pantalla o el servidor tarda mucho, se anota (sin molestar) en la hoja
   // "ErroresApp" con el teléfono y la pantalla donde ocurrió. Sirve para encontrar y corregir el origen.
-  const FALLAS = { enviadas:0, ultimas:{}, version: 'v401' };
+  const FALLAS = { enviadas:0, ultimas:{}, version: 'v402' };
   function reportarFalla(tipo, err, extra){
     try{
       if(!state || !state.user || state.prueba || FALLAS.enviadas >= 12) return;
@@ -10402,7 +10402,8 @@ setTimeout(function(){
       'Consulta los servicios y precios antes de escribir tus datos. Revisa el total y deja tu nombre y teléfono al enviar la solicitud.' ] },
     { v:401, fecha:'26 nov', titulo:'Pagos de programas y visitas del catálogo', puntos:[
       'Aguamiel avisa cuando un pago coincide con otro ya registrado. Los abonos del paquete se registran en Pagos del programa.',
-      'En Enlace público puedes ver las visitas y las solicitudes del día. Las visitas se cuentan sin pedir datos de contacto.' ] }
+      'En Enlace público puedes ver las visitas y las solicitudes del día. Las visitas se cuentan sin pedir datos de contacto.' ] },
+    { v:402, fecha:'26 nov', titulo:'Asistente de catálogo de prueba', puntos:['Ensaya desde Admin → Presupuestos → Enlace público.'] }
   ];
   // ---------- 📚 v367: Mural educativo (videos, publicaciones y estudios para las fisioterapeutas) ----------
   // Al entrar, quien no es administración ni cocina ve en una ventana lo que aún no marcó como visto. La ✕ y «Ver luego» lo dejan
@@ -13629,6 +13630,7 @@ setTimeout(function(){
     }
     const qr = 'https:' + String.fromCharCode(47, 47) + 'api.qrserver.com/v1/create-qr-code/?size=700x700&margin=16&color=0a5a68&data=' + encodeURIComponent(L.url);
     const R = L.resumen || { servicios:0, paquetes:0, menu:0 };
+    if(!L.urlPrueba && window.AG_WEB) L.urlPrueba = new URL('catalogo-prueba/', location.href).href;
     const telVer = String(L.waDudas || '').replace(/^58/, '0');
     body.innerHTML = `${mnVolver('id="ep-volver"', 'Presupuestos')}${mnHero('🌐 Enlace público', 'Para tu página web, Instagram y estados de WhatsApp', [[L.visitasHoy || 0, 'visitas de hoy', ['#0a5a68','#e2f4f6']], [L.enviadosHoy || 0, 'solicitudes de hoy', ['#1d6b35','#e2f4e6']]])}
       <div class="ag-row" style="justify-content:space-between;align-items:center;gap:6px;margin-top:6px"><span class="ag-muted" style="font-size:12px">Las visitas se cuentan sin pedir nombre ni teléfono.</span><button type="button" class="ag-btn sm ghost" id="ep-actualizar">↻ Actualizar</button></div>
@@ -13639,6 +13641,11 @@ setTimeout(function(){
         <div class="ag-row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="ag-btn sm" id="ep-copiar">📋 Copiar</button><button type="button" class="ag-btn sm ghost" id="ep-compartir">📤 Compartir</button><button type="button" class="ag-btn sm ghost" id="ep-probar">👁️ Probarlo</button></div>
         <label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14.5px;font-weight:700"><input type="checkbox" id="ep-activo" style="width:auto" ${L.activo ? 'checked' : ''} ${L.guardado ? '' : 'disabled'}/> ${L.activo ? '🟢 Encendido: recibe solicitudes' : '⚪ Apagado: muestra «escríbenos por WhatsApp»'}</label>
       </div>
+      ${L.urlPrueba ? `<div class="ag-card" style="margin-top:10px">
+        <div style="font-weight:700;font-size:15px">🧪 Prueba del asistente de catálogo</div>
+        <p class="ag-muted" style="font-size:13px">Ensaya la selección, la solicitud y el paso a WhatsApp con datos ficticios. Puedes abrir este enlace en tu teléfono.</p>
+        <div class="ag-row" style="gap:6px;flex-wrap:wrap"><a class="ag-btn sm" id="ep-abrir-prueba" href="${esc(L.urlPrueba)}" target="_blank" rel="noopener">Abrir catálogo de prueba</a><button type="button" class="ag-btn sm ghost" id="ep-copiar-prueba">Copiar enlace de prueba</button></div>
+      </div>` : ''}
       <div class="ag-card" style="margin-top:10px;text-align:center">
         <div style="font-weight:700;font-size:15px;text-align:left">🔳 Código QR</div>
         <div class="ag-muted" style="font-size:12.5px;text-align:left">Para imprimir en la recepción, en afiches o en tus historias.</div>
@@ -13668,6 +13675,11 @@ setTimeout(function(){
     q('#ep-copiar').onclick = ()=>{ try{ navigator.clipboard.writeText(L.url).then(()=>toast('📋 Enlace copiado'), ()=>prompt('Copia el enlace:', L.url)); }catch(e){ prompt('Copia el enlace:', L.url); } };
     q('#ep-compartir').onclick = ()=>{ const t = '🌿 ¡Reserva tu experiencia en Aguamiel · Centro de Bienestar! 💆‍♀️🍽️'; if(navigator.share) navigator.share({ title:'Aguamiel', text:t, url:L.url }).catch(()=>{}); else window.open('https:' + String.fromCharCode(47, 47) + 'wa.me/?text=' + encodeURIComponent(t + '\n' + L.url), '_blank', 'noopener'); };
     q('#ep-probar').onclick = ()=>window.open(L.url, '_blank', 'noopener');
+    const copiarPrueba = q('#ep-copiar-prueba');
+    if(copiarPrueba) copiarPrueba.onclick = async ()=>{
+      try{ await navigator.clipboard.writeText(L.urlPrueba); toast('Enlace de prueba copiado'); }
+      catch(e){ prompt('Copia el enlace de prueba', L.urlPrueba); }
+    };
     q('#ep-qr').onclick = ()=>window.open(qr.replace('size=700x700', 'size=1200x1200'), '_blank', 'noopener');
     q('#ep-activo').onchange = async e=>{ const on = e.target.checked; e.target.disabled = true;
       try{ P.pub = await gs('setEnlacePublicoActivo', on, auth()); render(); toast(on ? '🟢 Enlace público encendido' : '⚪ Enlace público apagado'); }
