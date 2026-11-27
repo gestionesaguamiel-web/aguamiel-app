@@ -13645,6 +13645,11 @@ setTimeout(function(){
         <div style="font-weight:700;font-size:15px">🧪 Prueba del asistente de catálogo</div>
         <p class="ag-muted" style="font-size:13px">Ensaya la selección, la solicitud y el paso a WhatsApp con datos ficticios. Puedes abrir este enlace en tu teléfono.</p>
         <div class="ag-row" style="gap:6px;flex-wrap:wrap"><a class="ag-btn sm" id="ep-abrir-prueba" href="${esc(L.urlPrueba)}" target="_blank" rel="noopener">Abrir catálogo de prueba</a><button type="button" class="ag-btn sm ghost" id="ep-copiar-prueba">Copiar enlace de prueba</button></div>
+        <details style="margin-top:12px"><summary>Configurar clave de Gemini</summary>
+          <label for="ep-gemini">Clave de Google AI Studio</label>
+          <input id="ep-gemini" type="password" autocomplete="off" spellcheck="false" placeholder="Pega aquí la clave"/>
+          <button type="button" class="ag-btn sm" id="ep-gemini-ok">Guardar clave</button>
+          <span role="status" id="ep-gemini-estado"></span></details>
       </div>` : ''}
       <div class="ag-card" style="margin-top:10px;text-align:center">
         <div style="font-weight:700;font-size:15px;text-align:left">🔳 Código QR</div>
@@ -13676,6 +13681,20 @@ setTimeout(function(){
     q('#ep-compartir').onclick = ()=>{ const t = '🌿 ¡Reserva tu experiencia en Aguamiel · Centro de Bienestar! 💆‍♀️🍽️'; if(navigator.share) navigator.share({ title:'Aguamiel', text:t, url:L.url }).catch(()=>{}); else window.open('https:' + String.fromCharCode(47, 47) + 'wa.me/?text=' + encodeURIComponent(t + '\n' + L.url), '_blank', 'noopener'); };
     q('#ep-probar').onclick = ()=>window.open(L.url, '_blank', 'noopener');
     const copiarPrueba = q('#ep-copiar-prueba');
+    if(q('#ep-gemini-ok')) q('#ep-gemini-ok').onclick = async function(){
+      const campo = q('#ep-gemini'), aviso = q('#ep-gemini-estado');
+      this.disabled = true;
+      try{
+        if(window.AG_WEB){
+          const r = await fetch(window.AG_API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({fn:'configurarGeminiCatalogo',args:[campo.value,auth()]})});
+          const d = await r.json(); if(!d.ok) throw new Error(d.error || 'No se pudo guardar.');
+        } else {
+          await new Promise((ok,fallo)=>google.script.run.withSuccessHandler(ok).withFailureHandler(fallo).configurarGeminiCatalogo(campo.value,auth()));
+        }
+        campo.value=''; aviso.textContent='Clave guardada.';
+      } catch(e){ aviso.textContent=e.message || 'No se pudo guardar.'; }
+      finally {this.disabled=false;}
+    };
     if(copiarPrueba) copiarPrueba.onclick = async ()=>{
       try{ await navigator.clipboard.writeText(L.urlPrueba); toast('Enlace de prueba copiado'); }
       catch(e){ prompt('Copia el enlace de prueba', L.urlPrueba); }
